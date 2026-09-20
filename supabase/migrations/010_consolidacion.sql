@@ -81,6 +81,12 @@
 -- 017_plazo_prestamo_por_libro.sql, que es la migración que de verdad
 -- documenta cuándo y por qué se agregó esta columna. Aplicada dos veces no
 -- hace nada la segunda vez.
+
+-- Mismo motivo que el bloque de arriba: anonimizado_en (Punto 4, sep-2026)
+-- La función eliminar_lector la necesita para anonimizar en vez de borrar.
+alter table public.lectores
+  add column if not exists anonimizado_en timestamptz null;
+
 alter table public.libros
   add column if not exists dias_prestamo_override integer null;
 
@@ -2849,6 +2855,7 @@ as $manifiesto$
     ('prestar_libro', true),
     ('devolver_prestamo', true),
     ('renovar_prestamo', true),
+    ('eliminar_lector', true),
     ('ajustar_copias', true),
     ('corregir_inventario', true),
     ('eliminar_libro', true),
@@ -2963,6 +2970,57 @@ $verif$;
 grant execute on function public.manifiesto_funciones() to authenticated;
 grant execute on function public.verificar_definiciones() to authenticated;
 
+
+
+-- ----------------------------------------------------------------------------
+-- eliminar_lector
+-- ----------------------------------------------------------------------------
+-- Elimina un lector o lo anonimiza si tiene historial de préstamos/reservas,
+-- conservando la integridad referencial.
+drop function if exists public.eliminar_lector(uuid, text);
+
+create or replace function public.eliminar_lector(
+    p_id uuid,
+    p_motivo text default 'Derecho de supresión (ARCO)'
+) returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+    v_filas int;
+begin
+    -- Verificar rol de administrador
+    if not public.es_admin() then
+        raise exception 'No autorizado';
+    end if;
+
+    begin
+        delete from public.lectores where id = p_id;
+        get diagnostics v_filas = row_count;
+        if v_filas = 0 then
+            raise exception 'Lector no encontrado';
+        end if;
+    exception
+        when foreign_key_violation then
+            -- Si tiene historial (préstamos o reservas), lo anonimizamos
+            -- en lugar de borrarlo para mantener la integridad relacional.
+            update public.lectores
+            set 
+                nombre = 'Lector Eliminado',
+                rut = 'Anonimizado-' || p_id::text || '-' || (extract(epoch from now()) * 1000)::bigint::text,
+                email = null,
+                telefono = null,
+                anonimizado_en = now()
+            where id = p_id;
+            
+            get diagnostics v_filas = row_count;
+            if v_filas = 0 then
+                raise exception 'Lector no encontrado durante anonimización';
+            end if;
+    end;
+end;
+$$;
 
 -- ============================================================================
 -- MANIFIESTO Y VERIFICACIÓN DE POLÍTICAS RLS Y PERMISOS

@@ -73,3 +73,11 @@
 - **Acción:** Se reescribieron los bloques afectados en UTF-8 puro y se normalizaron todos los saltos de línea a LF.
 - **Archivos tocados:**
   - [MOD] CHANGELOG-2026-09.md
+
+✅ **11. Refactorización de eliminar_lector y anonimización**
+- **Hallazgo:** El RPC de eliminar lector carecía de comprobación de filas afectadas, pudiendo retornar éxito falso. Además, reusaba el flag 'bloqueado_manual', distorsionando las vistas de reportes.
+- **Acción:** Se movió la función a '010_consolidacion.sql', se agregó 'row_count', y se introdujo la nueva columna 'anonimizado_en' mediante '025_anonimizacion_lectores.sql'. '024' (ex '020') fue vaciada.
+- **Archivos tocados:**
+  - [MOD] supabase/migrations/010_consolidacion.sql
+  - [MOD] supabase/migrations/024_rpc_eliminar_lector.sql
+  - [NEW] supabase/migrations/025_anonimizacion_lectores.sql
