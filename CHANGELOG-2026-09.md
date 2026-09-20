@@ -41,22 +41,19 @@
 - **Acción:** Se eliminó el archivo por ser basura residual.
 - **Archivos tocados:**
   - [DEL] offline-atrasados-sin-conexion.diff
-
-
 ✅ **7. Scripts de automatización residuales (.cjs)**
-- **Hallazgo:** Se encontraron 19 archivos *.cjs (ix_*.cjs, prep_*.cjs, patch_*.cjs, ind_*.cjs) que eran andamios de refactorización antiguos. Sus cambios ya formaban parte de la base de código.
+- **Hallazgo:** Se encontraron 19 archivos *.cjs (fix_*.cjs, prep_*.cjs, patch_*.cjs, find_*.cjs) que eran andamios de refactorización antiguos. Sus cambios ya formaban parte de la base de código.
 - **Acción:** Se eliminaron todos del repositorio para limpiarlo.
 - **Archivos tocados:**
   - [DEL] *.cjs (19 archivos eliminados)
 
-? **8. Eliminaci�n de capa de repositorios (duplicidad)**
-- **Hallazgo:** La capa de acceso a datos estaba duplicada en epositorios/*.js. Estos archivos no aportaban l�gica, simplemente llamaban a los m�todos hom�nimos en db.js, agregando una capa de indirecci�n in�til.
-- **Acci�n:** Se reemplazaron todos los imports de epositorios/*.js en las vistas (src/js/vistas/*.js) y en ui-base.js por un import directo a db.js. Luego se elimin� por completo la carpeta src/js/repositorios/.
+✅ **8. Eliminación de capa de repositorios (duplicidad)**
+- **Hallazgo:** La capa de acceso a datos estaba duplicada en repositorios/*.js. Estos archivos no aportaban lógica, simplemente llamaban a los métodos homónimos en db.js, agregando una capa de indirección inútil.
+- **Acción:** Se reemplazaron todos los imports de repositorios/*.js en las vistas (src/js/vistas/*.js) y en ui-base.js por un import directo a db.js. Luego se eliminó por completo la carpeta src/js/repositorios/.
 - **Archivos tocados:**
   - [MOD] src/js/vistas/*.js (todas las vistas)
   - [MOD] src/js/modules/ui-base.js
   - [DEL] src/js/repositorios/ (carpeta eliminada por completo)
-
 
 ✅ **9. Limpieza de restos muertos e imports**
 - **Hallazgo:** Tras un escaneo del árbol de dependencias, no se encontraron archivos huérfanos en src/js/ (la limpieza previa fue efectiva). Solo se detectó que la función escapeHtml estaba siendo importada pero no utilizada en un par de vistas.
@@ -64,3 +61,15 @@
 - **Archivos tocados:**
   - [MOD] src/js/vistas/bibliomovil.js
   - [MOD] src/js/vistas/catalogo.js
+ 
+? **10. Correcci�n de codificaci�n del Changelog** 
+- **Hallazgo:** El archivo ten�a mezcla de saltos de l�nea y bytes corruptos (Latin-1) que romp�an palabras y emojis. 
+- **Acci�n:** Se reescribieron los bloques afectados en UTF-8 puro y se normalizaron todos los saltos de l�nea a LF. 
+- **Archivos tocados:** 
+  - [MOD] CHANGELOG-2026-09.md
+
+✅ **10. Corrección de codificación del Changelog**
+- **Hallazgo:** El archivo tenía mezcla de saltos de línea y bytes corruptos (Latin-1) que rompían palabras y emojis.
+- **Acción:** Se reescribieron los bloques afectados en UTF-8 puro y se normalizaron todos los saltos de línea a LF.
+- **Archivos tocados:**
+  - [MOD] CHANGELOG-2026-09.md
