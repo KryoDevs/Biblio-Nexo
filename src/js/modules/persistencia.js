@@ -220,7 +220,7 @@ async function eliminadosDesde(tabla, marca) {
 }
 
 class PersistentStorage {
-    async buscarLibrosLocales(busqueda = '', pagina = 0, porPagina = 25) {
+    async buscarLibrosLocales(busqueda = '', pagina = 0, porPagina = 25, esBibliomovil = null, filtroStock = 'todos') {
         const bd = await abrir();
         const todos = await conAlmacen(bd, 'libros', 'readonly', almacen => pedido(almacen.getAll()));
         const limpia = (busqueda || '').trim().toLowerCase();

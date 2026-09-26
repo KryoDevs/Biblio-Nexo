@@ -87,6 +87,10 @@
 alter table public.lectores
   add column if not exists anonimizado_en timestamptz null;
 
+-- (Punto 8, sep-2026)
+alter table public.libros
+  add column if not exists es_bibliomovil boolean default false;
+
 alter table public.libros
   add column if not exists dias_prestamo_override integer null;
 
@@ -359,12 +363,15 @@ grant execute on function public.estado_lector(text) to authenticated;
 
 -- ── buscar_libros ── (última versión: 007_correcciones_y_cumplimiento_legal.sql)
 drop function if exists public.buscar_libros(text, int, int);
+drop function if exists public.buscar_libros(text, int, int, boolean, text);
 create or replace function public.buscar_libros(
-  p_busqueda text default '', p_limite int default 50, p_desplazamiento int default 0
+  p_busqueda text default '', p_limite int default 50, p_desplazamiento int default 0,
+  p_es_bibliomovil boolean default null, p_filtro_stock text default 'todos'
 )
 returns table (
   id bigint, isbn text, titulo text, autor text, genero text, ubicacion text,
-  portada_url text, copias_totales int, stock int, dias_prestamo_override int, total_coincidencias bigint
+  portada_url text, copias_totales int, stock int, dias_prestamo_override int,
+  es_bibliomovil boolean, total_coincidencias bigint
 )
 language sql
 stable
@@ -372,14 +379,18 @@ set search_path = public
 as $$
   with filtrados as (
     select l.* from public.libros l
-    where p_busqueda is null or p_busqueda = ''
+    where (p_busqueda is null or p_busqueda = ''
        or public.sin_acentos(l.titulo) like '%' || public.sin_acentos(p_busqueda) || '%'
        or public.sin_acentos(l.autor)  like '%' || public.sin_acentos(p_busqueda) || '%'
-       or l.isbn like '%' || p_busqueda || '%'
+       or l.isbn like '%' || p_busqueda || '%')
+      and (p_es_bibliomovil is null or l.es_bibliomovil = p_es_bibliomovil)
+      and (p_filtro_stock = 'todos' or
+          (p_filtro_stock = 'disponibles' and l.stock > 0) or
+          (p_filtro_stock = 'prestados' and l.stock = 0))
   )
   select f.id::bigint, f.isbn::text, f.titulo::text, f.autor::text, f.genero::text,
          f.ubicacion::text, f.portada_url::text, f.copias_totales::int, f.stock::int,
-         f.dias_prestamo_override::int,
+         f.dias_prestamo_override::int, f.es_bibliomovil::boolean,
          (select count(*) from filtrados)::bigint
   from filtrados f
   order by f.titulo

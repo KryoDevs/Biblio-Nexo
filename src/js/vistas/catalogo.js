@@ -82,7 +82,7 @@ export default {
           <button class="catalog-filter-btn px-4 py-2 rounded-full text-xs uppercase tracking-wider font-bold transition-all ${this.catalogFilter === 'prestados' ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-stone-900 shadow-md scale-105' : 'bg-stone-200 text-stone-600 hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700'}" data-filter="prestados">Agotados</button>
         </div>
       </div>
-        <div id="catalog-tbody" class="flex flex-col gap-4 p-4">${this._renderBookRows(this._filtrarLibros(libros))}</div>
+        <div id="catalog-tbody" class="flex flex-col gap-4 p-4">${this._renderBookRows(libros)}</div>
         <div id="catalog-pagination">${crudo(this._paginacionHtml(this.bookPage, total, porPagina, 'catalog-page-btn'))}</div>
       </div>
     `;
@@ -144,12 +144,12 @@ export default {
       this._catalogSearchTimer = setTimeout(async () => {
         this.catalogSearch = searchInput.value.trim();
         this.bookPage = 0;
-        const { libros: resultados, total: totalNuevo } = await db.obtenerLibros(this.catalogSearch, 0, porPagina);
+        const { libros: resultados, total: totalNuevo } = await db.obtenerLibros(this.catalogSearch, 0, porPagina, null, this.catalogFilter || 'todos');
         const tbody = document.getElementById('catalog-tbody');
         if (this.currentView !== 'catalog' || !tbody) return;
         this._booksCache = resultados;
         // _renderBookRows siempre devuelve HtmlSeguro — llamar .toString() es suficiente
-        tbody.innerHTML = this._renderBookRows(this._filtrarLibros(resultados)).toString();
+        tbody.innerHTML = this._renderBookRows(resultados).toString();
         const paginacion = document.getElementById('catalog-pagination');
         if (paginacion) {
           paginacion.innerHTML = this._paginacionHtml(0, totalNuevo, porPagina, 'catalog-page-btn');

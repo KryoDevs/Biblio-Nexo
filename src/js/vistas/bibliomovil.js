@@ -72,7 +72,7 @@ const total = totalCount || 0;
           <button class="bibliomovil-filter-btn px-4 py-2 rounded-full text-xs uppercase tracking-wider font-bold transition-all ${this.bibliomovilFilter === 'prestados' ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-stone-900 shadow-md scale-105' : 'bg-stone-200 text-stone-600 hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700'}" data-filter="prestados">Agotados</button>
         </div>
       </div>
-        <div id="bibliomovil-tbody" class="flex flex-col gap-4 p-4">${this._renderBookRows(this._filtrarLibros(libros))}</div>
+        <div id="bibliomovil-tbody" class="flex flex-col gap-4 p-4">${this._renderBookRows(libros)}</div>
         <div id="bibliomovil-pagination">${crudo(this._paginacionHtml(this.bookPage, total, porPagina, 'bibliomovil-page-btn'))}</div>
       </div>
     `;
