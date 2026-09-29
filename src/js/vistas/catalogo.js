@@ -23,7 +23,7 @@ export default {
     if (!container) return;
 
     const porPagina = this.param('filas_por_pagina');
-    const { libros, total } = await db.obtenerLibros(this.catalogSearch || '', this.bookPage, porPagina);
+    const { libros, total } = await db.obtenerLibros(this.catalogSearch || '', this.bookPage, porPagina, null, this.catalogFilter || 'todos');
     // Si el usuario ya cambió de vista mientras esperábamos la respuesta, no pintamos nada
     if (this.currentView !== 'catalog') return;
 

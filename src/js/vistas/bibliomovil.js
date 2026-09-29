@@ -26,11 +26,14 @@ export default {
     if (!container) return;
 
     const porPagina = this.param('filas_por_pagina');
-    let query = supabase.from('libros').select('*', { count: 'exact' }).ilike('ubicacion', '%bibliom%').order('titulo', { ascending: true }).range(this.bookPage * porPagina, (this.bookPage + 1) * porPagina - 1);
-if (this.bibliomovilSearch) query = query.or(`titulo.ilike.%${this.bibliomovilSearch}%,autor.ilike.%${this.bibliomovilSearch}%`);
-const { data: librosData, count: totalCount } = await query;
-const libros = librosData || [];
-const total = totalCount || 0;
+        // Fase 3 offline: delegar filtrado a db.libros
+    const { libros, total } = await db.obtenerLibros(
+      this.bibliomovilSearch || '', 
+      this.bookPage, 
+      porPagina, 
+      true, // esBibliomovil = true
+      this.bibliomovilFilter || 'todos'
+    );
     // Si el usuario ya cambió de vista mientras esperábamos la respuesta, no pintamos nada
     if (this.currentView !== 'bibliomovil') return;
 
