@@ -150,4 +150,170 @@ export default {
         document.addEventListener('keydown', alTeclear, true);
         return cerrar;
     }
+,
+
+  showNotifyModal(prestamo) {
+    const mensaje = this._textoAviso(prestamo);
+    const estado = this._estadoPrestamo(prestamo.fecha_devolucion_esperada);
+    const lector = prestamo.lectores || {};
+    const telefono = this.formatPhone(lector.telefono);
+    const email = lector.email;
+    const asunto = estado.clave === 'vencido'
+      ? 'Devolución pendiente en la Biblioteca Municipal de Futrono'
+      : 'Recordatorio de devolución — Biblioteca Municipal de Futrono';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-patrimonio-lago/40 backdrop-blur-md z-[10000] transition-opacity duration-300 flex items-center justify-center p-4';
+    overlay.innerHTML = `
+      <div class="bg-patrimonio-card dark:bg-stone-900/95 backdrop-blur-xl border border-white/20 dark:border-stone-700/50 rounded-[2rem] max-w-lg w-full p-8 shadow-soft-xl shadow-patrimonio-lago/20 transform transition-all space-y-4">
+        <div>
+          <h3 class="font-serif text-lg font-bold text-stone-900 dark:text-stone-100">Avisar a ${escapeHtml(lector.nombre || 'el lector')}</h3>
+          <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">${escapeHtml(estado.etiqueta)} · ${escapeHtml(prestamo.libros?.titulo || '')}</p>
+        </div>
+
+        <div>
+          <label class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-300 mb-1 block">Mensaje</label>
+          <textarea id="notify-message" aria-label="Texto del aviso al lector" rows="7" class="w-full px-3 py-2.5 border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 text-sm text-stone-800 dark:text-stone-200 focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago">${escapeHtml(mensaje)}</textarea>
+          <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-1">Puedes editarlo antes de enviarlo.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+          <button data-action="whatsapp" ${telefono.length < 11 ? 'disabled' : ''}
+            class="btn-secundario flex items-center justify-center gap-2 bg-patrimonio-bosque hover:bg-[#22392F] disabled:opacity-40 disabled:cursor-not-allowed text-white px-3 py-2.5 rounded-xl text-sm font-medium">
+            <i aria-hidden="true" class="fa-brands fa-whatsapp"></i> WhatsApp
+          </button>
+          <button data-action="email" ${!email ? 'disabled' : ''}
+            class="btn-secundario flex items-center justify-center gap-2 bg-patrimonio-lago hover:bg-[#14303c] disabled:opacity-40 disabled:cursor-not-allowed text-white px-3 py-2.5 rounded-xl text-sm font-medium">
+            <i aria-hidden="true" class="fas fa-envelope"></i> Correo
+          </button>
+          <button data-action="copy"
+            class="btn-secundario flex items-center justify-center gap-2 border border-stone-300 dark:border-stone-600 hover:bg-stone-50 dark:bg-stone-800/50 text-stone-700 px-3 py-2.5 rounded-xl text-sm font-medium">
+            <i aria-hidden="true" class="fas fa-copy"></i> Copiar
+          </button>
+        </div>
+        ${(telefono.length < 11 || !email) ? `<p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">Este lector no tiene ${!email ? 'correo' : ''}${(!email && telefono.length < 11) ? ' ni ' : ''}${telefono.length < 11 ? 'teléfono' : ''} registrado. Complétalo en la vista Lectores para poder avisarle.</p>` : ''}
+
+        <div class="flex justify-end pt-1">
+          <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cerrar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const textarea = overlay.querySelector('#notify-message');
+    const cerrar = this._prepararModal(overlay);
+
+    overlay.querySelector('[data-action="close"]').addEventListener('click', cerrar);
+    overlay.addEventListener('click', e => { if (e.target === overlay) cerrar(); });
+
+    overlay.querySelector('[data-action="whatsapp"]').addEventListener('click', () => {
+      window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(textarea.value)}`, '_blank', 'noopener');
+      cerrar();
+    });
+
+    overlay.querySelector('[data-action="email"]').addEventListener('click', () => {
+      window.location.href = `mailto:${email}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textarea.value)}`;
+      cerrar();
+    });
+
+    overlay.querySelector('[data-action="copy"]').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(textarea.value);
+        this.showToast('Mensaje copiado.', 'success');
+      } catch {
+        textarea.select(); // respaldo si el navegador bloquea el portapapeles moderno
+        try {
+          if (document.execCommand('copy')) {
+            this.showToast('Mensaje copiado.', 'success');
+            return;
+          }
+        } catch (e) {
+          // Si también falla, no hace nada y deja el texto seleccionado
+        }
+        this.showToast('Selecciona y copia el mensaje manualmente.', 'error');
+      }
+    });
+  },
+
+  showNotifyReservaModal(reserva, libro, lector) {
+    const fecha = this._fechaLegible ? this._fechaLegible(reserva.vence_apartado_en) : (reserva.vence_apartado_en || 'próximamente');
+    const mensaje = `Estimado/a ${lector.nombre || 'lector/a'},\n\nEl libro "${libro?.titulo || ''}" que reservaste ya está disponible para ti en la Biblioteca Pública Municipal de Futrono.\n\nTienes plazo hasta el ${fecha} para retirarlo en el mesón. ¡Te esperamos!`;
+
+    const telefono = this.formatPhone(lector.telefono);
+    const email = lector.email;
+    const asunto = 'Tu reserva está lista — Biblioteca Municipal de Futrono';
+
+    const overlay = document.createElement('div');
+    overlay.className = 'fixed inset-0 bg-patrimonio-lago/40 backdrop-blur-md z-[10000] transition-opacity duration-300 flex items-center justify-center p-4';
+    overlay.innerHTML = `
+      <div class="bg-patrimonio-card dark:bg-stone-900/95 backdrop-blur-xl border border-white/20 dark:border-stone-700/50 rounded-[2rem] max-w-lg w-full p-8 shadow-soft-xl shadow-patrimonio-lago/20 transform transition-all space-y-4">
+        <div>
+          <h3 class="font-serif text-lg font-bold text-stone-900 dark:text-stone-100">Avisar a ${escapeHtml(lector.nombre || 'el lector')}</h3>
+          <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Reserva disponible · ${escapeHtml(libro?.titulo || '')}</p>
+        </div>
+
+        <div>
+          <label class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-300 mb-1 block">Mensaje</label>
+          <textarea id="notify-reserva-message" aria-label="Texto del aviso al lector" rows="7"
+            class="w-full px-3 py-2.5 border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 text-sm text-stone-800 dark:text-stone-200 focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago">${escapeHtml(mensaje)}</textarea>
+          <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-1">Puedes editarlo antes de enviarlo.</p>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1">
+          <button data-action="whatsapp" ${telefono.length < 11 ? 'disabled' : ''}
+            class="btn-secundario flex items-center justify-center gap-2 bg-patrimonio-bosque hover:bg-[#22392F] disabled:opacity-40 disabled:cursor-not-allowed text-white px-3 py-2.5 rounded-xl text-sm font-medium">
+            <i aria-hidden="true" class="fa-brands fa-whatsapp"></i> WhatsApp
+          </button>
+          <button data-action="email" ${!email ? 'disabled' : ''}
+            class="btn-secundario flex items-center justify-center gap-2 bg-patrimonio-lago hover:bg-[#14303c] disabled:opacity-40 disabled:cursor-not-allowed text-white px-3 py-2.5 rounded-xl text-sm font-medium">
+            <i aria-hidden="true" class="fas fa-envelope"></i> Correo
+          </button>
+          <button data-action="copy"
+            class="btn-secundario flex items-center justify-center gap-2 border border-stone-300 dark:border-stone-600 hover:bg-stone-50 dark:bg-stone-800/50 text-stone-700 px-3 py-2.5 rounded-xl text-sm font-medium">
+            <i aria-hidden="true" class="fas fa-copy"></i> Copiar
+          </button>
+        </div>
+        ${(telefono.length < 11 || !email) ? `<p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">Este lector no tiene ${!email ? 'correo' : ''}${(!email && telefono.length < 11) ? ' ni ' : ''}${telefono.length < 11 ? 'teléfono' : ''} registrado. Complétalo en la vista Lectores para poder avisarle.</p>` : ''}
+
+        <div class="flex justify-end pt-1">
+          <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cerrar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+
+    const textarea = overlay.querySelector('#notify-reserva-message');
+    const cerrar = this._prepararModal(overlay);
+
+    overlay.querySelector('[data-action="close"]').addEventListener('click', cerrar);
+    overlay.addEventListener('click', e => { if (e.target === overlay) cerrar(); });
+
+    overlay.querySelector('[data-action="whatsapp"]').addEventListener('click', () => {
+      window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(textarea.value)}`, '_blank', 'noopener');
+      cerrar();
+    });
+
+    overlay.querySelector('[data-action="email"]').addEventListener('click', () => {
+      window.location.href = `mailto:${email}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(textarea.value)}`;
+      cerrar();
+    });
+
+    overlay.querySelector('[data-action="copy"]').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(textarea.value);
+        this.showToast('Mensaje copiado.', 'success');
+      } catch {
+        textarea.select();
+        try {
+          if (document.execCommand('copy')) {
+            this.showToast('Mensaje copiado.', 'success');
+            return;
+          }
+        } catch (e) {
+          // Ignorar error de fallback
+        }
+        this.showToast('Selecciona y copia el mensaje manualmente.', 'error');
+      }
+    });
+  }
 };

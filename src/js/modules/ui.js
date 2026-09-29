@@ -8,6 +8,7 @@
 // dentro de cada método, exactamente igual que cuando estaban todos juntos.
 import UIManager from './ui-base.js';
 import UIModales from './ui-modales.js';
+import UIRouter from './ui-router.js';
 import dashboard from '../vistas/dashboard.js';
 import reportes from '../vistas/reportes.js';
 import perfil from '../vistas/perfil.js';
@@ -18,6 +19,6 @@ import prestamos from '../vistas/prestamos.js';
 import mostrador from '../vistas/mostrador.js';
 import bibliomovil from '../vistas/bibliomovil.js';
 
-Object.assign(UIManager.prototype, UIModales, dashboard, reportes, perfil, admin, catalogo, lectores, prestamos, mostrador, bibliomovil);
+Object.assign(UIManager.prototype, UIModales, UIRouter, dashboard, reportes, perfil, admin, catalogo, lectores, prestamos, mostrador, bibliomovil);
 
 export default new UIManager();

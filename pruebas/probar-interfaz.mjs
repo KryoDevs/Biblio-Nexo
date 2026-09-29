@@ -362,7 +362,7 @@ comprobar('también se reintenta al recuperar la conexión (evento "online")',
 // ---------------------------------------------------------------------------
 console.log('\n12. Fase 1.3 — cola de sincronización: el enganche, no la lógica interna');
 
-const uiBaseJs = fs.readFileSync('src/js/modules/ui-base.js', 'utf8');
+const uiBaseJs = fs.readFileSync('src/js/modules/ui-base.js', 'utf8') + fs.readFileSync('src/js/modules/ui-router.js', 'utf8') + fs.readFileSync('src/js/modules/ui-modales.js', 'utf8');
 // Los cinco lugares que escriben "r?.encolado" vivían todos en ui-base.js
 // hasta la división del 22 de agosto de 2026; ahora quedaron repartidos entre
 // src/js/vistas/prestamos.js (renovar, prestar x2) y src/js/vistas/mostrador.js
