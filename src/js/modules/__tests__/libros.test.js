@@ -23,7 +23,7 @@ describe('db.libros - Modo offline', () => {
         
         const resultado = await libros.obtenerLibros('Papelucho', 0, 25);
         
-        expect(persistencia.buscarLibrosLocales).toHaveBeenCalledWith('Papelucho', 0, 25);
+        expect(persistencia.buscarLibrosLocales).toHaveBeenCalledWith('Papelucho', 0, 25, null, 'todos');
         expect(resultado.libros.length).toBe(1);
         expect(resultado.libros[0].titulo).toBe('Libro Offline');
     });

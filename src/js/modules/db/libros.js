@@ -21,9 +21,9 @@ export const libros = {
      *
      * Devuelve { libros, total }.
      */
-    async obtenerLibros(busqueda = '', pagina = 0, porPagina = 25) {
+    async obtenerLibros(busqueda = '', pagina = 0, porPagina = 25, esBibliomovil = null, filtroStock = 'todos') {
         if (!navigator.onLine) {
-            return await persistencia.buscarLibrosLocales(busqueda, pagina, porPagina);
+            return await persistencia.buscarLibrosLocales(busqueda, pagina, porPagina, esBibliomovil, filtroStock);
         }
 
         const desplazamiento = pagina * porPagina;
@@ -32,7 +32,9 @@ export const libros = {
             const { data, error } = await conTiempoLimite(supabase.rpc('buscar_libros', {
                 p_busqueda: busqueda || '',
                 p_limite: porPagina,
-                p_desplazamiento: desplazamiento
+                p_desplazamiento: desplazamiento,
+                p_es_bibliomovil: esBibliomovil,
+                p_filtro_stock: filtroStock
             }), ESPERA);
 
             if (!error) {
@@ -53,7 +55,15 @@ export const libros = {
                 .order('titulo')
                 .range(desplazamiento, desplazamiento + porPagina - 1);
 
+            
+            if (esBibliomovil === true) q = q.eq('es_bibliomovil', true);
+            else if (esBibliomovil === false) q = q.eq('es_bibliomovil', false);
+
+            if (filtroStock === 'disponibles') q = q.gt('ejemplares_disponibles', 0);
+            else if (filtroStock === 'prestados') q = q.eq('ejemplares_disponibles', 0);
+
             const limpia = limpiarBusqueda(busqueda);
+
             if (limpia) {
                 q = q.or(`titulo.ilike.%${limpia}%,autor.ilike.%${limpia}%,isbn.ilike.%${limpia}%`);
             }
