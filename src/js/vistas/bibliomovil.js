@@ -101,16 +101,12 @@ export default {
       this._bibliomovilSearchTimer = setTimeout(async () => {
         this.bibliomovilSearch = searchInput.value.trim();
         this.bookPage = 0;
-        let queryRes = supabase.from('libros').select('*', { count: 'exact' }).ilike('ubicacion', '%bibliom%').order('titulo', { ascending: true }).range(0, porPagina - 1);
-if (this.bibliomovilSearch) queryRes = queryRes.or(`titulo.ilike.%${this.bibliomovilSearch}%,autor.ilike.%${this.bibliomovilSearch}%`);
-const { data: resData, count: resCount } = await queryRes;
-const resultados = resData || [];
-const totalNuevo = resCount || 0;
+        const { libros: resultados, total: totalNuevo } = await db.obtenerLibros(this.bibliomovilSearch, 0, porPagina, true, this.bibliomovilFilter || 'todos');
         const tbody = document.getElementById('bibliomovil-tbody');
         if (this.currentView !== 'bibliomovil' || !tbody) return;
         this._booksCache = resultados;
         // _renderBookRows siempre devuelve HtmlSeguro — llamar .toString() es suficiente
-        tbody.innerHTML = this._renderBookRows(this._filtrarLibros(resultados)).toString();
+        tbody.innerHTML = this._renderBookRows(resultados).toString();
         const paginacion = document.getElementById('bibliomovil-pagination');
         if (paginacion) {
           paginacion.innerHTML = this._paginacionHtml(0, totalNuevo, porPagina, 'bibliomovil-page-btn');
