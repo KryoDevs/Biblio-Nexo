@@ -81,3 +81,21 @@
   - [MOD] supabase/migrations/010_consolidacion.sql
   - [MOD] supabase/migrations/024_rpc_eliminar_lector.sql
   - [NEW] supabase/migrations/025_anonimizacion_lectores.sql
+
+
+## 2026-09-29: Plan de Saneamiento Definitivo (Fases 1 a 4)
+- **Fase 1 (Quick Wins)**:
+  - Limpieza de `config.js` estricta usando variables `.env` en producción.
+  - Corrección de bugs de UI/UX en `escaneo-remoto.js`, previniendo reintentos infinitos sin red.
+  - El usuario completó las optimizaciones UX (`UX1`, `UX2`, botones disable en formularios).
+- **Fase 2 (Deuda Técnica)**:
+  - Extracción completa del God Object `ui-base.js`.
+  - Creación de `src/js/modules/ui-router.js` para manejar la navegación de la SPA.
+  - Extracción definitiva de los métodos de diálogos modales hacia `src/js/modules/ui-modales.js`.
+- **Fase 3 (Pruebas y Offline)**:
+  - Se añadieron tests Vitest exhaustivos para `eliminar_lector()` interceptando casos RLS.
+  - Se añadieron tests Vitest para comprobar lógica de filtros en IndexedDB.
+  - Se actualizaron las vistas `bibliomovil.js` y `catalogo.js` para delegar el filtrado de stock y modo ruta localmente a `persistencia.js`.
+- **Fase 4 (Futuro)**:
+  - Se creó el documento de arquitectura `ALEPH500_SIP2.md` documentando el túnel seguro y microservicio SIP2-REST.
+  - Se añadió la tarea de hardware pendiente (Cifrado BitLocker en PC local y nombramiento del DPO municipal) al documento `CUMPLIMIENTO-LEGAL.md` por la Ley 21.719.
