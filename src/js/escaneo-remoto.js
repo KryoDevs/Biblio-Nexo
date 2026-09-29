@@ -391,7 +391,7 @@ async function manejarCodigo(codigo) {
         // Pero si es un error interno o timeout, paramos aquí para no intentar
         // crearlo repetidamente si el servidor está caído (Fix prioridad ALTA #4).
         const msg = String(err.message || '').toLowerCase();
-        if (msg.includes('timeout') || msg.includes('fetch') || !navigator.onLine) {
+        if (msg.includes('timeout') || msg.includes('tardó demasiado') || msg.includes('fetch') || !navigator.onLine) {
              resultado.innerHTML = `<p class="text-rose-700 text-sm font-bold"><i aria-hidden="true" class="fas fa-wifi mr-1.5"></i>Error de conexión al consultar.</p>`;
              return;
         }
