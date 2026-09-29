@@ -2,8 +2,8 @@ export const CONFIG = {
   // Se leen desde las variables de entorno inyectadas por Vite (.env local o Vercel).
   // Se mantiene el valor original como fallback final para no romper la app en producción
   // si aún no se han configurado las variables en el panel de Vercel.
-  SUPABASE_URL: import.meta.env?.VITE_SUPABASE_URL,
-  SUPABASE_ANON_KEY: import.meta.env?.VITE_SUPABASE_ANON_KEY,
+  SUPABASE_URL: import.meta.env?.VITE_SUPABASE_URL || 'https://vcngmgzxjoorjhcgqzpk.supabase.co',
+  SUPABASE_ANON_KEY: import.meta.env?.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZjbmdtZ3p4am9vcmpoY2dxenBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1Mjk5MTcsImV4cCI6MjEwMDEwNTkxN30.FXiGK15kyT82jrKNIb4nodWWtW6I-s_YMV9rGZYfAxY',
 
   ADMIN_EMAILS: [],
 
