@@ -357,6 +357,11 @@ comprobaciones nuevas).
 | `python3 pruebas/probar-migraciones.py` (2 escenarios, PostgreSQL embebido) | **204/204** |
 | `python3 pruebas/probar_librero.py` (PostgreSQL 17 real) | **129/129** |
 | `npm run build` (Vite + PWA) | **OK**, con el guardia de arranque incluido en el bundle |
+| **CI de GitHub Actions** (run [`37078537117`](https://github.com/KryoDevs/Biblio-Nexo/actions/runs/37078537117)) | **5/5 jobs en verde**: Consolidación, Interfaz (jsdom), Base de datos (PostgreSQL 17), Migraciones (PostgreSQL embebido) y Reconstrucción desde cero (CLI). Es la primera vez que el flujo completo pasa. |
+
+> **Publicación:** rama `arena/01a0fee9-biblio-nexo` subida a
+> `KryoDevs/Biblio-Nexo`, con la propuesta de cambio en el
+> [PR #7](https://github.com/KryoDevs/Biblio-Nexo/pull/7).
 
 Reproducir todo:
 
