@@ -143,8 +143,17 @@ document.addEventListener('DOMContentLoaded', async () => {
         const renderUnaVez = async (usuario) => {
             if (renderPromise) { await renderPromise; return; }
             renderPromise = uiManager.renderShell(usuario);
-            await renderPromise;
-            iniciarSincronizacionEnSegundoPlano();
+            try {
+                await renderPromise;
+                iniciarSincronizacionEnSegundoPlano();
+            } catch (e) {
+                // Si el primer intento falla (una red que se cae justo al
+                // entrar), el mutex no puede quedar guardando una promesa
+                // rechazada: se libera para que el siguiente SIGNED_IN —o el
+                // botón de reintentar— pueda volver a intentarlo.
+                renderPromise = null;
+                throw e;
+            }
         };
 
         auth.alCambiarSesion(async (evento, sesion) => {

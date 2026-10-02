@@ -396,7 +396,7 @@ as $$
   order by f.titulo
   limit p_limite offset p_desplazamiento;
 $$;
-grant execute on function public.buscar_libros(text, int, int) to authenticated;
+grant execute on function public.buscar_libros(text, int, int, boolean, text) to authenticated;
 
 -- ── consultar_libro ── (última versión: 007_correcciones_y_cumplimiento_legal.sql)
 drop function if exists public.consultar_libro(text);
@@ -2988,10 +2988,18 @@ grant execute on function public.verificar_definiciones() to authenticated;
 -- ----------------------------------------------------------------------------
 -- Elimina un lector o lo anonimiza si tiene historial de préstamos/reservas,
 -- conservando la integridad referencial.
+--
+-- `p_id` es bigint, igual que `lectores.id` (bigint generated always as
+-- identity): con el tipo equivocado, `where id = p_id` ni siquiera encuentra
+-- un operador de comparación y el botón Eliminar del panel de Lectores falla
+-- siempre. Se eliminan las dos firmas antes de recrear, para que una base que
+-- ya tenga la versión vieja (uuid) quede con una sola función y no con dos
+-- versiones conviviendo.
 drop function if exists public.eliminar_lector(uuid, text);
+drop function if exists public.eliminar_lector(bigint, text);
 
 create or replace function public.eliminar_lector(
-    p_id uuid,
+    p_id bigint,
     p_motivo text default 'Derecho de supresión (ARCO)'
 ) returns void
 language plpgsql

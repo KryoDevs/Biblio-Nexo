@@ -249,6 +249,24 @@ comprobar('la CSP sigue bloqueando orígenes de terceros por defecto',
 comprobar('no queda ningún manejador onclick/onerror en el HTML',
   !/\son(click|error|load)=/.test(html));
 
+console.log('\n7b-bis. Los scripts del HTML sobreviven al empaquetado de Vite');
+// Un <script src="/src/..."> CLÁSICO (sin type=module) no se copia a dist/:
+// Vite solo empaqueta los módulos, así que en producción ese archivo daría
+// 404. Pasó al probar a mover el guardia de arranque a un script clásico.
+const sinComentarios = html.replace(/<!--[\s\S]*?-->/g, '');
+const etiquetasScript = [...sinComentarios.matchAll(/<script([^>]*)>/g)].map(m => m[1]);
+const classicosDeFuente = etiquetasScript.filter(a =>
+  /src="\/src\//.test(a) && !/type="module"/.test(a));
+comprobar('ningún script clásico apunta a /src/ (daría 404 en dist/)',
+  classicosDeFuente.length === 0, classicosDeFuente.join(' | '));
+comprobar('arranque.js y main.js se cargan como módulos, en ese orden',
+  /<script type="module" src="\/src\/js\/arranque\.js"><\/script>/.test(html)
+  && html.indexOf('/src/js/arranque.js') < html.indexOf('/src/js/main.js'));
+const fuenteArranque = (await import('node:fs')).readFileSync('src/js/arranque.js', 'utf8');
+comprobar('el vigía de carga escucha en fase de captura (alcanza scripts tardíos)',
+  /addEventListener\('error'/.test(fuenteArranque) && /, true\)/.test(fuenteArranque),
+  'sin captura, el error de un script insertado después se pierde');
+
 console.log('\n7c. La CSP del <meta> no declara directivas que el navegador ignora');
 // frame-ancestors, sandbox, report-uri y report-to solo funcionan como cabecera
 // HTTP. Escribirlas en un <meta> es peor que omitirlas: el navegador las ignora,

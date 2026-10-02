@@ -456,7 +456,32 @@ comprobar('verificar_definiciones() responde', ok, texto(filas)[-200:] if not ok
 # expirar_reservas_vencidas() (022_reservas.sql).
 # 54 sumó consultar_libro_remoto() (Fase 2 de escaneo/mesón, 22 de agosto de
 # 2026, sección ESCANEO REMOTO SIN SESIÓN de 010_consolidacion.sql).
-comprobar('el manifiesto cubre 54 funciones', len(filas) == 54, f'cubre {len(filas)}')
+# El conteo nació en 41 y fue creciendo con cada migración que sumó funciones
+# al manifiesto (010 solo): 44 con las tres de RLS/grants, 45 con
+# eliminar_libro(), 47 con la papelera, 53 con las seis de reservas, 54 con
+# consultar_libro_remoto() y 55 al día de hoy. Fijar el número exacto otra vez
+# solo pospone el próximo desajuste: lo que importa es que ninguna función de
+# las que usa la interfaz quede fuera, y que el manifiesto no se encoja. El
+# conteo exacto contra las funciones declaradas lo verifica
+# pruebas/verificar_consolidacion.py.
+FUNCIONES_QUE_USA_LA_INTERFAZ = {
+    'estado_lector', 'buscar_libros', 'consultar_libro', 'prestar_libro',
+    'devolver_prestamo', 'renovar_prestamo', 'reservar_libro', 'cancelar_reserva',
+    'retirar_reserva', 'listar_reservas', 'eliminar_libro', 'restaurar_libro',
+    'listar_libros_eliminados', 'eliminar_lector', 'anonimizar_lector',
+    'exportar_datos_lector', 'bloquear_lector', 'listar_personal', 'eliminar_personal',
+    'asignar_rol', 'mi_perfil', 'actualizar_mi_perfil', 'verificar_rls',
+    'registrar_error', 'listar_errores', 'resumen_errores',
+    'marcar_error_visto', 'purgar_errores', 'crear_enlace_escaneo',
+    'validar_enlace_escaneo', 'consultar_libro_remoto', 'agregar_libro_remoto',
+    'deshacer_libro_remoto', 'listar_enlaces_escaneo', 'revocar_enlace_escaneo',
+}
+nombres_manifiesto = {f[0] for f in filas}
+faltan = sorted(FUNCIONES_QUE_USA_LA_INTERFAZ - nombres_manifiesto)
+comprobar('el manifiesto cubre las funciones que usa la interfaz',
+          not faltan, f'faltan: {faltan}')
+comprobar('el manifiesto no se encogió (55 al 2026-10-02)',
+          len(filas) >= 55, f'cubre {len(filas)}')
 comprobar('ninguna función está fuera de norma', not malas, texto(malas)[:300])
 
 # La prueba de fuego: ¿detecta la deriva que causó el fallo del librero?
@@ -771,7 +796,7 @@ else:
     omitir('un librero SÍ puede consultar un lector')
     omitir('un librero SÍ puede consultar un libro')
 ok, out = como(ADMIN, "select count(*) from public.verificar_definiciones();")
-comprobar('un admin SÍ puede ver el autodiagnóstico', ok and out and out[0][0] == 54,
+comprobar('un admin SÍ puede ver el autodiagnóstico', ok and out and out[0][0] >= 55,
           texto(out)[-150:])
 
 

@@ -160,11 +160,22 @@ export default {
     });
   },
 
+  /** Repinta la vista de libros en la que está el usuario (Catálogo o
+   *  Bibliomóvil). Antes existían copias de estos métodos en bibliomovil.js y,
+   *  como ese archivo se mezcla al final en ui.js, sus copias ganaban para
+   *  TODA la app: borrar o editar un libro desde el Catálogo terminaba
+   *  pintando la vista del Bibliomóvil. Una sola implementación compartida. */
+  _refrescarVistaDeLibros() {
+    if (this.currentView === 'bibliomovil') this.renderBibliomovil();
+    else this.renderCatalog();
+  },
+
   // HTML de las filas del catálogo. Separado de renderCatalog para poder
   // refrescar solo el <tbody> cuando se busca, sin recrear todo el formulario.
   
   _filtrarLibros(libros) {
-    const f = this.catalogFilter || 'todos';
+    // Este método sirve al Catálogo y al Bibliomóvil (ver _refrescarVistaDeLibros).
+    const f = (this.currentView === 'bibliomovil' ? this.bibliomovilFilter : this.catalogFilter) || 'todos';
     if (f === 'disponibles') return libros.filter(b => b.stock > 0);
     if (f === 'prestados') return libros.filter(b => b.stock === 0);
     return libros;
@@ -182,7 +193,7 @@ export default {
           <div class="min-w-0">
             <h3 class="font-bold text-stone-900 dark:text-stone-100 text-lg truncate">${b.titulo}</h3>
             <p class="text-sm text-stone-500 dark:text-stone-400 truncate">${b.autor}</p>
-            <div class="text-xs text-stone-400 dark:text-stone-500 mt-1 mb-2 font-mono">${b.isbn}</div>
+            <div class="text-xs text-stone-500 dark:text-stone-400 mt-1 mb-2 font-mono">${b.isbn}</div>
             ${(b.genero || b.ubicacion) ? html`
               <div class="flex flex-wrap gap-2">
                 ${b.genero ? html`<span class="stamp stamp-info !rotate-0 !text-[10px] !py-0.5 !px-2"><i aria-hidden="true" class="fas fa-tag mr-1"></i> ${b.genero}</span>` : ''}
@@ -193,9 +204,9 @@ export default {
 
         <div class="flex flex-col md:items-end gap-3 shrink-0">
           <div class="text-center md:text-right">
-            <span class="text-[10px] font-bold uppercase tracking-widest text-stone-400 block mb-0.5">Disponibles</span>
-            <span class="${b.stock === 0 ? 'text-rose-600' : b.stock <= 1 ? 'text-amber-600' : 'text-emerald-600'} font-black text-xl">${b.stock}</span>
-            <span class="text-stone-400 dark:text-stone-500 text-sm">/ ${b.copias_totales ?? b.stock}</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-stone-500 block mb-0.5">Disponibles</span>
+            <span class="${b.stock === 0 ? 'text-rose-600' : b.stock <= 1 ? 'text-amber-700' : 'text-emerald-600'} font-black text-xl">${b.stock}</span>
+            <span class="text-stone-500 dark:text-stone-400 text-sm">/ ${b.copias_totales ?? b.stock}</span>
           </div>
           
           <div class="flex flex-wrap gap-2 justify-end">
@@ -224,7 +235,7 @@ export default {
         try {
           await db.eliminarLibro(btn.dataset.id);
           this.showToast('Libro eliminado.', 'success');
-          this.renderCatalog();
+          this._refrescarVistaDeLibros();
         } catch (err) {
           this.showToast(err.message || 'No se pudo eliminar.', 'error');
         }
@@ -328,7 +339,7 @@ export default {
 
         cerrar();
         this.showToast('Libro actualizado.', 'success');
-        this.renderCatalog();
+        this._refrescarVistaDeLibros();
       } catch (err) {
         this.showToast(err.message || 'No se pudo guardar.', 'error');
         btn.disabled = false;
@@ -350,7 +361,7 @@ export default {
    */
   async promptCreateLoan(bookId) {
     await this.flujoPrestamo(bookId, () => {
-      if (this.currentView === 'catalog') this.renderCatalog();
+      this._refrescarVistaDeLibros();
     });
   },
 
@@ -362,7 +373,7 @@ export default {
    */
   async promptCreateReserva(bookId) {
     await this.flujoReserva(bookId, () => {
-      if (this.currentView === 'catalog') this.renderCatalog();
+      this._refrescarVistaDeLibros();
     });
   }
 };

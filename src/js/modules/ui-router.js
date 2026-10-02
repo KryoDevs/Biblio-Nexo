@@ -132,6 +132,10 @@ export default {
       dashboard: () => this.renderDashboard(),
       reports: () => this.renderReports(),
       catalog: () => this.renderCatalog(),
+      // Sin esta línea, el menú ofrecía "Bibliomóvil" (CONFIG.VIEWS_BY_ROLE)
+      // pero switchView no encontraba su render y caía en el Dashboard: la
+      // vista completa del Modo Ruta era inalcanzable.
+      bibliomovil: () => this.renderBibliomovil(),
       users: () => this.renderUsers(),
       loans: () => this.renderLoans(),
       scanner: () => this.renderScannerView(),

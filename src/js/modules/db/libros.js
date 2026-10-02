@@ -73,7 +73,7 @@ export const libros = {
             return { libros: filas || [], total: count || 0 };
         } catch (err) {
             if (err.message === MENSAJE_TIMEOUT || String(err).includes('fetch') || !navigator.onLine) {
-                return await persistencia.buscarLibrosLocales(busqueda, pagina, porPagina);
+                return await persistencia.buscarLibrosLocales(busqueda, pagina, porPagina, esBibliomovil, filtroStock);
             }
             throw err;
         }

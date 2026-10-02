@@ -62,12 +62,6 @@
   - [MOD] src/js/vistas/bibliomovil.js
   - [MOD] src/js/vistas/catalogo.js
  
-? **10. Correcci�n de codificaci�n del Changelog** 
-- **Hallazgo:** El archivo ten�a mezcla de saltos de l�nea y bytes corruptos (Latin-1) que romp�an palabras y emojis. 
-- **Acci�n:** Se reescribieron los bloques afectados en UTF-8 puro y se normalizaron todos los saltos de l�nea a LF. 
-- **Archivos tocados:** 
-  - [MOD] CHANGELOG-2026-09.md
-
 ✅ **10. Corrección de codificación del Changelog**
 - **Hallazgo:** El archivo tenía mezcla de saltos de línea y bytes corruptos (Latin-1) que rompían palabras y emojis.
 - **Acción:** Se reescribieron los bloques afectados en UTF-8 puro y se normalizaron todos los saltos de línea a LF.

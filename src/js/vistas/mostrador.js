@@ -42,7 +42,7 @@ export default {
 
     container.innerHTML = `
       <div class="flex flex-col md:flex-row gap-6 w-full h-full max-w-7xl mx-auto items-start">
-        <!-- Panel Izquierdo: El Esc�ner y B�squeda -->
+        <!-- Panel Izquierdo: El Escáner y Búsqueda -->
         <div class="flex-1 w-full flex flex-col gap-6 sticky top-0">
            <div class="bg-patrimonio-card dark:bg-stone-900 rounded-3xl shadow-soft-xl border border-stone-200 dark:border-stone-700 p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
                <div class="absolute -top-24 -right-24 w-64 h-64 bg-patrimonio-lago/5 rounded-full blur-3xl pointer-events-none"></div>
@@ -52,7 +52,7 @@ export default {
                
                <div class="w-full max-w-md flex flex-col gap-4">
                   <div class="relative">
-                    <i aria-hidden="true" class="fas fa-barcode absolute left-5 top-1/2 -translate-y-1/2 text-xl text-stone-400"></i>
+                    <i aria-hidden="true" class="fas fa-barcode absolute left-5 top-1/2 -translate-y-1/2 text-xl text-stone-500"></i>
                     <input id="manual-scan-input" aria-label="Escribir el código del libro" placeholder="Ingrese el ISBN..." class="w-full pl-12 pr-4 py-4 bg-white dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700 rounded-2xl text-lg font-bold text-stone-800 dark:text-stone-200 placeholder-stone-400 focus:border-patrimonio-lago focus:ring-4 focus:ring-patrimonio-lago/10 transition-all shadow-sm outline-none" autocomplete="off" />
                   </div>
                   
@@ -87,7 +87,7 @@ export default {
         <!-- Panel Derecho: Resultados (scan-result) -->
         <div class="flex-[1.5] w-full bg-patrimonio-card dark:bg-stone-900 rounded-3xl shadow-soft-xl border border-stone-200 dark:border-stone-700 overflow-hidden flex flex-col relative min-h-[500px]">
            <div id="scan-result" class="flex-1 flex flex-col p-6 overflow-y-auto">
-              <div class="m-auto text-center py-12 text-stone-400">
+              <div class="m-auto text-center py-12 text-stone-500">
                 <div class="w-24 h-24 mx-auto bg-stone-50 dark:bg-stone-800/50 rounded-full flex items-center justify-center mb-4 border border-stone-100 shadow-inner">
                   <i aria-hidden="true" class="fas fa-book-open text-4xl text-stone-300"></i>
                 </div>
@@ -126,7 +126,7 @@ export default {
                           <div class="w-24 h-24 mx-auto bg-emerald-50 rounded-full flex items-center justify-center mb-4 border border-emerald-100 shadow-inner">
                              <i aria-hidden="true" class="fas fa-check text-4xl text-emerald-500"></i>
                           </div>
-                          <p class="text-xl font-bold text-emerald-700">�Libro devuelto!</p>
+                          <p class="text-xl font-bold text-emerald-700">¡Libro devuelto!</p>
                           <p class="text-sm mt-1">Puede escanear el siguiente.</p>
                       </div>`;
                       return;

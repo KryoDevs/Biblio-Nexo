@@ -11,7 +11,18 @@ export async function login(email, password) {
         15000,
         'El inicio de sesión tardó demasiado en responder. Intente nuevamente; si el problema persiste, recargue la página.'
     );
-    if (error) throw new Error('Credenciales inválidas. Acceso denegado.');
+    if (error) {
+        // Un fallo de red o de CORS no son credenciales inválidas: decirle
+        // "acceso denegado" a quien escribió bien su clave lo manda a
+        // revisar algo que no es. Se distinguen por el nombre que les pone
+        // gotrue y por el texto del error.
+        const texto = `${error.name || ''} ${error.message || ''}`;
+        const esDeRed = /fetch|network|retryable|failed to fetch|load failed|timeout/i.test(texto);
+        if (esDeRed) {
+            throw new Error('No se pudo conectar con el servidor. Revisa la conexión e inténtalo de nuevo.');
+        }
+        throw new Error('Credenciales inválidas. Acceso denegado.');
+    }
     return data;
 }
 
@@ -36,7 +47,11 @@ export async function resetPassword(email) {
  * recuperación activa, es decir, justo después de abrir el enlace del correo.
  */
 export async function actualizarPassword(nuevaPassword) {
-    const { error } = await supabase.auth.updateUser({ password: nuevaPassword });
+    const { error } = await conTiempoLimite(
+        supabase.auth.updateUser({ password: nuevaPassword }),
+        15000,
+        'El cambio de contraseña tardó demasiado en responder. Inténtalo de nuevo.'
+    );
     if (error) {
         if (/session/i.test(error.message)) {
             throw new Error('El enlace expiró. Solicita uno nuevo desde la pantalla de ingreso.');
@@ -60,15 +75,29 @@ export async function cambiarPassword(passwordActual, passwordNueva) {
     }
 
     // Reautenticación: si la contraseña actual no calza, esto falla.
-    const { error: errorVerificacion } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password: passwordActual
-    });
+    // Con tiempo límite igual que login(): sin él, una red colgada dejaba el
+    // formulario esperando para siempre sin ningún aviso.
+    const { error: errorVerificacion } = await conTiempoLimite(
+        supabase.auth.signInWithPassword({
+            email: user.email,
+            password: passwordActual
+        }),
+        15000,
+        'La verificación tardó demasiado en responder. Inténtalo de nuevo.'
+    );
     if (errorVerificacion) {
+        const texto = `${errorVerificacion.name || ''} ${errorVerificacion.message || ''}`;
+        if (/fetch|network|retryable|timeout/i.test(texto)) {
+            throw new Error('No se pudo conectar con el servidor. Revisa la conexión e inténtalo de nuevo.');
+        }
         throw new Error('La contraseña actual no es correcta.');
     }
 
-    const { error } = await supabase.auth.updateUser({ password: passwordNueva });
+    const { error } = await conTiempoLimite(
+        supabase.auth.updateUser({ password: passwordNueva }),
+        15000,
+        'El cambio de contraseña tardó demasiado en responder. Inténtalo de nuevo.'
+    );
     if (error) {
         throw new Error(error.message || 'No se pudo cambiar la contraseña.');
     }

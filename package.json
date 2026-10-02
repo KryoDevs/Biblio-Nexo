@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:legacy": "npm run test:legacy:consolidacion && npm run test:legacy:interfaz && npm run test:legacy:offline",
-    "test:legacy:consolidacion": "python pruebas/verificar_consolidacion.py && python pruebas/verificar_llamadas_rpc.py",
+    "test:legacy:consolidacion": "python pruebas/verificar_consolidacion.py && python pruebas/verificar_llamadas_rpc.py && python3 pruebas/verificar_clases_tailwind.py",
     "test:legacy:interfaz": "node pruebas/probar-interfaz.mjs && node pruebas/probar-vistas.mjs && node pruebas/probar-escaneo-remoto.mjs",
     "test:legacy:offline": "node pruebas/probar-persistencia.mjs && node pruebas/probar-sync-queue.mjs && node pruebas/probar-estado-conexion.mjs",
     "test:legacy:contraste": "node pruebas/probar-contraste.mjs"

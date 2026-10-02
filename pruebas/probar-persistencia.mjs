@@ -53,30 +53,35 @@ class ConsultaFalsa {
     constructor(filas) {
         this._filas = filas;
         this._filtros = [];
-        this._orden = null;
+        this._ordenes = [];       // `order` puede encadenarse (orden por marca e id)
         this._limite = null;
+        this._rango = null;
         this._error = null;
     }
     select() { return this; }
-    eq(col, val) {
-        this._filtros.push(f => (col === 'estado' ? f[col] === val : (f[col] === val)));
-        return this;
-    }
+    eq(col, val) { this._filtros.push(f => f[col] === val); return this; }
     gt(col, val) { this._filtros.push(f => f[col] > val); return this; }
     gte(col, val) { this._filtros.push(f => f[col] >= val); return this; }
-    order(col, { ascending = true } = {}) { this._orden = { col, ascending }; return this; }
-    limit() { return this; } // el tope no importa para lo que se prueba aquí
+    lt(col, val) { this._filtros.push(f => f[col] < val); return this; }
+    lte(col, val) { this._filtros.push(f => f[col] <= val); return this; }
+    order(col, { ascending = true } = {}) { this._ordenes.push({ col, ascending }); return this; }
+    limit(n) { this._limite = n; return this; }
+    range(inicio, fin) { this._rango = [inicio, fin]; return this; }
     then(resolver, rechazar) {
         try {
             if (this._error) { resolver({ data: null, error: this._error }); return; }
             let filas = this._filas.filter(f => this._filtros.every(fn => fn(f)));
-            if (this._orden) {
-                const { col, ascending } = this._orden;
+            if (this._ordenes.length) {
                 filas = [...filas].sort((a, b) => {
-                    if (a[col] === b[col]) return 0;
-                    return (a[col] > b[col] ? 1 : -1) * (ascending ? 1 : -1);
+                    for (const { col, ascending } of this._ordenes) {
+                        if (a[col] === b[col]) continue;
+                        return (a[col] > b[col] ? 1 : -1) * (ascending ? 1 : -1);
+                    }
+                    return 0;
                 });
             }
+            if (this._rango) filas = filas.slice(this._rango[0], this._rango[1] + 1);
+            else if (this._limite != null) filas = filas.slice(0, this._limite);
             resolver({ data: filas, error: null });
         } catch (e) {
             rechazar(e);
@@ -118,7 +123,9 @@ comprobar('los dos libros quedaron en el almacén local', locales.length === 2, 
 tablas.libros.push({ id: 3, titulo: 'Martín Rivas', isbn: '333', stock: 3, actualizado_en: '2026-08-02T09:00:00Z' });
 
 r = await persistencia.sincronizarLibros();
-comprobar('la segunda sincronización solo trae lo nuevo (delta)', r.libros === 2, JSON.stringify(r));
+// Con el cursor compuesto (marca + id) la fila de borde NO se vuelve a pedir:
+// con el `gte(marca)` de antes esta pasada traía 2 (el libro 2 repetido + el 3).
+comprobar('la segunda sincronización solo trae lo nuevo (delta)', r.libros === 1, JSON.stringify(r));
 
 locales = await persistencia.obtenerLibrosLocal();
 comprobar('el catálogo local ahora tiene los tres libros (sin perder los anteriores)',
@@ -322,6 +329,33 @@ comprobar('quitarOperacion() la saca de la cola', !pendientes.some(o => o.id ===
 const diagFinal = await persistencia.estado();
 comprobar('estado() vuelve a reportar cero operaciones pendientes tras vaciar la cola',
     diagFinal.operacionesPendientes === 0, JSON.stringify(diagFinal));
+
+// ---------------------------------------------------------------------------
+// 5. Empates de marca: un UPDATE masivo deja todas las filas con el mismo
+//    `actualizado_en` (now() es igual para toda la transacción), y si esa
+//    marca cae en el borde de una página, `gte(marca)` + limit volvía a pedir
+//    la misma página para siempre: el resto del catálogo nunca llegaba a la
+//    copia local. Con 1200 filas idénticas (más de dos páginas de 500) se
+//    comprueba que llegan todas y que la pasada siguiente no repite nada.
+console.log('\n5. Empates de marca (UPDATE masivo)');
+const marcaComun = '2026-09-01T00:00:00Z';
+tablas.libros = Array.from({ length: 1200 }, (_, i) => ({
+    id: 10000 + i, titulo: `Lote ${i}`, isbn: `L${i}`, stock: 1, actualizado_en: marcaComun
+}));
+tablas.elementos_eliminados = [];
+
+r = await persistencia.sincronizarLibros();
+comprobar('un lote completo con la misma marca llega entero (1200 filas)',
+    r.libros === 1200, JSON.stringify(r));
+
+const idsLote = new Set((await persistencia.obtenerLibrosLocal())
+    .filter(l => l.id >= 10000).map(l => l.id));
+comprobar('las 1200 filas quedaron guardadas en la copia local',
+    idsLote.size === 1200, `quedaron ${idsLote.size}`);
+
+r = await persistencia.sincronizarLibros();
+comprobar('la pasada siguiente no vuelve a traer el mismo lote',
+    r.libros === 0, JSON.stringify(r));
 
 // ---------------------------------------------------------------------------
 console.log(`\n${'─'.repeat(60)}`);
