@@ -74,7 +74,12 @@ for (const [clase, motivo] of prohibidos) {
 // línea (vive varias líneas dentro de #sidebar, que sí es oscuro — ver
 // css/styles.css). El resto de las excepciones (texto blanco, el encabezado
 // institucional, el fondo lago) sí son fondo oscuro en la misma línea.
-const lineasClaras = ui.split('\n').filter(l =>
+// Se descartan primero las variantes de modo oscuro (`dark:text-stone-400`):
+// ahí el fondo es oscuro y el color sí cumple. Contarlas como si fueran de
+// fondo claro hacía que la comprobación marcara 166 líneas correctas y
+// enterrara los 12 casos reales que sí había que corregir.
+const sinVariantesOscuras = ui.replace(/dark:[^\s"']+/g, '');
+const lineasClaras = sinVariantesOscuras.split('\n').filter(l =>
   l.includes('text-stone-400') && !/sidebar|current-user-sub|text-white|Región de Los Ríos|bg-patrimonio-lago|stone-300 mt-1/.test(l));
 if (lineasClaras.length > 0) {
   console.log(`✗ text-stone-400 sobre fondo claro en ${lineasClaras.length} línea(s) — solo 2.52:1`);

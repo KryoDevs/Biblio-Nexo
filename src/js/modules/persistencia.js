@@ -51,6 +51,17 @@ import { supabase } from '../supabase-init.js';
  * copia local mientras no se haya purgado.
  */
 
+// Id sintético para altas sin conexión. Antes era -Date.now() a secas: dos
+// altas dentro del mismo milisegundo (dos escaneos seguidos, por ejemplo)
+// producían el MISMO id y la segunda pisaba a la primera en IndexedDB. Este
+// contador solo baja, así que nunca se repite dentro de la sesión, y sigue
+// siendo negativo para no chocar jamás con un id real de Postgres.
+let ultimoIdOptimista = 0;
+function idOptimista() {
+    ultimoIdOptimista = Math.min(ultimoIdOptimista - 1, -Date.now());
+    return ultimoIdOptimista;
+}
+
 const NOMBRE_BD = 'biblionexo-local';
 // v2 (Fase 1.3): agrega el índice "rut" a "lectores" (para encontrarlo
 // offline sin recorrer todo el almacén) y el almacén "colaSync" — la cola de
@@ -188,47 +199,112 @@ async function obtenerTodos(nombreAlmacen) {
 
 /** Trae, en páginas, todo lo de `tabla` con `actualizado_en` posterior a
  *  `marca` (o toda la tabla si `marca` es null: primera sincronización). */
-async function libroLotesDesde(marca, onProgress) {
+/**
+ * Trae todas las filas nuevas desde un cursor `{t, id}` (marca de tiempo + id
+ * de la última fila procesada con esa marca).
+ *
+ * Por qué no basta `gte(marca)` + `limit`, que era lo de antes: un UPDATE
+ * masivo (una migración, un `update ... set` como el de la 026) deja TODAS las
+ * filas con el mismo `actualizado_en` — `now()` es igual para toda la
+ * transacción. Si esa marca caía en el borde de una página, el bucle volvía a
+ * pedir la misma página y el resto del catálogo nunca llegaba a la copia
+ * local; y con las lápidas, que son un requisito del derecho de supresión
+ * (CUMPLIMIENTO-LEGAL.md § 9 bis), perder filas no es aceptable.
+ *
+ * El cursor se mueve así:
+ *   1. `inicial`  : primera sincronización, ordenar por (marca, id).
+ *   2. `dentro`   : filas con la MISMA marca y id mayor — se agota la marca
+ *                   sin ambigüedad, sin offsets que se corran.
+ *   3. `siguiente`: la marca se agotó; traer marcas mayores.
+ *   4. `marca-completa`: una instalación vieja guardó solo la marca, sin id.
+ *                   Se incluyen una vez todas las filas de esa marca (pueden
+ *                   repetirse filas ya procesadas; el llamador las de-duplica).
+ */
+async function traerDesdeMarca(tabla, columnas, columnaMarca, cursor, { filtros = [], onProgress } = {}) {
     const filas = [];
-    let ultimaMarca = marca;
-    for (let pagina = 0; pagina < TOPE_PAGINAS; pagina++) {
-        if (onProgress) onProgress({ mensaje: `Descargando catálogo (página ${pagina + 1})...` });
-        let consulta = supabase.from('libros').select('*').order('actualizado_en', { ascending: true }).limit(TAMANO_PAGINA);
-        // BUG-04: Se usa gte (≥) en lugar de gt (>) para no excluir libros con
-        // el mismo valor de actualizado_en (posible en inserts masivos). Sin esto
-        // el segundo libro con timestamp idéntico quedaría huérfano para siempre.
-        // BUG-05: El condicional evalúa ultimaMarca (el valor que avanza con
-        // cada página), no marca (el valor original de la llamada, siempre igual).
-        consulta = ultimaMarca ? consulta.gte('actualizado_en', ultimaMarca) : consulta;
-        const { data, error } = await consulta;
+    let t = cursor.t;
+    let id = cursor.id;
+    let paginas = 0;
+    let modo = t === null ? 'inicial' : (id === null ? 'marca-completa' : 'dentro');
+
+    const base = () => {
+        let q = supabase.from(tabla).select(columnas);
+        for (const [columna, valor] of filtros) q = q.eq(columna, valor);
+        return q;
+    };
+
+    while (paginas < TOPE_PAGINAS) {
+        if (onProgress) onProgress({ mensaje: `Descargando ${tabla} (página ${paginas + 1})...` });
+        let q;
+        if (modo === 'inicial') {
+            q = base().order(columnaMarca, { ascending: true }).order('id', { ascending: true }).limit(TAMANO_PAGINA);
+        } else if (modo === 'marca-completa') {
+            q = base().eq(columnaMarca, t).order('id', { ascending: true }).limit(TAMANO_PAGINA);
+        } else if (modo === 'dentro') {
+            q = base().eq(columnaMarca, t).gt('id', id).order('id', { ascending: true }).limit(TAMANO_PAGINA);
+        } else {
+            q = base().gt(columnaMarca, t).order(columnaMarca, { ascending: true }).order('id', { ascending: true }).limit(TAMANO_PAGINA);
+        }
+
+        const { data, error } = await q;
         if (error) throw error;
-        if (!data || data.length === 0) break;
-        filas.push(...data);
-        ultimaMarca = data[data.length - 1].actualizado_en;
-        if (data.length < TAMANO_PAGINA) break;
+        const lote = data || [];
+        paginas++;
+
+        if (lote.length === 0) {
+            if (modo === 'dentro' || modo === 'marca-completa') { modo = 'siguiente'; continue; }
+            break; // no hay más filas, ni en esta marca ni en las siguientes
+        }
+
+        filas.push(...lote);
+        t = lote[lote.length - 1][columnaMarca];
+        id = lote[lote.length - 1].id;
+        modo = lote.length < TAMANO_PAGINA ? 'siguiente' : 'dentro';
     }
-    return { filas, marca: filas.length ? filas[filas.length - 1].actualizado_en : marca };
+
+    // Una instalación vieja pudo dejar la fila de borde repetida: se de-duplica.
+    const unicas = new Map();
+    for (const fila of filas) unicas.set(fila.id, fila);
+    return { filas: [...unicas.values()], t, id };
 }
 
-/** Lápidas de `tabla` posteriores a `marca` (o todas si es la primera vez). */
-async function eliminadosDesde(tabla, marca) {
-    let consulta = supabase.from('elementos_eliminados').select('id, eliminado_en').eq('tabla', tabla).order('eliminado_en', { ascending: true }).limit(2000);
-    consulta = marca ? consulta.gt('eliminado_en', marca) : consulta;
-    const { data, error } = await consulta;
-    if (error) throw error;
-    return data || [];
+/** Lee el cursor guardado (marca + id) de un par de claves de `meta`. */
+async function leerCursor(claveMarca, claveId) {
+    const [t, id] = await Promise.all([leerMeta(claveMarca), leerMeta(claveId)]);
+    return { t: t || null, id: id === null || id === undefined ? null : id };
+}
+
+/** Guarda el cursor (marca + id) en `meta`, si avanzó. */
+async function escribirCursor(claveMarca, claveId, t, id) {
+    if (!t) return;
+    await escribirMeta(claveMarca, t);
+    if (id !== null && id !== undefined) await escribirMeta(claveId, id);
 }
 
 class PersistentStorage {
     async buscarLibrosLocales(busqueda = '', pagina = 0, porPagina = 25, esBibliomovil = null, filtroStock = 'todos') {
         const bd = await abrir();
         const todos = await conAlmacen(bd, 'libros', 'readonly', almacen => pedido(almacen.getAll()));
+
+        // Mismos filtros que buscar_libros() en la base (010/026): el catálogo
+        // local se replica completo, así que sin esto la vista Bibliomóvil
+        // mostraba también los libros que no son del bibliomóvil cuando no
+        // había conexión — y el filtro de stock no filtraba nada.
+        const porBibliomovil = (esBibliomovil === null || esBibliomovil === undefined)
+            ? todos
+            : todos.filter(b => !!b.es_bibliomovil === esBibliomovil);
+        const porStock = porBibliomovil.filter(b => {
+            if (filtroStock === 'disponibles') return (b.stock ?? 0) > 0;
+            if (filtroStock === 'prestados') return (b.stock ?? 0) === 0;
+            return true;
+        });
+
         const limpia = (busqueda || '').trim().toLowerCase();
-        const filtrados = limpia ? todos.filter(b => 
+        const filtrados = limpia ? porStock.filter(b => 
             (b.titulo && b.titulo.toLowerCase().includes(limpia)) ||
             (b.autor && b.autor.toLowerCase().includes(limpia)) ||
             (b.isbn && b.isbn.includes(limpia))
-        ) : todos;
+        ) : porStock;
         filtrados.sort((a, b) => (a.titulo || '').localeCompare(b.titulo || ''));
         const inicio = pagina * porPagina;
         return {
@@ -266,19 +342,19 @@ class PersistentStorage {
      */
     async sincronizarLibros(onProgress) {
         try {
-            const marcaCambios = await leerMeta('libros_ultima_sync');
-            const { filas, marca } = await libroLotesDesde(marcaCambios, onProgress);
+            const cursorCambios = await leerCursor('libros_ultima_sync', 'libros_ultima_sync_id');
+            const cambios = await traerDesdeMarca('libros', '*', 'actualizado_en', cursorCambios, { onProgress });
+            const filas = cambios.filas;
             if (onProgress && filas.length) onProgress({ mensaje: `Guardando ${filas.length} libros actualizados...` });
             await ponerVarios('libros', filas);
-            if (marca) await escribirMeta('libros_ultima_sync', marca);
+            await escribirCursor('libros_ultima_sync', 'libros_ultima_sync_id', cambios.t, cambios.id);
 
-            const marcaBajas = await leerMeta('libros_eliminados_ultima_sync');
-            const lapidas = await eliminadosDesde('libros', marcaBajas);
-            await borrarVarios('libros', lapidas.map(l => l.id));
-            if (lapidas.length) {
-                await escribirMeta('libros_eliminados_ultima_sync', lapidas[lapidas.length - 1].eliminado_en);
-            }
-            return { libros: filas.length, eliminados: lapidas.length };
+            const cursorBajas = await leerCursor('libros_eliminados_ultima_sync', 'libros_eliminados_ultima_sync_id');
+            const bajas = await traerDesdeMarca('elementos_eliminados', 'id, eliminado_en', 'eliminado_en', cursorBajas,
+                { filtros: [['tabla', 'libros']] });
+            await borrarVarios('libros', bajas.filas.map(l => l.id));
+            await escribirCursor('libros_eliminados_ultima_sync', 'libros_eliminados_ultima_sync_id', bajas.t, bajas.id);
+            return { libros: filas.length, eliminados: bajas.filas.length };
         } catch (e) {
             return { error: e.message || String(e) };
         }
@@ -388,13 +464,12 @@ class PersistentStorage {
      */
     async purgarLectoresEliminados() {
         try {
-            const marca = await leerMeta('lectores_eliminados_ultima_sync');
-            const lapidas = await eliminadosDesde('lectores', marca);
-            await borrarVarios('lectores', lapidas.map(l => l.id));
-            if (lapidas.length) {
-                await escribirMeta('lectores_eliminados_ultima_sync', lapidas[lapidas.length - 1].eliminado_en);
-            }
-            return { eliminados: lapidas.length };
+            const cursor = await leerCursor('lectores_eliminados_ultima_sync', 'lectores_eliminados_ultima_sync_id');
+            const bajas = await traerDesdeMarca('elementos_eliminados', 'id, eliminado_en', 'eliminado_en', cursor,
+                { filtros: [['tabla', 'lectores']] });
+            await borrarVarios('lectores', bajas.filas.map(l => l.id));
+            await escribirCursor('lectores_eliminados_ultima_sync', 'lectores_eliminados_ultima_sync_id', bajas.t, bajas.id);
+            return { eliminados: bajas.filas.length };
         } catch (e) {
             return { error: e.message || String(e) };
         }
@@ -466,7 +541,7 @@ class PersistentStorage {
     async guardarLibroLocalOptimista(libro) {
         try {
             await ponerVarios('libros', [{
-                id: -Date.now(),
+                id: idOptimista(),
                 isbn: libro.isbn,
                 titulo: libro.titulo,
                 autor: libro.autor,
@@ -518,7 +593,7 @@ class PersistentStorage {
     async guardarLectorLocalOptimista(lector) {
         try {
             await ponerVarios('lectores', [{
-                id: -Date.now(),
+                id: idOptimista(),
                 nombre: lector.nombre ?? null,
                 rut: lector.rut ?? null,
                 email: lector.email ?? null,

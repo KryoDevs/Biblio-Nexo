@@ -729,7 +729,7 @@ class UIManager {
         }
         count += 1;
         notifsHTML += `
-          <div class="p-4 flex items-start gap-3 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition cursor-pointer" onclick="document.querySelector('[data-view=\'loans\']').click()">
+          <button type="button" data-go-view="loans" class="w-full text-left p-4 flex items-start gap-3 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition cursor-pointer">
             <div class="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 flex items-center justify-center shrink-0">
               <i aria-hidden="true" class="fas fa-exclamation-triangle text-xs"></i>
             </div>
@@ -737,7 +737,7 @@ class UIManager {
               <p class="text-sm font-bold text-stone-800 dark:text-stone-200">Préstamos vencidos</p>
               <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Tienes ${conteos.vencidos} préstamo(s) fuera de plazo.</p>
             </div>
-          </div>`;
+          </button>`;
       } else {
         if (badge) badge.classList.add('hidden');
       }
@@ -745,15 +745,15 @@ class UIManager {
       if (conteos.porVencer > 0) {
         count += 1;
         notifsHTML += `
-          <div class="p-4 flex items-start gap-3 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition cursor-pointer" onclick="document.querySelector('[data-view=\'loans\']').click()">
-            <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 flex items-center justify-center shrink-0">
+          <button type="button" data-go-view="loans" class="w-full text-left p-4 flex items-start gap-3 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition cursor-pointer">
+            <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 flex items-center justify-center shrink-0">
               <i aria-hidden="true" class="fas fa-clock text-xs"></i>
             </div>
             <div class="min-w-0">
               <p class="text-sm font-bold text-stone-800 dark:text-stone-200">Préstamos por vencer</p>
               <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Hay ${conteos.porVencer} préstamo(s) que vencen pronto.</p>
             </div>
-          </div>`;
+          </button>`;
       }
 
       if (count > 0) {
@@ -761,7 +761,15 @@ class UIManager {
           badgeBell.textContent = count;
           badgeBell.classList.remove('hidden');
         }
-        if (panel) panel.innerHTML = notifsHTML;
+        if (panel) {
+          panel.innerHTML = notifsHTML;
+          // Delegación en vez de `onclick` inline: el CSP de index.html
+          // (script-src 'self') bloquea los manejadores inline, así que los
+          // avisos se veían pero no llevaban a ninguna parte.
+          panel.querySelectorAll('[data-go-view]').forEach(el => {
+            el.addEventListener('click', () => this.switchView(el.dataset.goView));
+          });
+        }
       } else {
         if (badgeBell) badgeBell.classList.add('hidden');
         if (panel) panel.innerHTML = `<div class="p-6 text-center text-stone-500 text-sm"><i aria-hidden="true" class="fas fa-check-circle text-2xl text-emerald-500 mb-2 block"></i> Todo está al día.</div>`;
@@ -799,7 +807,7 @@ class UIManager {
 
         <div class="glass-panel relative z-10 w-full max-w-md rounded-2xl shadow-2xl p-8">
           <h1 class="font-serif font-semibold text-xl text-stone-900 dark:text-stone-100 mb-1">Crea tu contraseña nueva</h1>
-          <p class="text-xs text-stone-600 dark:text-stone-300 mb-5">Debe tener al menos 8 caracteres.</p>
+          <p class="text-xs text-stone-600 dark:text-stone-300 mb-5">Debe tener al menos 12 caracteres e incluir una mayúscula y un número.</p>
 
           <form id="new-password-form" class="space-y-4">
             <div>
@@ -903,7 +911,7 @@ class UIManager {
               <label for="ci-pass-1" class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-300 mb-1 block">Contraseña nueva</label>
               <input id="ci-pass-1" type="password" autocomplete="new-password" placeholder="••••••••"
                 class="w-full px-3 py-2.5 border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800/90 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago" />
-              <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-1">Mínimo 8 caracteres, con al menos una mayúscula y un número.</p>
+              <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-1">Mínimo 12 caracteres, con al menos una mayúscula y un número.</p>
             </div>
             <div>
               <label for="ci-pass-2" class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-300 mb-1 block">Repite la contraseña</label>
@@ -1018,7 +1026,7 @@ class UIManager {
             <div>
               <label for="email-input" class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-400 mb-1 block">Correo</label>
               <input id="email-input" type="email" placeholder="nombre@futrono.cl" autocomplete="username"
-                class="w-full px-4 py-3 border border-stone-300/50 dark:border-stone-600/50 rounded-xl bg-white/70 dark:bg-stone-950/50 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:border-patrimonio-lago focus:ring-2 focus:ring-patrimonio-lago/30 transition-all placeholder:text-stone-400 dark:placeholder:text-stone-500 backdrop-blur-sm" />
+                class="w-full px-4 py-3 border border-stone-300/50 dark:border-stone-600/50 rounded-xl bg-white/70 dark:bg-stone-950/50 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:border-patrimonio-lago focus:ring-2 focus:ring-patrimonio-lago/30 transition-all placeholder:text-stone-500 dark:placeholder:text-stone-400 backdrop-blur-sm" />
             </div>
             <div>
               <div class="flex justify-between items-center mb-1">
@@ -1026,7 +1034,7 @@ class UIManager {
                 <button type="button" id="forgot-password-btn" class="text-[11px] font-bold text-patrimonio-lago dark:text-patrimonio-lago hover:underline transition-colors">¿Olvidaste tu contraseña?</button>
               </div>
               <input id="password-input" type="password" placeholder="••••••••" autocomplete="current-password"
-                class="w-full px-4 py-3 border border-stone-300/50 dark:border-stone-600/50 rounded-xl bg-white/70 dark:bg-stone-950/50 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:border-patrimonio-lago focus:ring-2 focus:ring-patrimonio-lago/30 transition-all placeholder:text-stone-400 dark:placeholder:text-stone-500 backdrop-blur-sm" />
+                class="w-full px-4 py-3 border border-stone-300/50 dark:border-stone-600/50 rounded-xl bg-white/70 dark:bg-stone-950/50 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:border-patrimonio-lago focus:ring-2 focus:ring-patrimonio-lago/30 transition-all placeholder:text-stone-500 dark:placeholder:text-stone-400 backdrop-blur-sm" />
             </div>
             <button type="submit" class="btn-madera w-full text-white font-sans font-bold rounded-xl shadow-lg py-3 text-sm mt-2 transform hover:-translate-y-0.5 transition-all">
               Ingresar <i aria-hidden="true" class="fas fa-arrow-right ml-1"></i>

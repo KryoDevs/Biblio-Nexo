@@ -220,11 +220,18 @@ def main():
                 prueba(f"aplica {nombre}", lambda s=sql: correr(srv, s))
 
             # --- Idempotencia ---
-            # Solo se exige de la ÚLTIMA migración. Reaplicar una anterior debe
-            # fallar, y eso es lo correcto: 005, 006 y 007 redefinen las mismas
-            # funciones, así que volver a ejecutar 005 después de 007 revertiría
-            # las correcciones. Que PostgreSQL aborte con un error es la salida
-            # segura frente a una corrupción silenciosa.
+            # Solo se exige de la ÚLTIMA migración. Reaplicar una anterior no es
+            # seguro: 005, 006 y 007 redefinen las mismas funciones, así que
+            # volver a ejecutar 005 después de 010 revierte correcciones
+            # (renovar_prestamo() vuelve a quedar sin `security definer`).
+            #
+            # Antes de que la 010 se aplicara completa, esto terminaba en un
+            # error de PostgreSQL (cambio de tipo de retorno) y el error era la
+            # salida segura. Ahora la 010 sí se aplica entera, la firma de la
+            # versión vieja encaja y PostgreSQL la reemplaza en SILENCIO: la
+            # única defensa que queda es que `verificar_definiciones()` —lo que
+            # ve Administración → Diagnóstico— lo delate. Eso es lo que se
+            # comprueba aquí, en vez de exigir un error que ya no ocurre.
             print("\n  Idempotencia:")
             ultima = MIGRACIONES[-1]
             with open(ultima, encoding='utf-8') as f:
@@ -232,16 +239,30 @@ def main():
             prueba(f"reaplicar {os.path.basename(ultima)} es seguro",
                    lambda: correr(srv, sql_ultima))
 
-            def reaplicar_anterior_falla():
+            def reaplicar_anterior_no_pasa_inadvertida():
                 with open(MIGRACIONES[4], encoding='utf-8') as f:  # 005
                     sql = f.read()
                 try:
                     correr(srv, sql)
                 except Exception:
-                    return  # correcto: avisa en vez de revertir en silencio
-                raise AssertionError("reaplicar la 005 después de la 007 debió fallar")
-            prueba("reaplicar una migración anterior avisa del error",
-                   reaplicar_anterior_falla)
+                    return  # aborta con error: también es una salida segura
+                # Se aplicó sin error: el desajuste tiene que ser detectable.
+                uid_admin = correr(
+                    srv, "select id from auth.users where email = 'nicolasd.carrillo@gmail.com';"
+                ).split('\n')[2].strip()
+                UID_SIMULADO['valor'] = uid_admin
+                try:
+                    r = correr(
+                        srv,
+                        "select nombre, estado, diagnostico from public.verificar_definiciones() where estado <> 'Correcto';"
+                    )
+                finally:
+                    UID_SIMULADO['valor'] = None
+                filas = [f for f in r.split('\n')[2:] if f.strip() and not f.strip().startswith('(')]
+                assert filas, ('la 005 se reaplicó sin error y verificar_definiciones() '
+                               'no detectó ningún desajuste')
+            prueba("reaplicar una migración anterior no pasa inadvertida",
+                   reaplicar_anterior_no_pasa_inadvertida)
 
             # psql (sin BEGIN/COMMIT explícito en el script) confirma cada
             # sentencia por separado: la 005 alcanza a redefinir varias

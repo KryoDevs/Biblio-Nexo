@@ -1130,6 +1130,26 @@ await prueba('cambiar de filtro vuelve a la primera página', async () => {
 });
 
 // ---------------------------------------------------------------------------
+console.log('\n=== Menú y router sincronizados ===');
+
+await prueba('cada vista del menú tiene su render en el router', () => {
+  // Este fue un bug real: el menú ofrecía "Bibliomóvil" (CONFIG.VIEWS_BY_ROLE)
+  // pero switchView no tenía renderer para ese id y caía en el Dashboard, así
+  // que la vista completa del Modo Ruta era inalcanzable. La comprobación lee
+  // el código fuente para que también valga para futuras vistas.
+  const fuenteRouter = fs.readFileSync(path.join(tmp, 'src/js/modules/ui-router.js'), 'utf8');
+  const fuenteConfig = fs.readFileSync(path.join(tmp, 'src/js/config.js'), 'utf8');
+  const bloque = fuenteRouter.match(/const renderers = \{([\s\S]*?)\n    \};/);
+  assert(bloque, 'no se encontró el mapa de renderers en ui-router.js');
+  const enRouter = new Set([...bloque[1].matchAll(/^\s{6}([a-z][\w]*)\s*:/gm)].map(m => m[1]));
+  const ids = new Set([...fuenteConfig.matchAll(/\{\s*id:\s*'([a-z][\w]*)'/g)].map(m => m[1]));
+  assert(ids.size >= 6, `se esperaban vistas en CONFIG.VIEWS_BY_ROLE y se leyeron ${ids.size}`);
+  const sinRender = [...ids].filter(id => !enRouter.has(id));
+  assert(sinRender.length === 0,
+    `vistas del menú sin renderer: ${sinRender.join(', ')} (el clic cae en el Dashboard)`);
+});
+
+// ---------------------------------------------------------------------------
 
 } finally {
   fs.rmSync(tmp, { recursive: true, force: true });

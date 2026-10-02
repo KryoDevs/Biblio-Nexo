@@ -86,6 +86,12 @@
     <link rel="stylesheet" href="/vendor/css/fontawesome.min.css">
     <link rel="stylesheet" href="/src/assets/css/styles.css">
 
+    <!-- Guardia de arranque. Va como módulo (deferido) y ANTES que main.js:
+         el navegador ejecuta los módulos en orden de documento antes de
+         DOMContentLoaded, así que la función de error y el vigía de 10 s ya
+         existen cuando arranca la aplicación. Tiene que ser un módulo para
+         que Vite lo empaquete: un script clásico que apunte a /src/ no se
+         copia a dist/ y en producción daría 404 (ver pruebas/probar-interfaz.mjs). -->
     <script type="module" src="/src/js/arranque.js"></script>
 </head>
 <body class="bg-patrimonio-base font-sans text-stone-800">

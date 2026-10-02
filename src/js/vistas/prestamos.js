@@ -3,7 +3,7 @@
 // claude/plan-division-ui-base-2026-08-22.md). Sin cambios de lógica: es el
 // mismo código, solo movido.
 //
-// Incluye tanto la tabla de préstamos activos (renderLoans, showBulkNotifyModal)
+// Incluye tanto la lista de préstamos activos (renderLoans, showBulkNotifyModal)
 // como el flujo de circulación compartido (flujoPrestamo y todo lo que cuelga de
 // él), porque Mostrador y Catálogo llaman a `flujoPrestamo` para iniciar un
 // préstamo — mantenerlos juntos evita partir ese flujo en dos archivos.
@@ -79,6 +79,13 @@ export default {
             <div id="prestamos-tbody" class="flex flex-col gap-4">
             ${visibles.length ? visibles.map((l, i) => {
               const estado = this._estadoPrestamo(l.fecha_devolucion_esperada);
+              // Las mismas reglas que aplica renovar_prestamo() en la base
+              // (010_consolidacion.sql): un préstamo atrasado no se renueva y
+              // el máximo de renovaciones es un parámetro del sistema. Antes
+              // se leía `estado.renovable`, un campo que _estadoPrestamo()
+              // nunca devolvió: el botón Renovar no se dibujaba jamás.
+              const puedeRenovar = estado.clave !== 'vencido'
+                && Number(l.renovaciones || 0) < this.param('max_renovaciones');
               const sinContacto = !l.lectores?.email && this.formatPhone(l.lectores?.telefono).length < 11;
               const colorFecha = estado.clave === 'vencido' ? 'text-rose-700 font-bold'
                 : estado.clave === 'porVencer' ? 'text-amber-700 font-bold' : 'text-stone-600 dark:text-stone-300';
@@ -87,7 +94,7 @@ export default {
                   <div class="flex flex-col sm:flex-row gap-4 sm:items-center flex-1">
                     <div class="flex-1">
                       <div class="font-bold text-lg text-stone-800 dark:text-stone-200 leading-tight mb-1">${l.libros?.titulo}</div>
-                      <div class="text-sm text-stone-500 dark:text-stone-400 font-medium"><i aria-hidden="true" class="fas fa-user mr-1.5 text-stone-400"></i>${l.lectores?.nombre} <span class="text-xs font-mono ml-1 text-stone-400">(${l.lectores?.rut || 'Sin RUT'})</span></div>
+                      <div class="text-sm text-stone-500 dark:text-stone-400 font-medium"><i aria-hidden="true" class="fas fa-user mr-1.5 text-stone-500"></i>${l.lectores?.nombre} <span class="text-xs font-mono ml-1 text-stone-500">(${l.lectores?.rut || 'Sin RUT'})</span></div>
                     </div>
                     <div class="flex flex-col sm:items-end gap-1 shrink-0">
                       <div class="text-sm font-bold ${colorFecha}">${this._fechaLegible(l.fecha_devolucion_esperada)}</div>
@@ -96,22 +103,22 @@ export default {
                   </div>
                   <div class="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-stone-100 dark:border-stone-800 pt-3 sm:pt-0 sm:pl-4 shrink-0">
                     ${sinContacto
-                      ? html`<button class="btn-secundario w-8 h-8 flex items-center justify-center rounded bg-stone-100 dark:bg-stone-800 text-stone-400 cursor-not-allowed" disabled title="Lector sin correo ni teléfono"><i aria-hidden="true" class="fas fa-bell-slash"></i></button>`
+                      ? html`<button class="btn-secundario w-8 h-8 flex items-center justify-center rounded bg-stone-100 dark:bg-stone-800 text-stone-500 cursor-not-allowed" disabled title="Lector sin correo ni teléfono"><i aria-hidden="true" class="fas fa-bell-slash"></i></button>`
                       : html`<button class="notify-loan-btn btn-secundario w-8 h-8 flex items-center justify-center rounded bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition" data-id="${l.id}" title="Avisar al lector"><i aria-hidden="true" class="fas fa-bell"></i></button>`
                     }
-                    ${estado.renovable
+                    ${puedeRenovar
                       ? html`<button class="renew-loan-btn btn-secundario w-8 h-8 flex items-center justify-center rounded bg-patrimonio-lago/10 text-patrimonio-lago dark:text-patrimonio-lago hover:bg-patrimonio-lago/20 transition" data-id="${l.id}" title="Renovar préstamo"><i aria-hidden="true" class="fas fa-rotate-right"></i></button>`
                       : ''}
                     <button class="return-loan-btn text-xs bg-patrimonio-madera text-white px-4 py-1.5 rounded-lg hover:bg-[#a67c52] transition font-bold" data-id="${l.id}">Devuelto</button>
                   </div>
                 </div>
-            `; }) : html`<tr><td colspan="4" class="px-4 py-8 text-center text-stone-500 dark:text-stone-400">${
+            `; }) : html`<div class="px-4 py-8 text-center text-stone-500 dark:text-stone-400">${
               filtro === 'vencidos' ? 'No hay préstamos atrasados.'
               : filtro === 'porVencer' ? 'No hay préstamos por vencer.'
-              : 'No hay préstamos activos.'}</td></tr>`}
-          </tbody>
-        </table>
+              : 'No hay préstamos activos.'}</div>`}
+        </div>
         <div id="loans-pagination">${crudo(this._paginacionHtml(this.loanPage, total, porPagina, 'loan-page-btn'))}</div>
+        </div>
       </div>
     `.toString();
 
@@ -184,49 +191,6 @@ export default {
       });
     });
   },
-
-  // Lista de avisos pendientes, para recorrerlos uno por uno sin volver a la tabla.
-  showGeneralNotifyModal(prestamos) {
-      const overlay = document.createElement('div');
-      overlay.className = 'fixed inset-0 bg-patrimonio-lago/50 backdrop-blur-sm z-[10000] flex items-center justify-center p-4';
-      overlay.innerHTML = html`
-        <div class="bg-patrimonio-card dark:bg-stone-900 border border-stone-300 dark:border-stone-600 rounded-2xl max-w-lg w-full shadow-2xl flex flex-col max-h-[80vh]">
-          <div class="p-6 pb-4">
-            <h3 class="font-serif text-lg font-bold text-stone-900 dark:text-stone-100">Aviso Cierre General</h3>
-            <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">${prestamos.length} ${prestamos.length === 1 ? 'lector' : 'lectores'} con libros en su poder. Solicita devoluci�n masiva por cierre o vacaciones.</p>
-          </div>
-          <div class="overflow-y-auto px-6 divide-y divide-stone-200 border-t border-stone-200 dark:border-stone-700">
-            ${prestamos.map(l => {
-              const tel = l.lectores?.telefono;
-              const nombre = l.lectores?.nombre || 'Lector';
-              const titulo = l.libros?.titulo || 'un libro';
-              const m = `Estimado/a ${nombre}, le recordamos que por cierre de semestre o vacaciones debe devolver el libro "${titulo}" a la biblioteca lo antes posible. �Gracias!`;
-              const msg = encodeURIComponent(m);
-              const enlace = tel ? `https://wa.me/${this.formatPhone(tel)}?text=${msg}` : '';
-              return html`
-                <div class="py-3 flex items-center justify-between gap-3">
-                  <div class="min-w-0">
-                    <p class="font-bold text-sm text-stone-800 dark:text-stone-200 truncate">${nombre}</p>
-                    <p class="text-xs text-stone-500 dark:text-stone-400 truncate" title="${titulo}">${titulo}</p>
-                  </div>
-                  ${tel
-                    ? html`<a href="${enlace}" target="_blank" rel="noopener noreferrer" class="btn-secundario shrink-0 border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap"><i aria-hidden="true" class="fab fa-whatsapp text-emerald-600 mr-1"></i> WhatsApp</a>`
-                    : html`<span class="text-[10px] text-stone-400 font-bold uppercase tracking-widest shrink-0">Sin tel.</span>`
-                  }
-                </div>
-              `;
-            }).join('')}
-          </div>
-          <div class="p-4 border-t border-stone-200 dark:border-stone-700 text-right bg-stone-50 dark:bg-stone-800/50 rounded-b-2xl shrink-0">
-            <button data-action="cerrar" class="px-5 py-2.5 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-200">Cerrar</button>
-          </div>
-        </div>
-      `.toString();
-      document.body.appendChild(overlay);
-      const cerrar = () => overlay.remove();
-      overlay.querySelector('[data-action="cerrar"]').addEventListener('click', cerrar);
-      overlay.addEventListener('click', e => { if (e.target === overlay) cerrar(); });
-    },
 
     showBulkNotifyModal(prestamos) {
     const overlay = document.createElement('div');

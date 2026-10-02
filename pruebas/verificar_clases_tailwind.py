@@ -2,16 +2,24 @@
 """
 Vigila que toda clase CSS usada en el código ya esté compilada.
 
-`vendor/css/tailwind.css` es estático: se generó una vez a mano, no hay paso
-de build que lo regenere en cada cambio (no hay `tailwind.config.*` ni
-`package.json` en este repositorio — ver PROMPT-produccion.md, sección 12).
-Una clase de Tailwind que "se ve" válida pero nunca se usó antes en ningún
-otro archivo del proyecto no existe en ese CSS compilado, y no da NINGÚN
-error: el elemento queda sin ese estilo, en silencio. Pasó dos veces en la
-misma sesión (19 de agosto de 2026, la esquina del escáner; 22 de agosto,
-`mx-auto` en escaneo-remoto.js y `hover:bg-rose-100` en perfil.js), y las
-dos veces se encontró leyendo el CSS compilado a mano — este script
-automatiza exactamente esa lectura.
+Cada página del proyecto resuelve su CSS de una forma distinta:
+
+  · `index.html` carga `src/assets/css/styles.css`, una hoja de Tailwind v4
+    que PostCSS regenera en cada build (`postcss.config.js` +
+    `package.json`): ahí una clase nueva se compila sola y no hay nada que
+    vigilar.
+  · `escaneo-remoto.html` y `404.html` se sirven sin build y cargan
+    `public/vendor/css/tailwind.css`, estático, generado a mano una vez.
+    Una clase de Tailwind que "se ve" válida pero no está en ese CSS no da
+    NINGÚN error: el elemento queda sin ese estilo, en silencio. Pasó dos
+    veces (19 de agosto de 2026, la esquina del escáner; 22 de agosto,
+    `mx-auto` en escaneo-remoto.js y `hover:bg-rose-100` en perfil.js), y
+    las dos veces se encontró leyendo el CSS compilado a mano — este script
+    automatiza exactamente esa lectura.
+
+Por eso el alcance son SOLO esas páginas estáticas y los .js que ellas
+cargan: las demás plantillas las compila PostCSS y revisarlas con la lista
+de clases del CSS estático daría falsos positivos.
 
 Esta comprobación lee los archivos, no el navegador, así que atrapa el
 problema en el envío al repositorio — antes de que llegue a producción.
@@ -21,12 +29,12 @@ parser de CSS ni de JavaScript.
 
 Qué compara:
   · "Compilado" = toda clase que aparece como selector en cualquier .css de
-    `vendor/css/` o `css/` (Tailwind vendorizado + FontAwesome vendorizado +
-    los estilos propios del proyecto).
+    `public/vendor/css/` o `src/assets/css/` (Tailwind vendorizado +
+    FontAwesome vendorizado + los estilos propios del proyecto).
   · "Usada" = toda clase que aparece en un atributo `class="..."` /
     `className = "..."` (HTML o plantillas de JS), o como argumento de
-    `classList.add/remove/toggle(...)`, en cualquier .js de `js/` o .html de
-    la raíz.
+    `classList.add/remove/toggle(...)`, en las páginas que cargan
+    `vendor/css/tailwind.css` y en los .js que esas páginas enlazan.
 
 Limitaciones conocidas, a propósito (no se resuelven con más regex):
   · Clases armadas con interpolación (`class="... ${variable}"`) solo se
@@ -121,7 +129,7 @@ def main():
         f for d in css_dirs if d.is_dir() for f in d.glob('*.css')
     )
     if not archivos_css:
-        print(f'{ROJO}No encuentro ningún .css en vendor/css/ ni css/{FIN}')
+        print(f'{ROJO}No encuentro ningún .css en public/vendor/css ni src/assets/css{FIN}')
         return 1
 
     compiladas = set()
@@ -132,7 +140,29 @@ def main():
     for archivo in archivos_css:
         print(f'  · {archivo.relative_to(RAIZ)}')
 
-    archivos_fuente = sorted((RAIZ / 'src' / 'js').rglob('*.js')) + sorted(RAIZ.glob('*.html'))
+    # Solo se revisan las páginas que dependen del CSS estático de verdad.
+    #
+    # El panel principal (index.html) carga /src/assets/css/styles.css, que es
+    # una hoja de Tailwind v4 procesada por PostCSS en cada build
+    # (postcss.config.js + @tailwindcss/postcss): ahí las utilidades nuevas se
+    # generan solas y no hace falta que estén en vendor/css/tailwind.css.
+    #
+    # En cambio escaneo-remoto.html y 404.html se sirven sin build y cargan
+    # `vendor/css/tailwind.css` a mano: una clase que no esté ahí no se aplica,
+    # en silencio. Esos son los archivos que este chequeo debe vigilar.
+    paginas_estaticas = sorted(
+        p for p in RAIZ.glob('*.html')
+        if 'vendor/css/tailwind.css' in p.read_text(encoding='utf-8')
+    )
+    archivos_fuente = list(paginas_estaticas)
+    for pagina in paginas_estaticas:
+        for src in re.findall(r'<script[^>]+src=["\']([^"\']+)["\']', pagina.read_text(encoding='utf-8')):
+            if src.startswith(('http', '//')) or src.startswith('vendor/'):
+                continue
+            candidato = (RAIZ / src.lstrip('/')).resolve()
+            if candidato.is_file() and candidato.suffix == '.js':
+                archivos_fuente.append(candidato)
+    archivos_fuente = sorted(set(archivos_fuente))
     faltantes = {}  # clase -> set(archivo relativo)
     total_usadas = set()
 
@@ -145,7 +175,7 @@ def main():
             faltantes.setdefault(clase, set()).add(str(archivo.relative_to(RAIZ)))
 
     print(f'{len(total_usadas)} clases usadas, encontradas en {len(archivos_fuente)} archivo(s) fuente '
-          f'(.js de js/, .html de la raíz)\n')
+          f'(páginas que cargan vendor/css/tailwind.css y sus scripts)\n')
 
     if faltantes:
         print(f'{ROJO}{"─" * 66}{FIN}')
@@ -154,9 +184,9 @@ def main():
             archivos = ', '.join(sorted(faltantes[clase]))
             print(f'  · {clase}\n      usada en: {archivos}')
         print(f'\n  Corrección: si es una clase de Tailwind, agrégala a mano a '
-              f'vendor/css/tailwind.css (mismo patrón que las últimas dos veces —\n'
+              f'public/vendor/css/tailwind.css (mismo patrón que las últimas dos veces —\n'
               f'  ver el comentario junto a `.mx-auto` en ese archivo). Si es una clase '
-              f'propia del proyecto, agrégale la regla en css/styles.css.\n'
+              f'propia del proyecto, agrégale la regla en src/assets/css/styles.css.\n'
               f'  Si de verdad no necesita estilo (solo la usa JavaScript para encontrar '
               f'el elemento), agrégala a IGNORAR en este script, con el motivo escrito.')
         return 1

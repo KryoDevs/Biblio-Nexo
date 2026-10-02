@@ -618,7 +618,7 @@ textarea:focus-visible,
 .pagina-legal a:hover { color: var(--patrimonio-madera); }
 
 /* ============================================================================
-   Redise�o General - Fase 1 (Soft UI y Cascar�n)
+   Rediseño General - Fase 1 (Soft UI y Cascarón)
    ============================================================================ */
 
 /* Sombras suaves y difusas para tarjetas (Glass/Soft UI) */
@@ -636,7 +636,7 @@ textarea:focus-visible,
     -webkit-backdrop-filter: blur(8px);
 }
 
-/* Inputs globales m�s limpios (sobrescribiendo estilos por defecto si aplican) */
+/* Inputs globales más limpios (sobrescribiendo estilos por defecto si aplican) */
 .input-premium {
     background-color: #F8FAF9;
     border: 1px solid #E5E7EB;
@@ -653,13 +653,13 @@ textarea:focus-visible,
     outline: none;
 }
 
-/* Badges (p�ldoras de estado) */
+/* Badges (píldoras de estado) */
 .badge-soft-red { background-color: #FEF2F2; color: #991B1B; border: 1px solid #FEE2E2; }
 .badge-soft-green { background-color: #F0FDF4; color: #166534; border: 1px solid #DCFCE7; }
 .badge-soft-amber { background-color: #FFFBEB; color: #92400E; border: 1px solid #FEF3C7; }
 .badge-soft-stone { background-color: #F5F5F4; color: #44403C; border: 1px solid #E7E5E4; }
 
-/* Bot�n moderno de Toggle (Switch) para el Mes�n */
+/* Botón moderno de Toggle (Switch) para el Mesón */
 .toggle-switch-input:checked + .toggle-switch-bg {
     background-color: var(--patrimonio-lago);
 }

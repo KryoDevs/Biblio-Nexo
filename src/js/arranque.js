@@ -12,8 +12,16 @@
  * alguien lograra inyectar una etiqueta <script> o un atributo onclick en la
  * página, el navegador se negaría a ejecutarlo.
  *
- * Se carga sin `type="module"` y antes que el resto, para que la función de
- * error exista aunque los módulos no lleguen a arrancar.
+ * Se carga como módulo en el <head> y ANTES que main.js: los módulos se
+ * ejecutan en orden de documento, antes de DOMContentLoaded, así que la
+ * función de error y el vigía de 10 s ya están puestos cuando arranca la
+ * aplicación. (El comentario anterior decía que se cargaba "sin type=module";
+ * nunca fue así, y con un <script> clásico Vite no lo empaquetaría.)
+ *
+ * El vigía de carga de los scripts escucha en fase de captura sobre window y
+ * no espera a DOMContentLoaded: aunque este archivo ya se ejecuta tarde para
+ * los scripts del <body>, el oyente sí alcanza a cualquier script que se
+ * inserte después (por ejemplo html5-qrcode, que se carga bajo demanda).
  */
 (function () {
   'use strict';
@@ -115,21 +123,24 @@
   };
 
   // Vigilancia de los scripts esenciales. Antes esto eran atributos onerror en
-  // cada etiqueta; ahora se enganchan aquí para poder cerrar la CSP.
-  function vigilar(id, mensaje) {
-    var script = document.getElementById(id);
-    if (script) {
-      script.addEventListener('error', function () {
-        window.__showCriticalError(mensaje);
-      });
+  // cada etiqueta; ahora se engancha aquí para poder cerrar la CSP.
+  //
+  // A diferencia de la versión anterior (que enganchaba los oyentes recién en
+  // DOMContentLoaded), se usa un oyente global en FASE DE CAPTURA sobre
+  // window: los scripts del <body> se descargan durante el parseo, así que si
+  // fallan disparan su 'error' ANTES de que exista DOMContentLoaded — el
+  // oyente tardío solo dejaba el aviso genérico de los 10 segundos. Los
+  // 'error' de recursos no burbujean, pero sí se capturan en window.
+  var MENSAJES_DE_CARGA = {
+    'script-supabase': 'No se pudo cargar el módulo de base de datos. Verifique que la carpeta vendor esté publicada.',
+    'script-app': 'No se pudo cargar la aplicación.'
+  };
+  window.addEventListener('error', function (evento) {
+    var id = evento && evento.target && evento.target.id;
+    if (id && MENSAJES_DE_CARGA[id]) {
+      window.__showCriticalError(MENSAJES_DE_CARGA[id]);
     }
-  }
-
-  document.addEventListener('DOMContentLoaded', function () {
-    vigilar('script-supabase',
-      'No se pudo cargar el módulo de base de datos. Verifique que la carpeta vendor esté publicada.');
-    vigilar('script-app', 'No se pudo cargar la aplicación.');
-  });
+  }, true);
 
   // Red de seguridad: si a los 10 segundos la aplicación no avisó que arrancó,
   // se asume que algo se colgó por el camino.

@@ -52,6 +52,13 @@ jobs:
       - name: Verificar que el JS llama a cada RPC con la firma vigente
         run: python3 pruebas/verificar_llamadas_rpc.py
 
+      - name: Verificar que las clases de las páginas con Tailwind estén compiladas
+        # Se quedó fuera del CI al escribirse y por eso nadie la ejecutaba: las
+        # páginas que cargan vendor/css/tailwind.css (escaneo-remoto.html,
+        # 404.html) podían usar una clase que Tailwind ya no compila y verse
+        # rotas en producción sin que ninguna prueba lo notara.
+        run: python3 pruebas/verificar_clases_tailwind.py
+
   # ==========================================================================
   # 2. Interfaz sobre DOM simulado
   # ==========================================================================
@@ -87,6 +94,13 @@ jobs:
       - name: Probar contraste (Legacy)
         run: npm run test:legacy:contraste
 
+      - name: Construir la aplicación (Vite + PWA)
+        # El despliegue real es un build; que las pruebas pasen sobre el código
+        # fuente no garantiza que el empaquetado lo haga (un script clásico
+        # apuntando a /src/, por ejemplo, compila sin error pero da 404 en
+        # dist/). Construir aquí convierte ese riesgo en un job rojo.
+        run: npm run build
+
   # ==========================================================================
   # 3. Migraciones contra un PostgreSQL embebido
   # ==========================================================================
@@ -115,7 +129,7 @@ jobs:
   # ==========================================================================
   # 4. Base de datos real
   # ==========================================================================
-  # Aplica las diez migraciones sobre un PostgreSQL de verdad y comprueba el
+  # Aplica todas las migraciones sobre un PostgreSQL de verdad y comprueba el
   # sistema con dos identidades (admin y librero). Incluye la reproducción del
   # fallo original: primero reinstala las funciones como estaban antes de la
   # 008, demuestra que la devolución fallaba en silencio, y recién entonces
