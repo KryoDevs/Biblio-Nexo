@@ -83,9 +83,9 @@ export const reportes = {
         // No se envuelven en un conTiempoLimite extra por fuera: cada bloque ya
         // trae su propio límite de tiempo (ESPERA_RESPALDO), y un período grande
         // que de verdad necesite varias páginas puede tardar más que ESPERA.
-        const [prestamosRes, devolucionesRes, lectoresRes] = await Promise.all([
+        const [prestamosRes, devolucionesRes, lectoresRes, paradasRes] = await Promise.all([
             traerTodasLasFilas((rDesde, rHasta) => supabase.from('prestamos')
-                .select('id, fecha_prestamo, fecha_devolucion_esperada, fecha_devolucion_real, estado, libros(id, titulo, autor), libro_titulo_archivado, libro_autor_archivado, lectores(id, nombre, rut)')
+                .select('id, fecha_prestamo, fecha_devolucion_esperada, fecha_devolucion_real, estado, parada_nombre, libros(id, titulo, autor), libro_titulo_archivado, libro_autor_archivado, lectores(id, nombre, rut)')
                 .gte('fecha_prestamo', desde)
                 .lte('fecha_prestamo', hasta)
                 .range(rDesde, rHasta)),
@@ -100,7 +100,8 @@ export const reportes = {
                 // el rango cubre exactamente los días de Chile solicitados.
                 .gte('created_at', `${desde}T00:00:00${desfaseChile(desde)}`)
                 .lte('created_at', `${hasta}T23:59:59${desfaseChile(hasta)}`)
-                .range(rDesde, rHasta))
+                .range(rDesde, rHasta)),
+            conTiempoLimite(supabase.rpc('estadisticas_paradas'), ESPERA).catch(() => ({ data: [] }))
         ]);
 
         // 42703 = columna inexistente en Postgres
@@ -160,6 +161,7 @@ export const reportes = {
             // eliminados distintos no se junten bajo la misma clave "null".
             topLibros: contar(prestamos, p => p.libros?.id ?? p.libros?.titulo, p => p.libros?.titulo || 'Sin título'),
             topLectores: contar(prestamos, p => p.lectores?.id, p => p.lectores?.nombre || 'Sin nombre'),
+            porParada: Array.isArray(paradasRes?.data) ? paradasRes.data : [],
             prestamos,
             nuevosLectores
         };

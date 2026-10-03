@@ -178,6 +178,9 @@ const supabaseFalso = {
     if (nombre === 'revisar_inventario') {
       return Promise.resolve({ data: [{ libro_id: 1, titulo: 'Subterra', isbn: 'x', copias_totales: 4, stock: 3, prestados: 0, diferencia: 1 }], error: null });
     }
+    if (nombre === 'estadisticas_paradas') {
+      return Promise.resolve({ data: [{ parada: 'Llifén', lat: -40.198, lng: -72.259, total_prestamos: 4 }], error: null });
+    }
     if (nombre === 'listar_personal') {
       return Promise.resolve({ data: [{ usuario_id: 'abc', email: 'admin@biblionexo.cl', rol: 'admin', ultimo_acceso: '2026-07-25T10:00:00Z' }], error: null });
     }
@@ -547,10 +550,19 @@ await prueba('showConfirm y showPrompt se montan', () => {
 console.log('\n=== Reportes: datos y exportación ===');
 await prueba('obtenerReporte devuelve la forma esperada', async () => {
   const r = await db.obtenerReporte('2026-01-01', '2026-12-31');
-  for (const k of ['totalPrestamos', 'totalDevoluciones', 'totalNuevosLectores', 'topLibros', 'topLectores']) {
+  for (const k of ['totalPrestamos', 'totalDevoluciones', 'totalNuevosLectores', 'topLibros', 'topLectores', 'porParada']) {
     assert(k in r, `falta la clave ${k}`);
   }
   assert(Array.isArray(r.topLibros), 'topLibros no es arreglo');
+  assert(Array.isArray(r.porParada) && r.porParada[0]?.parada === 'Llifén', 'porParada no incluye las paradas del Bibliomóvil');
+});
+
+await prueba('renderReports muestra la sección de préstamos por parada del Bibliomóvil', async () => {
+  ui.currentView = 'reports';
+  await ui.renderReports();
+  const bloqueParadas = document.getElementById('reporte-paradas');
+  assert(bloqueParadas, 'no se dibujó #reporte-paradas en la vista de reportes');
+  assert(bloqueParadas.textContent.includes('Llifén'), 'no muestra el nombre de la parada en el reporte');
 });
 
 await prueba('exportación CSV no lanza errores', async () => {
