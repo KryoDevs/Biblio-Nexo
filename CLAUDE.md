@@ -16,10 +16,11 @@ final. Las personas que operan el sistema no son técnicas y no hablan inglés.
 
 ## Stack (no asumas otro)
 
-- HTML5 SPA, JavaScript vanilla con ES Modules. **Sin build step.**
-- Librerías locales en `vendor/js/`. **No hay CDN. No hay `package.json`.**
-- Backend: Supabase (Postgres 16 + Auth + RLS). **No hay Firebase.**
-- Despliegue: Vercel.
+- HTML5 SPA, JavaScript vanilla con ES Modules empaquetados con **Vite** + **Tailwind CSS v4 (PostCSS)** + **Workbox PWA** (`vite-plugin-pwa`).
+- Código fuente en `src/js/` (`main.js`, `config.js`, `modules/`, `modules/db/`, `vistas/`) y estilos en `src/assets/css/styles.css`.
+- Recursos estáticos autohospedados en `public/vendor/` (tipografías `.woff2`, FontAwesome, iconos). **No hay CDN de scripts ni fuentes.**
+- Backend: Supabase (Postgres 16 + Auth + RLS + Edge Functions). **No hay Firebase.**
+- Despliegue: Vercel (`vercel.json` genera `dist/` con `npm run build`).
 
 ---
 
@@ -71,11 +72,16 @@ declarar bajo la Ley 21.719. Ya existe una bitácora propia: migración 009,
 
 ## Ejecuta las pruebas antes y después de cada cambio
 
-    python3 pruebas/verificar_consolidacion.py   → regla de la consolidación
-    node pruebas/probar-interfaz.mjs             → 56 comprobaciones, DOM simulado
-    python3 pruebas/probar_librero.py            → 90 comprobaciones, PostgreSQL real
+    npm test                                     → 23 pruebas unitarias (Vitest)
+    npm run test:legacy                          → consolidación, RPC, Tailwind, interfaz, vistas, offline
+    npm run test:legacy:contraste                → 13 pares de contraste WCAG 2.1 AA
+    npm run build && npm run verify:build        → empaquetado Vite + verificación de manifest/recursos
+    python3 pruebas/verificar_consolidacion.py   → regla de la consolidación (58 funciones)
+    python3 pruebas/verificar_llamadas_rpc.py    → correspondencia entre llamadas JS y firmas SQL
+    python3 pruebas/probar-migraciones.py        → 212 comprobaciones sobre PostgreSQL real
+    python3 pruebas/probar_librero.py            → 130 comprobaciones de circulación y RLS en PostgreSQL real
 
-La última necesita `pip install pgserver "psycopg[binary]"` la primera vez.
+Las dos últimas necesitan `pip install pgserver "psycopg[binary]"` la primera vez.
 
 Si una prueba falla por un cambio tuyo, arréglalo. Si crees que la prueba está
 mal, dilo y espera confirmación: **no la modifiques para que pase.**
@@ -84,7 +90,7 @@ mal, dilo y espera confirmación: **no la modifiques para que pase.**
 
 ## Sistema de diseño
 
-Identidad "Patrimonio de Futrono". Ya está en `css/styles.css`. Respétalo, no lo
+Identidad "Patrimonio de Futrono". Ya está en `src/assets/css/styles.css`. Respétalo, no lo
 "mejores". Valores exactos:
 
     patrimonio-base    = #F7F4EB

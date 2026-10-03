@@ -88,10 +88,52 @@ export default {
         ${items.length ? html`<ol class="space-y-2">${items.map((i, n) => html`
           <li class="flex items-center gap-3 text-sm">
             <span class="w-5 h-5 rounded bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400 text-[10px] font-black flex items-center justify-center shrink-0">${n + 1}</span>
-            <span class="flex-1 truncate text-stone-700">${i.etiqueta}</span>
+            <span class="flex-1 truncate text-stone-700 dark:text-stone-300">${i.etiqueta}</span>
             <span class="font-bold text-stone-900 dark:text-stone-100 tabular-nums">${i.total}</span>
           </li>`)}</ol>`
         : html`<p class="text-sm text-stone-500 dark:text-stone-400 py-4 text-center">${vacio}</p>`}
+      </div>`;
+
+    const paradas = Array.isArray(reporte.porParada) ? reporte.porParada : [];
+    const maxPrestamosParada = paradas.reduce((max, p) => Math.max(max, Number(p.total_prestamos) || 0), 1);
+
+    const seccionParadas = html`
+      <div id="reporte-paradas" class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5 mt-4">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+          <div>
+            <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100 flex items-center gap-2">
+              <i aria-hidden="true" class="fas fa-map-location-dot text-patrimonio-lago dark:text-stone-300"></i>
+              Préstamos por parada del Bibliomóvil
+            </h3>
+            <p class="text-xs text-stone-500 dark:text-stone-400">Distribución histórica acumulada por punto de atención territorial.</p>
+          </div>
+          <span class="text-xs font-bold text-stone-600 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+            ${paradas.length} ${paradas.length === 1 ? 'parada registrada' : 'paradas registradas'}
+          </span>
+        </div>
+        ${paradas.length ? html`
+          <ol class="space-y-2.5">
+            ${paradas.map((p, idx) => {
+              const totalParada = Number(p.total_prestamos) || 0;
+              const pct = Math.max(8, Math.round((totalParada / maxPrestamosParada) * 100));
+              const tieneCoord = Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng)) && p.lat !== null && p.lng !== null;
+              return html`
+                <li class="p-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50/60 dark:bg-stone-800/50">
+                  <div class="flex items-center justify-between gap-3 text-sm mb-1.5">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <span class="w-5 h-5 rounded bg-patrimonio-lago text-white text-[10px] font-black flex items-center justify-center shrink-0">${idx + 1}</span>
+                      <span class="font-bold text-stone-800 dark:text-stone-100 truncate">${p.parada || 'Parada sin nombre'}</span>
+                      ${tieneCoord ? html`<span class="text-[11px] font-mono text-stone-500 dark:text-stone-400 hidden sm:inline">(${Number(p.lat).toFixed(4)}, ${Number(p.lng).toFixed(4)})</span>` : ''}
+                    </div>
+                    <span class="font-bold text-stone-900 dark:text-stone-100 tabular-nums shrink-0">${totalParada} ${totalParada === 1 ? 'préstamo' : 'préstamos'}</span>
+                  </div>
+                  <div class="w-full h-1.5 bg-stone-200 dark:bg-stone-700 rounded-full overflow-hidden" aria-hidden="true">
+                    <div class="h-full bg-patrimonio-madera rounded-full" style="width: ${pct}%"></div>
+                  </div>
+                </li>`;
+            })}
+          </ol>
+        ` : html`<p class="text-sm text-stone-500 dark:text-stone-400 py-4 text-center">Sin préstamos registrados en paradas del Bibliomóvil.</p>`}
       </div>`;
 
     container.innerHTML = html`
@@ -103,10 +145,10 @@ export default {
           ${botonPeriodo('anio', 'Anual')}
         </div>
         <div class="flex flex-wrap gap-2">
-          <button id="backup-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:bg-stone-800/50 text-stone-700 font-medium rounded-xl px-4 py-2 text-sm" title="Descarga una copia completa de libros, lectores y préstamos">
+          <button id="backup-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 font-medium rounded-xl px-4 py-2 text-sm" title="Descarga una copia completa de libros, lectores y préstamos">
             <i aria-hidden="true" class="fas fa-database mr-1.5"></i> Respaldo completo
           </button>
-          <button id="export-csv-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:bg-stone-800/50 text-stone-700 font-medium rounded-xl px-4 py-2 text-sm">
+          <button id="export-csv-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 font-medium rounded-xl px-4 py-2 text-sm">
             <i aria-hidden="true" class="fas fa-file-csv mr-1.5"></i> Exportar CSV
           </button>
           <button id="print-report-btn" class="btn-madera text-white font-medium rounded-xl shadow px-4 py-2 text-sm">
@@ -148,6 +190,8 @@ export default {
           ${ranking('Libros más prestados', reporte.topLibros, 'Sin préstamos en este período.')}
           ${ranking('Lectores más activos', reporte.topLectores, 'Sin actividad en este período.')}
         </div>
+
+        ${seccionParadas}
       </div>
     `;
 
@@ -230,6 +274,15 @@ export default {
     reporte.nuevosLectores.forEach(l => filas.push([
       celda(l.nombre), celda(l.rut), celda((l.created_at || '').split('T')[0])
     ]));
+
+    if (Array.isArray(reporte.porParada) && reporte.porParada.length > 0) {
+      filas.push([]);
+      filas.push([celda('PRÉSTAMOS POR PARADA DEL BIBLIOMÓVIL')]);
+      filas.push([celda('Parada'), celda('Latitud'), celda('Longitud'), celda('Total préstamos')]);
+      reporte.porParada.forEach(p => filas.push([
+        celda(p.parada), celda(p.lat ?? ''), celda(p.lng ?? ''), celda(p.total_prestamos ?? 0)
+      ]));
+    }
 
     const csv = filas.map(f => f.join(';')).join('\r\n');
     // El BOM inicial hace que Excel reconozca los acentos correctamente

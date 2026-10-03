@@ -1147,6 +1147,27 @@ def main():
             prueba("evidencia_incidente() genera el informe",
                    lambda: correr(srv, "select public.evidencia_incidente(now() - interval '1 day', now());"))
 
+            # --- Bibliomóvil: préstamos geolocalizados y estadísticas de paradas (027/028) ---
+            print("\n  Bibliomóvil y estadísticas de paradas:")
+            como(uid_librero)
+
+            def prestamo_con_parada_y_estadisticas():
+                correr(srv, "select * from public.prestar_libro(1, '11111111-1', 'Llifén', -40.198, -72.259);")
+                r = correr(srv, "select parada, round(lat, 3), round(lng, 3), total_prestamos from public.estadisticas_paradas();")
+                assert 'Llifén' in r and '-40.198' in r and '-72.259' in r, (
+                    f"estadisticas_paradas() no devolvió la parada registrada: {r}"
+                )
+            prueba("prestar_libro() guarda parada/coordenadas y estadisticas_paradas() las agrupa",
+                   prestamo_con_parada_y_estadisticas)
+
+            def estadisticas_paradas_rechaza_anon():
+                anon()
+                try:
+                    debe_fallar("select * from public.estadisticas_paradas();", "iniciar sesión")
+                finally:
+                    como(uid_librero)
+            prueba("estadisticas_paradas() rechaza llamadas sin sesión", estadisticas_paradas_rechaza_anon)
+
         finally:
             if srv:
                 srv.cleanup()

@@ -34,11 +34,11 @@ export default {
             const overlay = document.createElement('div');
             overlay.className = 'fixed inset-0 bg-patrimonio-lago/40 backdrop-blur-md z-[10000] transition-opacity duration-300 flex items-center justify-center p-4';
             overlay.innerHTML = `
-                <div class="bg-patrimonio-card/95 backdrop-blur-xl border border-white/20 rounded-[2rem] max-w-sm w-full p-8 shadow-soft-xl shadow-patrimonio-lago/20 transform transition-all space-y-4">
-                    <h3 class="font-serif text-lg font-bold text-stone-900">${escapeHtml(title)}</h3>
-                    <p class="text-stone-600 text-sm">${escapeHtml(message)}</p>
+                <div class="bg-patrimonio-card dark:bg-stone-900 border border-stone-300 dark:border-stone-600 rounded-2xl max-w-sm w-full p-6 shadow-sm transform transition-all space-y-4">
+                    <h3 class="font-serif text-lg font-bold text-stone-900 dark:text-stone-100">${escapeHtml(title)}</h3>
+                    <p class="text-stone-600 dark:text-stone-300 text-sm">${escapeHtml(message)}</p>
                     <div class="flex justify-end gap-3 pt-2">
-                        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 hover:bg-stone-100">Cancelar</button>
+                        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cancelar</button>
                         <button data-action="confirm" class="${danger ? 'bg-rose-700 hover:bg-rose-800' : 'bg-patrimonio-madera hover:bg-[#633414]'} text-white px-4 py-2 rounded-xl text-sm font-medium">${escapeHtml(confirmText)}</button>
                     </div>
                 </div>
@@ -59,13 +59,13 @@ export default {
             const overlay = document.createElement('div');
             overlay.className = 'fixed inset-0 bg-patrimonio-lago/40 backdrop-blur-md z-[10000] transition-opacity duration-300 flex items-center justify-center p-4';
             overlay.innerHTML = `
-                <div class="bg-patrimonio-card/95 backdrop-blur-xl border border-white/20 rounded-[2rem] max-w-sm w-full p-8 shadow-soft-xl shadow-patrimonio-lago/20 transform transition-all space-y-4">
-                    <h3 class="font-serif text-lg font-bold text-stone-900">${escapeHtml(title)}</h3>
-                    <p class="text-stone-600 text-sm">${escapeHtml(message)}</p>
+                <div class="bg-patrimonio-card dark:bg-stone-900 border border-stone-300 dark:border-stone-600 rounded-2xl max-w-sm w-full p-6 shadow-sm transform transition-all space-y-4">
+                    <h3 class="font-serif text-lg font-bold text-stone-900 dark:text-stone-100">${escapeHtml(title)}</h3>
+                    <p class="text-stone-600 dark:text-stone-300 text-sm">${escapeHtml(message)}</p>
                     <input id="modal-prompt-input" aria-label="Valor solicitado" type="text" placeholder="${escapeHtml(placeholder)}"
-                        class="w-full px-3 py-2.5 border border-stone-300 rounded-md bg-white text-sm focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago" />
+                        class="w-full px-3 py-2.5 border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 text-sm focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago" />
                     <div class="flex justify-end gap-3 pt-2">
-                        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 hover:bg-stone-100">Cancelar</button>
+                        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cancelar</button>
                         <button data-action="confirm" class="bg-patrimonio-madera hover:bg-[#633414] text-white px-4 py-2 rounded-xl text-sm font-medium">${escapeHtml(confirmText)}</button>
                     </div>
                 </div>
@@ -187,14 +187,14 @@ export default {
             <i aria-hidden="true" class="fas fa-envelope"></i> Correo
           </button>
           <button data-action="copy"
-            class="btn-secundario flex items-center justify-center gap-2 border border-stone-300 dark:border-stone-600 hover:bg-stone-50 dark:bg-stone-800/50 text-stone-700 px-3 py-2.5 rounded-xl text-sm font-medium">
+            class="btn-secundario flex items-center justify-center gap-2 border border-stone-300 dark:border-stone-600 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-200 px-3 py-2.5 rounded-xl text-sm font-medium">
             <i aria-hidden="true" class="fas fa-copy"></i> Copiar
           </button>
         </div>
-        ${(telefono.length < 11 || !email) ? `<p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">Este lector no tiene ${!email ? 'correo' : ''}${(!email && telefono.length < 11) ? ' ni ' : ''}${telefono.length < 11 ? 'teléfono' : ''} registrado. Complétalo en la vista Lectores para poder avisarle.</p>` : ''}
+        ${(telefono.length < 11 || !email) ? `<p class="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">Este lector no tiene ${!email ? 'correo' : ''}${(!email && telefono.length < 11) ? ' ni ' : ''}${telefono.length < 11 ? 'teléfono' : ''} registrado. Complétalo en la vista Lectores para poder avisarle.</p>` : ''}
 
         <div class="flex justify-end pt-1">
-          <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cerrar</button>
+          <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cerrar</button>
         </div>
       </div>
     `;
@@ -269,14 +269,14 @@ export default {
             <i aria-hidden="true" class="fas fa-envelope"></i> Correo
           </button>
           <button data-action="copy"
-            class="btn-secundario flex items-center justify-center gap-2 border border-stone-300 dark:border-stone-600 hover:bg-stone-50 dark:bg-stone-800/50 text-stone-700 px-3 py-2.5 rounded-xl text-sm font-medium">
+            class="btn-secundario flex items-center justify-center gap-2 border border-stone-300 dark:border-stone-600 hover:bg-stone-50 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-200 px-3 py-2.5 rounded-xl text-sm font-medium">
             <i aria-hidden="true" class="fas fa-copy"></i> Copiar
           </button>
         </div>
-        ${(telefono.length < 11 || !email) ? `<p class="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">Este lector no tiene ${!email ? 'correo' : ''}${(!email && telefono.length < 11) ? ' ni ' : ''}${telefono.length < 11 ? 'teléfono' : ''} registrado. Complétalo en la vista Lectores para poder avisarle.</p>` : ''}
+        ${(telefono.length < 11 || !email) ? `<p class="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">Este lector no tiene ${!email ? 'correo' : ''}${(!email && telefono.length < 11) ? ' ni ' : ''}${telefono.length < 11 ? 'teléfono' : ''} registrado. Complétalo en la vista Lectores para poder avisarle.</p>` : ''}
 
         <div class="flex justify-end pt-1">
-          <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cerrar</button>
+          <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cerrar</button>
         </div>
       </div>
     `;

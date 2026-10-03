@@ -126,7 +126,17 @@ export default {
               class="w-full pl-8 pr-3 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago" />
           </div>
         </div>
-        <div id="users-tbody" class="flex flex-col gap-4 p-4">${this._renderUserRows(users)}</div>
+        <table class="w-full text-sm text-left">
+          <thead class="text-xs font-bold uppercase text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-stone-800/60 border-b border-stone-200 dark:border-stone-700">
+            <tr>
+              <th scope="col" class="px-4 py-3">Nombre</th>
+              <th scope="col" class="px-4 py-3">RUT</th>
+              <th scope="col" class="px-4 py-3">Contacto</th>
+              <th scope="col" class="px-4 py-3 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="users-tbody">${this._renderUserRows(users)}</tbody>
+        </table>
         <div id="users-pagination">${crudo(this._paginacionHtml(this.userPage, total, porPagina, 'user-page-btn'))}</div>
       </div>
     `;
@@ -228,7 +238,7 @@ export default {
           ${campo('edit-user-email', 'Correo', lector.email, 'type="email"')}
         </div>
         <div class="flex justify-end gap-3 pt-1">
-          <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cancelar</button>
+          <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cancelar</button>
           <button data-action="save" class="btn-madera text-white px-5 py-2 rounded-xl text-sm font-medium">Guardar cambios</button>
         </div>
       </div>`.toString();

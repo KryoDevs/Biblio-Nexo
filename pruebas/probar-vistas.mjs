@@ -178,6 +178,9 @@ const supabaseFalso = {
     if (nombre === 'revisar_inventario') {
       return Promise.resolve({ data: [{ libro_id: 1, titulo: 'Subterra', isbn: 'x', copias_totales: 4, stock: 3, prestados: 0, diferencia: 1 }], error: null });
     }
+    if (nombre === 'estadisticas_paradas') {
+      return Promise.resolve({ data: [{ parada: 'Llifén', lat: -40.198, lng: -72.259, total_prestamos: 4 }], error: null });
+    }
     if (nombre === 'listar_personal') {
       return Promise.resolve({ data: [{ usuario_id: 'abc', email: 'admin@biblionexo.cl', rol: 'admin', ultimo_acceso: '2026-07-25T10:00:00Z' }], error: null });
     }
@@ -401,6 +404,11 @@ for (const vista of ['dashboard', 'reports', 'catalog', 'users', 'loans', 'scann
     assert(cont.innerHTML.length > 50, 'la vista quedó vacía');
     assert(!cont.innerHTML.includes('undefined'), 'aparece "undefined" en pantalla');
     assert(!cont.innerHTML.includes('NaN'), 'aparece "NaN" en pantalla');
+    if (vista === 'users') {
+      const tbody = cont.querySelector('#users-tbody');
+      assert(tbody && tbody.tagName === 'TBODY', '#users-tbody debe ser un elemento <tbody> dentro de <table>');
+      assert(tbody.querySelectorAll('tr').length > 0, 'las filas <tr> de lectores no se conservaron en el DOM');
+    }
     assert(errores.length === antes, `errores nuevos: ${errores.slice(antes).join('; ')}`);
   });
 }
@@ -435,6 +443,13 @@ await prueba('Bibliomóvil renderiza el plan, los accesos de navegación y escap
     const lista = cont.querySelector('#bibliomovil-route-stops');
     assert(lista.textContent.includes('<img src=x onerror=alert(1)>'), 'el nombre local no aparece como texto');
     assert(!lista.querySelector('img'), 'un nombre local se interpretó como HTML ejecutable');
+    assert(lista.querySelector('[data-route-action="notify"]'), 'falta el botón de aviso por WhatsApp en la parada');
+    const tabCatalogo = cont.querySelector('#tab-catalogo');
+    assert(tabCatalogo && !tabCatalogo.classList.contains('hidden'), 'el catálogo del Bibliomóvil quedó oculto por defecto');
+    const btnSoloRuta = cont.querySelector('.biblio-tab-btn[data-target="tab-ruta"]');
+    assert(btnSoloRuta, 'faltan los botones de filtro de sección en Bibliomóvil');
+    btnSoloRuta.dispatchEvent(new dom.window.Event('click'));
+    assert(tabCatalogo.classList.contains('hidden'), 'el botón de Mapa y ruta no ocultó la sección de catálogo');
   } finally {
     ui._montarMapaBibliomovil = inicializarMapa;
     localStorage.removeItem(key);
@@ -540,10 +555,19 @@ await prueba('showConfirm y showPrompt se montan', () => {
 console.log('\n=== Reportes: datos y exportación ===');
 await prueba('obtenerReporte devuelve la forma esperada', async () => {
   const r = await db.obtenerReporte('2026-01-01', '2026-12-31');
-  for (const k of ['totalPrestamos', 'totalDevoluciones', 'totalNuevosLectores', 'topLibros', 'topLectores']) {
+  for (const k of ['totalPrestamos', 'totalDevoluciones', 'totalNuevosLectores', 'topLibros', 'topLectores', 'porParada']) {
     assert(k in r, `falta la clave ${k}`);
   }
   assert(Array.isArray(r.topLibros), 'topLibros no es arreglo');
+  assert(Array.isArray(r.porParada) && r.porParada[0]?.parada === 'Llifén', 'porParada no incluye las paradas del Bibliomóvil');
+});
+
+await prueba('renderReports muestra la sección de préstamos por parada del Bibliomóvil', async () => {
+  ui.currentView = 'reports';
+  await ui.renderReports();
+  const bloqueParadas = document.getElementById('reporte-paradas');
+  assert(bloqueParadas, 'no se dibujó #reporte-paradas en la vista de reportes');
+  assert(bloqueParadas.textContent.includes('Llifén'), 'no muestra el nombre de la parada en el reporte');
 });
 
 await prueba('exportación CSV no lanza errores', async () => {

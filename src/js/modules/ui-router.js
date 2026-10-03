@@ -30,7 +30,7 @@ export default {
           ${group.items.map(v => `
             <button
               data-view="${v.id}"
-              class="nav-btn w-full px-3 py-2.5 rounded-lg text-sm font-bold flex items-center gap-3 transition text-stone-300 hover:bg-white dark:bg-stone-800/10 hover:text-white"
+              class="nav-btn w-full px-3 py-2.5 rounded-lg text-sm font-bold flex items-center gap-3 transition text-stone-300 hover:bg-white/10 hover:text-white"
             >
               <i aria-hidden="true" class="fas ${v.icon} w-4 text-center ${v.id === 'scanner' ? 'text-amber-400' : ''}"></i>
               <span>${escapeHtml(v.label)}</span>
@@ -96,9 +96,9 @@ export default {
             </div>
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
               ${Array(4).fill(0).map(() => `
-                <div class="bg-white dark:bg-stone-800 rounded-[2rem] border border-stone-200 dark:border-stone-700 p-6 shadow-sm">
-                  <div class="h-6 w-6 bg-stone-200 rounded-full mb-3"></div>
-                  <div class="h-10 bg-stone-200 rounded-md w-1/2 mb-2"></div>
+                <div class="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-5 shadow-sm">
+                  <div class="h-6 w-6 bg-stone-200 dark:bg-stone-700 rounded-full mb-3"></div>
+                  <div class="h-10 bg-stone-200 dark:bg-stone-700 rounded-md w-1/2 mb-2"></div>
                   <div class="h-4 bg-stone-100 dark:bg-stone-700 rounded-md w-3/4"></div>
                 </div>
               `).join('')}
@@ -213,16 +213,16 @@ export default {
           <div class="border-t border-white/10 p-4 flex items-center gap-3">
             <button class="dark-mode-toggle w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition shrink-0" title="Alternar modo oscuro"><i aria-hidden="true" class="dark-mode-icon fas fa-moon"></i></button>
               <button id="perfil-btn" title="Ver y editar mi perfil"
-              class="flex items-center gap-3 min-w-0 flex-1 text-left rounded-lg -m-1 p-1 hover:bg-white dark:bg-stone-800/10 transition">
+              class="flex items-center gap-3 min-w-0 flex-1 text-left rounded-lg -m-1 p-1 hover:bg-white/10 transition">
               <span id="current-user-initial" class="w-9 h-9 rounded-full bg-patrimonio-madera flex items-center justify-center font-black text-sm shrink-0 text-white"></span>
               <span class="min-w-0 flex-1 block">
                 <span id="current-user-name" class="text-xs font-bold text-white leading-none truncate block"></span>
-                <span id="current-user-sub" class="text-[10px] text-stone-500 dark:text-stone-400 leading-none truncate block mt-0.5"></span>
+                <span id="current-user-sub" class="text-[10px] text-stone-400 leading-none truncate block mt-0.5"></span>
                 <span id="current-user-badge" class="stamp-onDark mt-1.5"></span>
               </span>
             </button>
             <button id="logout-btn" title="Cerrar sesión"
-              class="w-9 h-9 rounded-lg text-stone-300 hover:bg-white dark:bg-stone-800/10 hover:text-white flex items-center justify-center transition shrink-0">
+              class="w-9 h-9 rounded-lg text-stone-300 hover:bg-white/10 hover:text-white flex items-center justify-center transition shrink-0">
               <i aria-hidden="true" class="fas fa-right-from-bracket"></i>
             </button>
           </div>

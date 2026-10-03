@@ -34,10 +34,17 @@ else:
               '  · Windows:        usa WSL, o apunta a un PostgreSQL existente con\n'
               '                    set DATABASE_URL=postgresql://usuario:clave@localhost:5432/basededatos')
         sys.exit(1)
-    import tempfile
-    datos = pathlib.Path(os.environ.get('PGDATOS') or (pathlib.Path(tempfile.gettempdir()) / 'biblionexo-pruebas'))
-    datos.mkdir(parents=True, exist_ok=True)
-    URI = pgserver.get_server(datos).get_uri()
+    import atexit, shutil, tempfile
+    if os.environ.get('PGDATOS'):
+        datos = pathlib.Path(os.environ['PGDATOS'])
+        datos.mkdir(parents=True, exist_ok=True)
+        limpiar_datos = False
+    else:
+        datos = pathlib.Path(tempfile.mkdtemp(prefix='biblionexo-pruebas-'))
+        limpiar_datos = True
+    _srv_local = pgserver.get_server(datos)
+    atexit.register(lambda: (_srv_local.cleanup(), shutil.rmtree(datos, ignore_errors=True) if limpiar_datos else None))
+    URI = _srv_local.get_uri()
     print(f'Base de datos: PostgreSQL local en {datos}')
 
 
@@ -173,7 +180,11 @@ print('\n1. REPRODUCCIÓN DEL FALLO — funciones como estaban antes de la 008')
 # ---------------------------------------------------------------------------
 # Se reinstalan prestar_libro y devolver_prestamo SIN "security definer",
 # que es exactamente como venían en las migraciones 004 y 007.
+# Se elimina primero la firma de 5 argumentos introducida en 027/010 para que
+# durante las secciones 1-9 (que prueban el estado histórico 007 -> 008 -> 009)
+# no convivan las dos firmas a la vez. En la sección 10 se reaplica la 010.
 sql("""
+drop function if exists public.prestar_libro(bigint, text, text, numeric, numeric);
 create or replace function public.prestar_libro(p_libro_id bigint, p_lector_rut text)
 returns table (prestamo_id bigint, fecha_devolucion_esperada date)
 language plpgsql set search_path = public as $f$
@@ -475,6 +486,7 @@ FUNCIONES_QUE_USA_LA_INTERFAZ = {
     'marcar_error_visto', 'purgar_errores', 'crear_enlace_escaneo',
     'validar_enlace_escaneo', 'consultar_libro_remoto', 'agregar_libro_remoto',
     'deshacer_libro_remoto', 'listar_enlaces_escaneo', 'revocar_enlace_escaneo',
+    'estadisticas_paradas',
 }
 nombres_manifiesto = {f[0] for f in filas}
 faltan = sorted(FUNCIONES_QUE_USA_LA_INTERFAZ - nombres_manifiesto)
@@ -714,6 +726,7 @@ for desc, consulta in [
     ('no puede anonimizar un lector',  "select public.anonimizar_lector('12345678-5')"),
     ('no puede leer los errores',      "select * from public.listar_errores(5, false)"),
     ('no puede leer la auditoría',     "select * from public.auditoria"),
+    ('no puede leer las estadísticas de paradas', "select * from public.estadisticas_paradas()"),
 ]:
     ok, r = como_anonimo(consulta)
     comprobar('el anónimo ' + desc, not ok, f'se ejecutó y devolvió: {texto(r)[:100]}')

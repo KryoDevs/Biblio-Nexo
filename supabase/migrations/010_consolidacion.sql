@@ -133,6 +133,12 @@ alter table public.prestamos
   add constraint prestamos_libro_id_fkey
   foreign key (libro_id) references public.libros(id) on delete set null;
 
+-- Coordenadas y parada del Bibliomóvil en préstamos (027_prestamos_coordenadas.sql)
+alter table public.prestamos
+  add column if not exists parada_nombre text null,
+  add column if not exists parada_lat numeric null,
+  add column if not exists parada_lng numeric null;
+
 -- ============================================================================
 -- AYUDANTES PUROS
 -- ============================================================================
@@ -498,6 +504,42 @@ end;
 $$;
 grant execute on function public.revisar_inventario() to authenticated;
 
+-- ── estadisticas_paradas ── (nueva: 027_prestamos_coordenadas.sql)
+--
+-- Devuelve el conteo de préstamos agrupados por parada del Bibliomóvil
+-- (nombre y coordenadas promedio) para los reportes geográficos.
+drop function if exists public.estadisticas_paradas();
+create or replace function public.estadisticas_paradas()
+returns table (
+  parada text,
+  lat numeric,
+  lng numeric,
+  total_prestamos bigint
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $$
+begin
+  if not public.es_personal() then
+    raise exception 'Debes iniciar sesión para consultar las estadísticas de paradas.' using errcode = 'P0001';
+  end if;
+
+  return query
+    select
+      p.parada_nombre as parada,
+      avg(p.parada_lat)::numeric as lat,
+      avg(p.parada_lng)::numeric as lng,
+      count(*)::bigint as total_prestamos
+    from public.prestamos p
+    where p.parada_nombre is not null and btrim(p.parada_nombre) <> ''
+    group by p.parada_nombre
+    order by total_prestamos desc;
+end;
+$$;
+grant execute on function public.estadisticas_paradas() to authenticated;
+
 -- ============================================================================
 -- CIRCULACIÓN — el corazón del sistema
 -- ============================================================================
@@ -514,9 +556,17 @@ grant execute on function public.revisar_inventario() to authenticated;
 --
 -- Por eso `devolver_prestamo` comprueba `row_count` y falla en voz alta.
 
--- ── prestar_libro ── (última versión: 008_perfiles_y_permisos_librero.sql)
+-- ── prestar_libro ── (última versión: 008_perfiles_y_permisos_librero.sql;
+-- ampliada en 027_prestamos_coordenadas.sql con parada_nombre/parada_lat/parada_lng)
 drop function if exists public.prestar_libro(bigint, text);
-create or replace function public.prestar_libro(p_libro_id bigint, p_lector_rut text)
+drop function if exists public.prestar_libro(bigint, text, text, numeric, numeric);
+create or replace function public.prestar_libro(
+  p_libro_id bigint,
+  p_lector_rut text,
+  p_parada_nombre text default null,
+  p_parada_lat numeric default null,
+  p_parada_lng numeric default null
+)
 returns table (prestamo_id bigint, fecha_devolucion_esperada date)
 language plpgsql
 security definer
@@ -564,14 +614,20 @@ begin
 
   update public.libros set stock = stock - 1 where id = p_libro_id;
 
-  insert into public.prestamos (libro_id, lector_id, fecha_prestamo, fecha_devolucion_esperada, estado)
-  values (p_libro_id, v_lector_id, v_hoy, v_hoy + v_dias, 'activo')
+  insert into public.prestamos (
+    libro_id, lector_id, fecha_prestamo, fecha_devolucion_esperada, estado,
+    parada_nombre, parada_lat, parada_lng
+  )
+  values (
+    p_libro_id, v_lector_id, v_hoy, v_hoy + v_dias, 'activo',
+    nullif(btrim(p_parada_nombre), ''), p_parada_lat, p_parada_lng
+  )
   returning id into v_prestamo_id;
 
   return query select v_prestamo_id::bigint, (v_hoy + v_dias)::date;
 end;
 $$;
-grant execute on function public.prestar_libro(bigint, text) to authenticated;
+grant execute on function public.prestar_libro(bigint, text, text, numeric, numeric) to authenticated;
 
 -- ── devolver_prestamo ── (última versión: 008_perfiles_y_permisos_librero.sql)
 drop function if exists public.devolver_prestamo(bigint);
@@ -2863,6 +2919,7 @@ as $manifiesto$
     ('buscar_libros', false),
     ('consultar_libro', true),
     ('revisar_inventario', false),
+    ('estadisticas_paradas', true),
     ('prestar_libro', true),
     ('devolver_prestamo', true),
     ('renovar_prestamo', true),

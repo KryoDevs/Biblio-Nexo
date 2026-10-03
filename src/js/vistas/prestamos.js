@@ -218,7 +218,7 @@ export default {
           })}
         </div>
         <div class="p-6 pt-4 flex justify-end border-t border-stone-200 dark:border-stone-700">
-          <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cerrar</button>
+          <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cerrar</button>
         </div>
       </div>
     `.toString();
@@ -251,7 +251,7 @@ export default {
           </div>
           <div id="lector-search-results" class="max-h-48 overflow-y-auto space-y-1 mt-2"></div>
           <div class="flex justify-end gap-2 pt-2 border-t border-stone-200 dark:border-stone-700 mt-4">
-            <button id="lector-search-cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cancelar</button>
+            <button id="lector-search-cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cancelar</button>
             <button id="lector-search-confirm" class="btn-madera text-white px-5 py-2 rounded-xl text-sm font-medium" disabled>Continuar</button>
           </div>
         </div>
@@ -387,29 +387,29 @@ export default {
           <p class="text-xs text-stone-500 dark:text-stone-400 mt-2">Regístralo para poder prestarle libros.</p>
         </div>`;
       acciones = html`
-        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cancelar</button>
+        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cancelar</button>
         <button data-action="registrar" class="btn-madera text-white px-5 py-2 rounded-xl text-sm font-medium">Registrar lector</button>`;
     } else if (!estado.puede_prestar) {
       // Impedido
       cuerpo = html`
-        <div class="bg-rose-50 border border-rose-200 rounded-xl p-4">
-          <p class="font-bold text-rose-800 mb-1"><i aria-hidden="true" class="fas fa-ban mr-1.5"></i>No se puede prestar</p>
-          <p class="text-sm text-rose-700">${estado.motivo_rechazo || 'El lector está impedido de pedir libros.'}</p>
+        <div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-4">
+          <p class="font-bold text-rose-800 dark:text-rose-200 mb-1"><i aria-hidden="true" class="fas fa-ban mr-1.5"></i>No se puede prestar</p>
+          <p class="text-sm text-rose-700 dark:text-rose-300">${estado.motivo_rechazo || 'El lector está impedido de pedir libros.'}</p>
         </div>
         ${this._resumenLector(estado)}`;
       acciones = html`
-        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cerrar</button>
-        <button data-action="ver-prestamos" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-4 py-2 rounded-xl text-sm font-medium">Ver sus préstamos</button>`;
+        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cerrar</button>
+        <button data-action="ver-prestamos" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 px-4 py-2 rounded-xl text-sm font-medium">Ver sus préstamos</button>`;
     } else {
       // Todo en orden
       cuerpo = html`
-        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <p class="font-bold text-emerald-800"><i aria-hidden="true" class="fas fa-circle-check mr-1.5"></i>${estado.nombre}</p>
-          <p class="text-sm text-emerald-700 mt-0.5">Puede llevar este libro.</p>
+        <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
+          <p class="font-bold text-emerald-800 dark:text-emerald-200"><i aria-hidden="true" class="fas fa-circle-check mr-1.5"></i>${estado.nombre}</p>
+          <p class="text-sm text-emerald-700 dark:text-emerald-300 mt-0.5">Puede llevar este libro.</p>
         </div>
         ${this._resumenLector(estado)}`;
       acciones = html`
-        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cancelar</button>
+        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cancelar</button>
         <button data-action="prestar" class="btn-madera text-white px-5 py-2 rounded-xl text-sm font-medium">Confirmar préstamo</button>`;
     }
 
@@ -516,7 +516,7 @@ export default {
         </div>
         ${crudo(this._bloqueConsentimiento('new'))}
         <div class="flex justify-end gap-3 pt-1">
-          <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cancelar</button>
+          <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cancelar</button>
           <button data-action="save" class="btn-madera text-white px-5 py-2 rounded-xl text-sm font-medium">Registrar y continuar</button>
         </div>
       </div>`.toString();
@@ -607,27 +607,27 @@ export default {
           <p class="text-xs text-stone-500 dark:text-stone-400 mt-2">Regístralo para poder reservarle un libro.</p>
         </div>`;
       acciones = html`
-        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cancelar</button>
+        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cancelar</button>
         <button data-action="registrar" class="btn-madera text-white px-5 py-2 rounded-xl text-sm font-medium">Registrar lector</button>`;
     } else if (!estado.puede_prestar) {
       cuerpo = html`
-        <div class="bg-rose-50 border border-rose-200 rounded-xl p-4">
-          <p class="font-bold text-rose-800 mb-1"><i aria-hidden="true" class="fas fa-ban mr-1.5"></i>No se puede reservar</p>
-          <p class="text-sm text-rose-700">${estado.motivo_rechazo || 'El lector está impedido de pedir libros.'}</p>
+        <div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-4">
+          <p class="font-bold text-rose-800 dark:text-rose-200 mb-1"><i aria-hidden="true" class="fas fa-ban mr-1.5"></i>No se puede reservar</p>
+          <p class="text-sm text-rose-700 dark:text-rose-300">${estado.motivo_rechazo || 'El lector está impedido de pedir libros.'}</p>
         </div>
         ${this._resumenLector(estado)}`;
       acciones = html`
-        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cerrar</button>
-        <button data-action="ver-prestamos" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-4 py-2 rounded-xl text-sm font-medium">Ver sus préstamos</button>`;
+        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cerrar</button>
+        <button data-action="ver-prestamos" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 px-4 py-2 rounded-xl text-sm font-medium">Ver sus préstamos</button>`;
     } else {
       cuerpo = html`
-        <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <p class="font-bold text-emerald-800"><i aria-hidden="true" class="fas fa-circle-check mr-1.5"></i>${estado.nombre}</p>
-          <p class="text-sm text-emerald-700 mt-0.5">Se puede poner en la fila de espera de este libro.</p>
+        <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
+          <p class="font-bold text-emerald-800 dark:text-emerald-200"><i aria-hidden="true" class="fas fa-circle-check mr-1.5"></i>${estado.nombre}</p>
+          <p class="text-sm text-emerald-700 dark:text-emerald-300 mt-0.5">Se puede poner en la fila de espera de este libro.</p>
         </div>
         ${this._resumenLector(estado)}`;
       acciones = html`
-        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cancelar</button>
+        <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cancelar</button>
         <button data-action="reservar" class="btn-madera text-white px-5 py-2 rounded-xl text-sm font-medium">Confirmar reserva</button>`;
     }
 
@@ -699,7 +699,7 @@ export default {
             </div>`}
           ${this._resumenLector(estado)}
           <div class="flex justify-end pt-1">
-            <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cerrar</button>
+            <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cerrar</button>
           </div>
         </div>`.toString();
       document.body.appendChild(overlay);
