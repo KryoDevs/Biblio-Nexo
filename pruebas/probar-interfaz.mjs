@@ -10,6 +10,7 @@
 
 import { JSDOM } from 'jsdom';
 import fs from 'node:fs';
+import path from 'node:path';
 
 // ---------------------------------------------------------------------------
 // Registro de resultados
@@ -478,6 +479,45 @@ comprobar('el indicador cubre las cuatro situaciones que pide la sección 7: en 
   /pendientes > 0/.test(uiBaseJs) && /'En línea'/.test(uiBaseJs));
 comprobar('el indicador nunca depende solo del color: cada estado trae también un ícono y un texto propios',
   /aria-label.*Estado de conexión/.test(uiBaseJs));
+
+// ---------------------------------------------------------------------------
+// 14. Codificación UTF-8 limpia — sin BOM, bytes de control C1 ni mojibake
+// ---------------------------------------------------------------------------
+console.log('\n14. Codificación UTF-8 limpia — sin BOM, caracteres de control C1 ni mojibake');
+
+function listarArchivosTexto(dir, acum = []) {
+  for (const entrada of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (['node_modules', 'dist', '.git', 'vendor'].includes(entrada.name)) continue;
+    const ruta = path.join(dir, entrada.name);
+    if (entrada.isDirectory()) {
+      listarArchivosTexto(ruta, acum);
+    } else if (/\.(html|js|mjs|css|sql)$/i.test(entrada.name)) {
+      acum.push(ruta);
+    }
+  }
+  return acum;
+}
+
+const archivosFuente = listarArchivosTexto('.');
+const conBom = [];
+const conControlC1 = [];
+const conMojibake = [];
+const patronMojibake = /Ã[¡©­³º±¼½]|Â[°¡¿]|â€[œ˜™”•]|ï»¿/;
+
+for (const ruta of archivosFuente) {
+  if (ruta.endsWith('probar-interfaz.mjs')) continue;
+  const texto = fs.readFileSync(ruta, 'utf8');
+  if (texto.charCodeAt(0) === 0xFEFF) conBom.push(ruta);
+  if (/[\u0080-\u009f]/.test(texto)) conControlC1.push(ruta);
+  if (patronMojibake.test(texto)) conMojibake.push(ruta);
+}
+
+comprobar('ningún archivo fuente (.html/.js/.css/.sql) empieza con BOM UTF-8 (rompe psycopg)',
+  conBom.length === 0);
+comprobar('ningún archivo fuente contiene caracteres de control C1 (0x80-0x9F, rompe parse5)',
+  conControlC1.length === 0);
+comprobar('ningún archivo fuente contiene secuencias de doble codificación (mojibake)',
+  conMojibake.length === 0);
 
 // ---------------------------------------------------------------------------
 console.log(`\n${'─'.repeat(60)}`);
