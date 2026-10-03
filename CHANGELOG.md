@@ -5,6 +5,51 @@ El proyecto utiliza [Conventional Commits](https://www.conventionalcommits.org/e
 
 ---
 
+## [1.3.0] — 2026-10-03
+
+### Añadido (`feat`)
+- **Catálogos separados**: el catálogo de la biblioteca (sede) y el del Bibliomóvil (ruta) ya no
+  comparten títulos. Nueva migración `030_separacion_catalogo_bibliomovil.sql` (`es_bibliomovil` pasa a
+  `not null` con `default false`, índice `(es_bibliomovil, titulo)`), `buscar_libros()` compara con
+  `coalesce`, y `db.cambiarColeccionLibro()`. En la interfaz: cada vista pide su colección, insignia
+  «Bibliomóvil» en el ejemplar, botón «Al Bibliomóvil / A la sede» (admin), casilla en el alta y
+  selector «Colección» al editar.
+- **Mi perfil rediseñado**: encabezado de identidad, datos editables, contraseña con requisitos en
+  vivo, preferencias (tamaño de letra y modo oscuro), actividad de la cuenta, accesos rápidos y sesión.
+- **Bibliomóvil**: cabecera con resumen operativo (títulos, disponibles, en préstamo, recorrido y
+  distancia), tarjeta de «Preparación sin conexión», distancia entre paradas, estados vacíos que
+  explican qué hacer y **hoja de ruta imprimible** con membrete institucional.
+- **Herramientas**: `pruebas/generar-vista-previa.mjs` (revisión visual con datos de ejemplo, sin
+  credenciales) y detector de clases Tailwind mal formadas en `verificar_clases_tailwind.py`.
+
+### Corregido (`fix`)
+- **Libro invisible**: un ejemplar con `es_bibliomovil` en `NULL` no aparecía en ninguna de las dos
+  colecciones. Ahora `NULL` cuenta como sede en el servidor y en la copia sin conexión, y la 030
+  elimina el `NULL` de la base.
+- **Copia local sin conexión**: el alta de un libro no guardaba su colección (nacía como de sede).
+- **Carrera de búsqueda en el catálogo**: una respuesta lenta podía pisar resultados más nuevos.
+- **Mi perfil**: un fallo de red se mostraba como «falta ejecutar la migración 008»; ahora se distingue
+  y ofrece reintentar.
+- **Texto de contraseña**: no mencionaba mayúscula ni número, requisitos que el validador exige.
+- **Cuatro clases Tailwind mal formadas** (`dark:bg-stone-800/50/60` y `/50/70`) que dejaban fondos sin
+  pintar en modo oscuro.
+- **Bibliomóvil**: la etiqueta «Preparar datos sin conexión» se revertía a otro texto tras sincronizar;
+  se eliminó `_filtrarLibros()`, código muerto que repetía la regla de disponibilidad.
+- **Estados vacíos**: ahora distinguen «colección vacía» de «búsqueda sin resultados» y explican cómo
+  agregar ejemplares.
+
+### Pruebas (`test`)
+- `probar-vistas.mjs` (+6 comprobaciones): cada catálogo pide su colección, botón de mover, vacíos.
+- `probar-migraciones.py` (+2): columna `es_bibliomovil` y separación real de colecciones en PostgreSQL.
+- `persistencia.test.js` (6 pruebas): ejercita `filtrarLibrosLocales()` real, no una copia.
+- `bibliomovil-ruta.test.js`: semántica `NULL` = sede, actualizada y documentada.
+
+### Documentación (`docs`)
+- `docs/auditoria/05-catalogo-bibliomovil-perfil-2026-10-03.md`: informe completo, errores con causa
+  raíz, errores visuales, rediseño, mejoras del Bibliomóvil y 15 sugerencias con sus beneficios.
+
+---
+
 ## [1.2.0] — 2026-10-03
 
 ### Añadido (`feat`)

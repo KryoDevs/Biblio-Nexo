@@ -371,6 +371,40 @@ python3 pruebas/verificar_llamadas_rpc.py
 
 ---
 
+## Vista previa de la interfaz (revisión de diseño, 3 de octubre de 2026)
+
+`pruebas/generar-vista-previa.mjs` monta las vistas Catálogo (sede), Bibliomóvil, Catálogo del
+Bibliomóvil y Mi perfil con datos de ejemplo —sin sesión de Supabase— y las deja en
+`dist/preview/index.html`, con el CSS que ya compiló el build. Sirve para revisar aspecto, jerarquía y
+modo oscuro sin credenciales ni base de datos.
+
+```bash
+npm run build
+node pruebas/generar-vista-previa.mjs
+npx serve dist        # abrir /preview/
+```
+
+No forma parte de la aplicación ni de la suite: `dist/` está en `.gitignore` y la página no se publica.
+
+---
+
+## Verificaciones agregadas en esta ronda
+
+- **`verificar_clases_tailwind.py`** ahora revisa **todo** `src/` (no solo las páginas estáticas)
+  buscando clases mal formadas: dos modificadores de opacidad pegados
+  (`dark:bg-stone-800/50/60`). Tailwind no genera nada para esas clases y el elemento se queda sin
+  estilo **sin ningún error**; había cuatro así, todas en modo oscuro.
+- **`probar-vistas.mjs`**: comprueba que cada catálogo pide su colección (`false` = sede,
+  `true` = Bibliomóvil), que el librero no ve el botón de mover ejemplares, y que los estados vacíos
+  distinguen «colección vacía» de «búsqueda sin resultados».
+- **`probar-migraciones.py`**: que `libros.es_bibliomovil` quede `not null` con `default false`, que
+  cada colección devuelva solo sus ejemplares y que ningún libro quede fuera de las dos.
+- **`persistencia.test.js`** (Vitest): ejercita la función real `filtrarLibrosLocales()`, con el campo
+  `stock` que de verdad usa la copia local, la semántica `NULL` = sede, los filtros de disponibilidad y
+  la búsqueda sin tildes.
+
+---
+
 ## Integración continua
 
 `.github/workflows/pruebas.yml` corre cinco trabajos en cada envío:
