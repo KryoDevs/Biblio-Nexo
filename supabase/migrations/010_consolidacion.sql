@@ -389,7 +389,8 @@ as $$
        or public.sin_acentos(l.titulo) like '%' || public.sin_acentos(p_busqueda) || '%'
        or public.sin_acentos(l.autor)  like '%' || public.sin_acentos(p_busqueda) || '%'
        or l.isbn like '%' || p_busqueda || '%')
-      and (p_es_bibliomovil is null or l.es_bibliomovil = p_es_bibliomovil)
+      and (p_es_bibliomovil is null
+           or coalesce(l.es_bibliomovil, false) = p_es_bibliomovil)
       and (p_filtro_stock = 'todos' or
           (p_filtro_stock = 'disponibles' and l.stock > 0) or
           (p_filtro_stock = 'prestados' and l.stock = 0))

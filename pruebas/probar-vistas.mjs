@@ -24,14 +24,17 @@ const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 // ---------------------------------------------------------------------------
 // Datos de prueba
 // ---------------------------------------------------------------------------
+// `es_bibliomovil` explícito en todos: desde la migración 030 los catálogos
+// están separados (sede ↔ Bibliomóvil) y el doble de buscar_libros respeta el
+// parámetro de colección, igual que el RPC real.
 const LIBROS = [
-  { id: 1, isbn: '9789561117small', titulo: 'Subterra', autor: 'Baldomero Lillo', genero: 'Cuento', ubicacion: 'Sala 1', stock: 3, copias_totales: 4, portada_url: null },
-  { id: 2, isbn: '9788437604947', titulo: 'La Araucana', autor: 'Alonso de Ercilla', genero: null, ubicacion: null, stock: 0, copias_totales: 1, portada_url: null },
-  { id: 3, isbn: 'sin-isbn', titulo: 'Historia de Futrono y sus Riberas', autor: 'Ramón Quichiyao', genero: 'Local', ubicacion: 'Patrimonio', stock: 1, copias_totales: 1, portada_url: 'https://ejemplo.cl/portada.jpg' },
+  { id: 1, isbn: '9789561117small', titulo: 'Subterra', autor: 'Baldomero Lillo', genero: 'Cuento', ubicacion: 'Sala 1', stock: 3, copias_totales: 4, portada_url: null, es_bibliomovil: false },
+  { id: 2, isbn: '9788437604947', titulo: 'La Araucana', autor: 'Alonso de Ercilla', genero: null, ubicacion: null, stock: 0, copias_totales: 1, portada_url: null, es_bibliomovil: false },
+  { id: 3, isbn: 'sin-isbn', titulo: 'Historia de Futrono y sus Riberas', autor: 'Ramón Quichiyao', genero: 'Local', ubicacion: 'Patrimonio', stock: 1, copias_totales: 1, portada_url: 'https://ejemplo.cl/portada.jpg', es_bibliomovil: true },
   // Casos límite: campos nulos y texto con caracteres peligrosos
-  { id: 4, isbn: null, titulo: '<script>alert(1)</script>', autor: null, genero: null, ubicacion: null, stock: 0, copias_totales: 0, portada_url: null },
+  { id: 4, isbn: null, titulo: '<script>alert(1)</script>', autor: null, genero: null, ubicacion: null, stock: 0, copias_totales: 0, portada_url: null, es_bibliomovil: false },
   // Libro sin préstamos activos: caso "todo en la estantería"
-  { id: 5, isbn: '9780140449136', titulo: 'La Odisea', autor: 'Homero', genero: 'Épica', ubicacion: 'Sala 2', stock: 2, copias_totales: 2, portada_url: null }
+  { id: 5, isbn: '9780140449136', titulo: 'La Odisea', autor: 'Homero', genero: 'Épica', ubicacion: 'Sala 2', stock: 2, copias_totales: 2, portada_url: null, es_bibliomovil: true }
 ];
 
 const LECTORES = [
@@ -118,9 +121,17 @@ const supabaseFalso = {
       const desde = args?.p_desplazamiento || 0;
       const limite = args?.p_limite || 25;
       const filtro = (args?.p_busqueda || '').toLowerCase();
-      const filtrados = LIBROS.filter(l => !filtro ||
-        (l.titulo || '').toLowerCase().includes(filtro) ||
-        (l.autor || '').toLowerCase().includes(filtro));
+      // Colección: null = todas, true = Bibliomóvil, false = sede (un libro sin
+      // marcar cuenta como de sede, igual que el coalesce de la migración 030).
+      const coleccion = args?.p_es_bibliomovil;
+      const filtrados = LIBROS.filter(l => {
+        if (coleccion !== null && coleccion !== undefined && (l.es_bibliomovil ?? false) !== coleccion) return false;
+        if (args?.p_filtro_stock === 'disponibles' && !(l.stock > 0)) return false;
+        if (args?.p_filtro_stock === 'prestados' && l.stock !== 0) return false;
+        return !filtro ||
+          (l.titulo || '').toLowerCase().includes(filtro) ||
+          (l.autor || '').toLowerCase().includes(filtro);
+      });
       const pagina = filtrados.slice(desde, desde + limite)
         .map(l => ({ ...l, total_coincidencias: filtrados.length }));
       return Promise.resolve({ data: pagina, error: null });
@@ -524,6 +535,75 @@ await prueba('el catálogo del bibliomóvil no ofrece el alta de libros de sede'
   ui.currentUserRole = 'admin';
 });
 
+// Separación de catálogos (migración 030). Lo que se vigila es que la vista
+// pida UNA colección concreta y no las dos mezcladas: antes del cambio, el
+// catálogo de la biblioteca y el del Bibliomóvil mostraban los mismos títulos.
+await prueba('cada catálogo pide su propia colección (sede / Bibliomóvil)', async () => {
+  const rpcOriginal = supabaseFalso.rpc;
+  const llamadas = [];
+  supabaseFalso.rpc = (nombre, args) => {
+    if (nombre === 'buscar_libros') llamadas.push({ ...args });
+    return rpcOriginal(nombre, args);
+  };
+  const montarMapaOriginal = ui._montarMapaBibliomovil;
+  const descriptorStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { value: dom.window.localStorage, configurable: true, writable: true });
+  ui._montarMapaBibliomovil = async () => {};
+  try {
+    // 1. Catálogo de la biblioteca (rol de sede)
+    ui.currentUserRole = 'librero';
+    ui.currentView = 'catalog';
+    ui.catalogSearch = '';
+    ui.bookPage = 0;
+    await ui.renderCatalog();
+    const contSede = document.getElementById('views-container');
+    assert(/Catálogo de la biblioteca/.test(contSede.textContent), 'el catálogo de sede no se rotula como tal');
+    assert(!contSede.querySelector('.stamp-movil'), 'el catálogo de la biblioteca mostró un ejemplar del Bibliomóvil');
+    assert(!contSede.querySelector('.toggle-collection-btn'),
+      'el librero no debería ver el botón de mover de colección (editar libros es de admin)');
+
+    // 2. Catálogo de ruta: el rol bibliomóvil ve la colección móvil
+    ui.currentUserRole = 'bibliomovil';
+    await ui.renderCatalog();
+    const contRuta = document.getElementById('views-container');
+    assert(/Catálogo del Bibliomóvil/.test(contRuta.textContent), 'la ruta no se rotula como Bibliomóvil');
+    assert(contRuta.querySelectorAll('.stamp-movil').length > 0, 'faltan los ejemplares del Bibliomóvil');
+    assert(contRuta.querySelector('.loan-book-btn'), 'debería poder prestarse un ejemplar de ruta');
+
+    // 3. La vista Bibliomóvil también pide la colección de ruta
+    ui.currentUserRole = 'librero';
+    ui.currentView = 'bibliomovil';
+    ui.bibliomovilSearch = '';
+    ui.bookPage = 0;
+    await ui.renderBibliomovil();
+
+    const delCatalogo = llamadas.slice(0, 2).map(a => a.p_es_bibliomovil);
+    assert(delCatalogo[0] === false, `el catálogo de la biblioteca pidió "${delCatalogo[0]}" en vez de false (sede)`);
+    assert(delCatalogo[1] === true, `el catálogo de ruta pidió "${delCatalogo[1]}" en vez de true (Bibliomóvil)`);
+    const deLaVistaRuta = llamadas.slice(2).filter(a => a.p_es_bibliomovil === true);
+    assert(deLaVistaRuta.length >= 1, 'la vista Bibliomóvil no pidió la colección del Bibliomóvil');
+    assert(!llamadas.some(a => a.p_es_bibliomovil === undefined), 'alguna consulta salió sin parámetro de colección');
+
+    // 4. El admin puede mover un ejemplar de colección y ve el botón
+    ui.currentUserRole = 'admin';
+    ui.currentView = 'catalog';
+    ui.bookPage = 0;
+    await ui.renderCatalog();
+    const boton = document.querySelector('.toggle-collection-btn');
+    assert(boton, 'el admin no ve el botón para mover un ejemplar de colección');
+    assert(['sede', 'ruta'].includes(boton.dataset.destino), 'el botón no declara a qué colección mueve');
+    assert(document.getElementById('add-book-form'), 'falta el alta de libros en el catálogo de sede');
+    assert(document.getElementById('new-book-bibliomovil'), 'el alta no permite marcar el ejemplar como del Bibliomóvil');
+  } finally {
+    supabaseFalso.rpc = rpcOriginal;
+    ui._montarMapaBibliomovil = montarMapaOriginal;
+    ui.currentUserRole = 'admin';
+    ui.currentView = 'dashboard';
+    if (descriptorStorage) Object.defineProperty(globalThis, 'localStorage', descriptorStorage);
+    else delete globalThis.localStorage;
+  }
+});
+
 await prueba('los filtros de préstamos funcionan', async () => {
   for (const f of ['todos', 'vencidos', 'porVencer']) {
     ui.loanFilter = f;
@@ -543,9 +623,30 @@ await prueba('los cuatro períodos de reporte se renderizan', async () => {
   }
 });
 
-await prueba('el catálogo tolera una lista vacía', () => {
-  const html = ui._renderBookRows([]).toString();
-  assert(html.includes('Sin libros'), 'falta el mensaje de lista vacía');
+await prueba('el catálogo tolera una lista vacía y explica por qué está vacía', () => {
+  // Dos vacíos distintos, con mensajes distintos: colección sin ejemplares
+  // («todavía no tiene títulos», con la instrucción para agregarlos) y
+  // búsqueda sin coincidencias («sin resultados para …»). Antes los dos caían
+  // en el mismo «Sin libros que coincidan con la búsqueda», que en el
+  // Bibliomóvil recién instalado no explicaba nada.
+  ui.currentView = 'catalog';
+  ui.catalogSearch = '';
+  const vacia = ui._renderBookRows([]).toString();
+  assert(/todavía no tiene títulos/.test(vacia), 'falta el mensaje de colección vacía');
+
+  ui.catalogSearch = 'zzz';
+  const sinResultados = ui._renderBookRows([]).toString();
+  assert(/Sin resultados/.test(sinResultados) && sinResultados.includes('zzz'),
+    'falta el mensaje de búsqueda sin coincidencias, con el término buscado');
+
+  ui.currentView = 'bibliomovil';
+  ui.bibliomovilSearch = '';
+  const movil = ui._renderBookRows([]).toString();
+  assert(/El Bibliomóvil todavía no tiene títulos/.test(movil), 'falta el vacío propio del Bibliomóvil');
+  assert(/Al Bibliomóvil/.test(movil), 'el vacío del Bibliomóvil no dice cómo asignar ejemplares');
+  ui.currentView = 'dashboard';
+  ui.catalogSearch = '';
+  ui.bibliomovilSearch = '';
 });
 
 console.log('\n=== Modales ===');

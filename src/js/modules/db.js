@@ -615,7 +615,12 @@ export const db = {
             ubicacion: libro.ubicacion || null,
             portada_url: libro.portada_url || null,
             copias_totales: libro.stock,
-            stock: libro.stock
+            stock: libro.stock,
+            // Colección a la que entra el ejemplar (migración 030). `false` es
+            // el default de la columna, pero se manda explícito para que el
+            // alta quede igual de clara tanto en la sede como en la ruta y no
+            // dependa de que la migración esté aplicada.
+            es_bibliomovil: !!libro.es_bibliomovil
         };
         let resultado;
         try {

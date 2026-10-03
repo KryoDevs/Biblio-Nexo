@@ -131,8 +131,22 @@ describe('filtros offline del catálogo', () => {
         expect(filtrarLibrosLocales(libros, '', true, 'prestados').map(l => l.id)).toEqual([2]);
     });
 
+    // Cambio deliberado de semántica (3 de octubre de 2026), en las dos vías a
+    // la vez: un libro SIN marcar (`es_bibliomovil` en NULL, como quedaron las
+    // filas anteriores a la migración 026 en las bases que todavía no aplican
+    // la 030) pertenece a la sede, no a «ninguna colección».
+    //
+    // Antes esta prueba fijaba lo contrario —NULL fuera de las dos—, que era
+    // fiel a `l.es_bibliomovil = false` en SQL. Con el catálogo ya separado en
+    // dos, esa semántica tenía un costo silencioso: un libro sin marcar
+    // desaparecía del catálogo de la biblioteca Y del del Bibliomóvil, sin
+    // ningún error en pantalla. Ahora `buscar_libros()` usa
+    // `coalesce(l.es_bibliomovil, false)` y `filtrarLibrosLocales()` la misma
+    // regla, así que la copia sin conexión y el servidor siguen coincidiendo
+    // —que es lo que esta prueba vigila—, solo que con NULL del lado de sede.
     it('coincide con el filtro SQL para falso, incluyendo valores nulos', () => {
-        expect(filtrarLibrosLocales(libros, '', false, 'todos').map(l => l.id)).toEqual([3]);
+        expect(filtrarLibrosLocales(libros, '', false, 'todos').map(l => l.id)).toEqual([3, 4]);
+        expect(filtrarLibrosLocales(libros, '', true, 'todos').map(l => l.id)).toEqual([1, 2]);
         expect(filtrarLibrosLocales(libros, '', null, 'todos').map(l => l.id)).toEqual([1, 2, 3, 4]);
     });
 });

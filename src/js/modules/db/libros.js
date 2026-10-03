@@ -19,6 +19,17 @@ export const libros = {
      * existe, cae automáticamente a una consulta simple para que la aplicación
      * siga funcionando.
      *
+     * `esBibliomovil` separa las dos colecciones (migración 030):
+     *   · `false` → catálogo de la biblioteca (sede).
+     *   · `true`  → catálogo del Bibliomóvil.
+     *   · `null`  → todas (solo lo usan las herramientas internas que necesitan
+     *               ver el universo completo de libros).
+     *
+     * Un libro sin marcar cuenta como de sede: `coalesce(..., false)` en el RPC
+     * y el `or` explícito sobre NULL en el respaldo PostgREST cubren las bases
+     * donde la migración 030 todavía no se ejecutó. Sin eso, un libro con
+     * `es_bibliomovil` en NULL no aparecería en ninguna vista.
+     *
      * Devuelve { libros, total }.
      */
     async obtenerLibros(busqueda = '', pagina = 0, porPagina = 25, esBibliomovil = null, filtroStock = 'todos') {
@@ -56,8 +67,11 @@ export const libros = {
                 .range(desplazamiento, desplazamiento + porPagina - 1);
 
             
+            // `.or(...)` en vez de `.eq(..., false)`: en Postgres `NULL = false`
+            // no es verdadero, así que un libro sin marcar (bases anteriores a
+            // la migración 030) quedaría fuera de las dos colecciones.
             if (esBibliomovil === true) q = q.eq('es_bibliomovil', true);
-            else if (esBibliomovil === false) q = q.eq('es_bibliomovil', false);
+            else if (esBibliomovil === false) q = q.or('es_bibliomovil.is.null,es_bibliomovil.is.false');
 
             if (filtroStock === 'disponibles') q = q.gt('ejemplares_disponibles', 0);
             else if (filtroStock === 'prestados') q = q.eq('ejemplares_disponibles', 0);
@@ -79,6 +93,14 @@ export const libros = {
         }
     },
 
+    /**
+     * Guarda los datos descriptivos de un libro.
+     *
+     * `esBibliomovil` se actualiza SOLO si viene en `cambios`: el update de
+     * Supabase manda las columnas que se le indican, así que incluirla siempre
+     * con `?? null` borraría la colección cada vez que alguien corrige un
+     * título. Con el spread condicional, quien no la envía no la toca.
+     */
     async actualizarLibro(id, cambios) {
         const { error } = await conTiempoLimite(supabase.from('libros').update({
             titulo: cambios.titulo,
@@ -90,11 +112,32 @@ export const libros = {
             // null = usa el plazo global (dias_prestamo); 0 = no circula
             // (material de referencia); un número = plazo propio de este
             // libro. Ver 017_plazo_prestamo_por_libro.sql.
-            dias_prestamo_override: cambios.diasPrestamoOverride ?? null
+            dias_prestamo_override: cambios.diasPrestamoOverride ?? null,
+            ...(cambios.esBibliomovil === undefined ? {} : { es_bibliomovil: !!cambios.esBibliomovil })
             // El número de ejemplares NO se toca aquí: pasa por ajustar_copias,
             // que recalcula las copias disponibles según los préstamos activos.
         }).eq('id', id), ESPERA);
         if (error) throw new Error(error.code === '23505' ? 'Ese ISBN ya pertenece a otro libro.' : 'No se pudo guardar el libro.');
+    },
+
+    /**
+     * Mueve un ejemplar entre las dos colecciones (migración 030): sede
+     * (false) ↔ Bibliomóvil (true).
+     *
+     * Va aparte de actualizarLibro() a propósito: un `update` parcial de una
+     * sola columna no puede pisar por accidente el título, el autor o el plazo
+     * de préstamo del libro, y deja claro en el código que la operación es
+     * exactamente «cambiar de colección».
+     */
+    async cambiarColeccionLibro(id, esBibliomovil) {
+        const { error } = await conTiempoLimite(
+            supabase.from('libros').update({ es_bibliomovil: !!esBibliomovil }).eq('id', id),
+            ESPERA
+        );
+        if (error) {
+            if (esFuncionInexistente(error)) throw new Error('Falta ejecutar la migración 030 en Supabase.');
+            throw new Error('No se pudo cambiar la colección del libro.');
+        }
     },
 
     /**
