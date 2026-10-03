@@ -1,6 +1,7 @@
 // Vista Administración. Extraído mecánicamente de js/modules/ui.js (Fase 4).
 import { html, crudo } from '../modules/utilidades.js';
 import { db } from '../modules/db.js';
+import { ROLES_VALIDOS, infoRol } from '../config.js';
 
 
 export default {
@@ -377,16 +378,19 @@ export default {
                   ${u.cargo ? html`<div class="text-[11px] text-stone-500 dark:text-stone-400 italic">${u.cargo}</div>` : ''}
                 </td>
                 <td class="px-4 py-3">
-                  <span class="stamp ${u.rol === 'admin' ? 'stamp-danger' : 'stamp-info'} !rotate-0">
-                    <i aria-hidden="true" class="fas ${u.rol === 'admin' ? 'fa-user-shield' : 'fa-user'}"></i> ${u.rol}
+                  <span class="stamp ${infoRol(u.rol).stamp} !rotate-0">
+                    <i aria-hidden="true" class="fas ${infoRol(u.rol).icon}"></i> ${infoRol(u.rol).title}
                   </span>
                 </td>
                 <td class="px-4 py-3 text-stone-500 dark:text-stone-400 text-xs">${u.ultimo_acceso ? this._fechaLegible(u.ultimo_acceso.split('T')[0]) : 'Nunca'}</td>
                 <td class="px-4 py-3 text-right">
-                  <button class="role-btn btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-3 py-1.5 rounded-lg text-xs font-bold"
-                    data-id="${u.usuario_id}" data-rol="${u.rol === 'admin' ? 'librero' : 'admin'}">
-                    ${u.rol === 'admin' ? 'Librero' : 'Administrador'}
-                  </button>
+                  <label class="sr-only" for="role-select-${u.usuario_id}">Cambiar rol de ${u.nombre || u.email}</label>
+                  <select id="role-select-${u.usuario_id}" class="role-select role-btn w-full max-w-[11rem] px-2 py-1.5 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 text-xs font-bold"
+                    data-id="${u.usuario_id}" data-current="${u.rol}">
+                    <option value="librero" ${u.rol === 'librero' ? 'selected' : ''}>Librero</option>
+                    <option value="bibliomovil" ${u.rol === 'bibliomovil' ? 'selected' : ''}>Bibliomóvil</option>
+                    <option value="admin" ${u.rol === 'admin' ? 'selected' : ''}>Administrador</option>
+                  </select>
                 </td>
                 <td class="px-4 py-3 text-right">
                   <button class="delete-personal-btn text-rose-700 hover:text-rose-800 p-1.5" title="Eliminar cuenta"
@@ -413,8 +417,9 @@ export default {
           <div>
             <label for="invite-rol" class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-300 mb-1 block">Rol</label>
             <select id="invite-rol" class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 text-sm focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago">
-              <option value="librero">Librero</option>
-              <option value="admin">Administrador</option>
+              <option value="librero">Librero — mesón y sede</option>
+              <option value="bibliomovil">Bibliomóvil — operación en ruta</option>
+              <option value="admin">Administrador — gestión completa</option>
             </select>
           </div>
           <button id="invite-btn" class="btn-madera text-white font-medium rounded-xl shadow px-4 py-2.5 text-sm w-full">
@@ -432,6 +437,10 @@ export default {
         this.showToast('Escribe un correo válido.', 'error');
         return;
       }
+      if (!ROLES_VALIDOS.includes(rol)) {
+        this.showToast('Elige un rol válido.', 'error');
+        return;
+      }
       const btn = e.currentTarget;
       btn.disabled = true;
       try {
@@ -445,19 +454,26 @@ export default {
       }
     });
 
-    panel.querySelectorAll('.role-btn').forEach(btn => {
-      btn.addEventListener('click', async () => {
-        const nuevoRol = btn.dataset.rol;
+    panel.querySelectorAll('.role-select').forEach(sel => {
+      sel.addEventListener('change', async () => {
+        const nuevoRol = sel.value;
+        const actual = sel.dataset.current;
+        if (nuevoRol === actual) return;
+        const etiqueta = infoRol(nuevoRol).title;
         const ok = await this.showConfirm(
-          `¿Cambiar el rol de esta cuenta a ${nuevoRol}?`,
+          `¿Cambiar el rol de esta cuenta a ${etiqueta}?`,
           { title: 'Cambiar rol', confirmText: 'Cambiar', danger: nuevoRol === 'admin' }
         );
-        if (!ok) return;
+        if (!ok) {
+          sel.value = actual;
+          return;
+        }
         try {
-          await db.asignarRol(btn.dataset.id, nuevoRol);
-          this.showToast('Rol actualizado.', 'success');
+          await db.asignarRol(sel.dataset.id, nuevoRol);
+          this.showToast(`Rol actualizado a ${etiqueta}.`, 'success');
           this.renderAdmin();
         } catch (err) {
+          sel.value = actual;
           this.showToast(err.message || 'No se pudo cambiar el rol.', 'error');
         }
       });

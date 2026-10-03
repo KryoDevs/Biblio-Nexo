@@ -18,6 +18,7 @@ export default {
     if (this.currentView !== 'dashboard') return;
     const roleInfo = CONFIG.ROLE_LABELS[this.currentUserRole] || CONFIG.ROLE_LABELS.librero;
     const isAdmin = this.currentUserRole === 'admin';
+    const isBiblio = this.currentUserRole === 'bibliomovil';
 
     // Determinar reservas a punto de vencer (< 24h)
     const hoyMs = new Date().getTime();
@@ -42,6 +43,12 @@ export default {
           { view: 'users', label: 'Agregar lector', icon: 'fa-user-plus' },
           { view: 'loans', label: 'Ver préstamos', icon: 'fa-right-left' }
         ]
+      : isBiblio
+      ? [
+          { view: 'bibliomovil', label: 'Abrir mapa y ruta', icon: 'fa-truck' },
+          { view: 'scanner', label: 'Prestar en parada', icon: 'fa-barcode' },
+          { view: 'catalog', label: 'Catálogo del Bibliomóvil', icon: 'fa-book' }
+        ]
       : [
           { view: 'scanner', label: 'Escanear libro', icon: 'fa-barcode' },
           { view: 'loans', label: 'Ver préstamos', icon: 'fa-right-left' },
@@ -65,10 +72,27 @@ select id, email, 'admin' from auth.users where email = '${this.currentUserEmail
 on conflict (id) do update set rol = 'admin';</pre>
         </div>` : ''}
 
-      <div class="mb-5">
-        <h3 class="font-serif font-semibold text-xl text-stone-900 dark:text-stone-100">Hola, ${this._nombreParaSaludo()}</h3>
-        <p class="text-xs text-stone-500 dark:text-stone-400">${roleInfo.welcome}</p>
+      <div class="mb-5 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <p class="text-[10px] font-black uppercase tracking-widest text-stone-500 dark:text-stone-400 mb-1">${roleInfo.title}</p>
+          <h3 class="font-serif font-semibold text-2xl text-stone-900 dark:text-stone-100">Hola, ${this._nombreParaSaludo()}</h3>
+          <p class="text-sm text-stone-500 dark:text-stone-400 mt-0.5">${roleInfo.welcome}</p>
+        </div>
       </div>
+
+      ${isBiblio ? html`
+        <div class="mb-5 catalog-card elevate-hover bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
+          <div class="w-12 h-12 rounded-2xl bg-patrimonio-lago text-white flex items-center justify-center shrink-0">
+            <i aria-hidden="true" class="fas fa-route text-lg"></i>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100">Ruta del Bibliomóvil</p>
+            <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Prepara los datos sin conexión, marca las paradas y registra préstamos en cada localidad.</p>
+          </div>
+          <button type="button" data-quick-view="bibliomovil" class="quick-action-btn btn-madera text-white rounded-xl px-4 py-2.5 text-sm font-bold shrink-0">
+            Ir al mapa <i aria-hidden="true" class="fas fa-arrow-right ml-1"></i>
+          </button>
+        </div>` : ''}
 
       ${reservasPorVencer.length > 0 ? html`
         <div class="mb-5 bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 rounded-xl px-4 py-3" role="alert">
@@ -82,7 +106,7 @@ on conflict (id) do update set rol = 'admin';</pre>
 
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         ${cards.map(c => html`
-          <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5 transition-all hover:border-patrimonio-lago/40">
+          <div class="catalog-card elevate-hover bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5">
             <i aria-hidden="true" class="fas ${c.icon} ${c.color} text-xl mb-2"></i>
             <p class="font-serif font-semibold text-4xl text-stone-900 dark:text-stone-100">${c.value}</p>
             <p class="text-xs text-stone-500 dark:text-stone-400 font-bold uppercase tracking-wide mt-1">${c.label}</p>

@@ -29,10 +29,11 @@ export default {
         <div class="space-y-0.5">
           ${group.items.map(v => `
             <button
+              type="button"
               data-view="${v.id}"
-              class="nav-btn w-full px-3 py-2.5 rounded-lg text-sm font-bold flex items-center gap-3 transition text-stone-300 hover:bg-white/10 hover:text-white"
+              class="nav-btn w-full px-3 py-2.5 rounded-xl text-sm font-bold flex items-center gap-3 transition text-stone-300 hover:bg-white/10 hover:text-white"
             >
-              <i aria-hidden="true" class="fas ${v.icon} w-4 text-center ${v.id === 'scanner' ? 'text-amber-400' : ''}"></i>
+              <i aria-hidden="true" class="fas ${v.icon} w-4 text-center ${v.id === 'scanner' || v.id === 'bibliomovil' ? 'text-amber-400' : ''}"></i>
               <span>${escapeHtml(v.label)}</span>
             </button>
           `).join('')}
@@ -56,15 +57,18 @@ export default {
     document.querySelectorAll('#nav-menu .nav-btn').forEach(btn => {
       const active = btn.dataset.view === viewName;
       btn.classList.toggle('bg-patrimonio-madera', active);
+      btn.classList.toggle('is-active', active);
       btn.classList.toggle('text-white', active);
       btn.classList.toggle('text-stone-300', !active);
+      if (active) btn.setAttribute('aria-current', 'page');
+      else btn.removeAttribute('aria-current');
     });
   },
 
   _skeletonLoader(viewName) {
       if (viewName === 'catalog' || viewName === 'users' || viewName === 'loans') {
         return `
-          <div class="flex flex-col gap-4 p-4 animate-pulse">
+          <div class="flex flex-col gap-4 p-4 skeleton-shimmer animate-pulse">
             ${Array(4).fill(0).map(() => `
               <div class="bg-white dark:bg-stone-800 rounded-2xl p-5 flex flex-col sm:flex-row gap-4 sm:items-center border border-stone-200 dark:border-stone-700 shadow-sm">
                 <div class="flex items-start gap-4 flex-1">
@@ -89,7 +93,7 @@ export default {
       }
       if (viewName === 'dashboard') {
         return `
-          <div class="animate-pulse p-4">
+          <div class="skeleton-shimmer animate-pulse p-4">
             <div class="mb-5 space-y-2">
                <div class="h-6 bg-stone-200 rounded-md w-1/3"></div>
                <div class="h-4 bg-stone-100 dark:bg-stone-700 rounded-md w-1/4"></div>
@@ -128,7 +132,9 @@ export default {
     const viewDef = views.find(v => v.id === viewName);
 
     const title = document.getElementById('page-title');
+    const kicker = document.getElementById('page-kicker');
     if (title) title.textContent = viewDef?.label || 'Dashboard';
+    if (kicker) kicker.textContent = viewDef?.section || '';
 
     // Loader mientras busca en BD
     const container = this._container();
@@ -194,7 +200,7 @@ export default {
 
         <!-- Menú lateral: identidad institucional + navegación agrupada por rol -->
         <a href="#views-container" class="skip-link">Saltar al contenido principal</a>
-        <aside id="sidebar" class="momento-${this._momentoDelDia()} w-72 shrink-0 text-white flex flex-col z-50">
+        <aside id="sidebar" class="momento-${this._momentoDelDia()} w-72 shrink-0 text-white flex flex-col z-50 shadow-xl">
           <div class="tab-corner px-5 py-5 border-b border-white/10 flex items-center gap-2">
             <i aria-hidden="true" class="fas fa-book text-patrimonio-madera text-lg"></i>
             <div class="leading-none">
@@ -231,12 +237,15 @@ export default {
         <!-- Columna principal -->
         <div class="flex-1 flex flex-col min-w-0">
           <!-- Franja de título: como la etiqueta de un cajón de fichero -->
-          <div class="franja-titulo bg-white dark:bg-stone-800/95 backdrop-blur-md border-b border-stone-200 dark:border-stone-700/50 px-4 md:px-6 py-4 flex shadow-sm items-center gap-3 shrink-0">
-            <button id="sidebar-toggle-btn" class="md:hidden w-8 h-8 flex items-center justify-center text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:text-stone-200">
+          <div class="franja-titulo bg-white/90 dark:bg-stone-800/95 backdrop-blur-md border-b border-stone-200 dark:border-stone-700/50 px-4 md:px-6 py-3.5 flex shadow-sm items-center gap-3 shrink-0">
+            <button id="sidebar-toggle-btn" class="md:hidden w-9 h-9 rounded-xl flex items-center justify-center text-stone-500 dark:text-stone-400 hover:text-stone-800 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-700 transition">
               <i aria-hidden="true" class="fas fa-bars"></i>
             </button>
-            <span class="w-1.5 h-4 bg-patrimonio-madera rounded-sm hidden sm:block"></span>
-            <h2 id="page-title" class="font-serif font-semibold text-stone-800 dark:text-stone-200 text-base">Dashboard</h2>
+            <span class="w-1.5 h-8 bg-patrimonio-madera rounded-sm hidden sm:block"></span>
+            <div class="min-w-0">
+              <p id="page-kicker" class="text-[10px] font-black uppercase tracking-widest text-stone-500 dark:text-stone-400 leading-none mb-0.5">Panel</p>
+              <h2 id="page-title" class="font-serif font-semibold text-stone-800 dark:text-stone-200 text-base leading-tight">Dashboard</h2>
+            </div>
             <div class="ml-auto flex items-center gap-4 relative">
               
               <!-- Campana de notificaciones -->
@@ -250,7 +259,7 @@ export default {
                 <div id="notificaciones-panel" class="absolute right-0 mt-3 w-80 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl shadow-2xl opacity-0 invisible transition-all transform origin-top-right scale-95 z-50">
                   <div class="p-4 border-b border-stone-100 dark:border-stone-800 flex justify-between items-center bg-stone-50/50 dark:bg-stone-800/20 rounded-t-2xl">
                     <h3 class="font-bold text-stone-800 dark:text-stone-200">Notificaciones</h3>
-                    <button id="notificaciones-close" class="text-stone-400 hover:text-stone-600"><i aria-hidden="true" class="fas fa-times"></i></button>
+                    <button id="notificaciones-close" class="text-stone-500 hover:text-stone-700 dark:hover:text-stone-200"><i aria-hidden="true" class="fas fa-times"></i></button>
                   </div>
                   <div id="notificaciones-lista" class="max-h-80 overflow-y-auto divide-y divide-stone-100 dark:divide-stone-800/50">
                     <!-- Dinámico -->
@@ -262,7 +271,7 @@ export default {
             </div>
           </div>
 
-          <main id="views-container" tabindex="-1" aria-label="Contenido principal" class="flex-1 overflow-y-auto p-4 md:p-6"></main>
+          <main id="views-container" tabindex="-1" aria-label="Contenido principal" class="view-canvas flex-1 overflow-y-auto p-4 md:p-7"></main>
         </div>
       </div>
       <div id="toast-container" role="status" aria-live="polite" aria-atomic="false" class="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>

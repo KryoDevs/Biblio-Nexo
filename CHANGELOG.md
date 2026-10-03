@@ -5,6 +5,17 @@ El proyecto utiliza [Conventional Commits](https://www.conventionalcommits.org/e
 
 ---
 
+## [1.2.0] — 2026-10-03
+
+### Añadido (`feat`)
+- **Rol operativo `bibliomovil`**: menú propio (aterriza en la ruta), invitaciones y cambio de rol desde Administración → Personal, validación en `asignar_rol` (`010_consolidacion.sql`), dominio SQL (`029_rol_bibliomovil.sql`) y Edge Function `invitar-personal`. El Dashboard de ruta ofrece accesos al mapa y al mesón de parada; el catálogo de sede oculta el alta de libros.
+- **Jerarquía visual y animaciones**: entrada de vistas, menú lateral escalonado, panel de ingreso, diálogos, esqueletos con brillo, tarjetas `elevate-hover`, kicker de sección en la franja de título e indicador de conexión con modo oscuro.
+
+### Pruebas (`test`)
+- Cobertura del rol `bibliomovil` en `probar-interfaz.mjs` y `probar-vistas.mjs` (menú, aterrizaje, restricción de Administración, dashboard de ruta y catálogo sin alta).
+
+---
+
 ## [1.1.0] — 2026-10-03
 
 ### Corregido (`fix`)

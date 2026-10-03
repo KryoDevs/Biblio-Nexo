@@ -76,11 +76,11 @@ select * from public.verificar_rls();
 select * from public.verificar_circulacion();
 ```
 
-El inventario completo de las migraciones `001` a `028` y el despliegue de Edge Functions (`invitar-personal`, `respaldo-automatico`, `expirar-reservas`) están detallados en [MIGRACIONES.md](MIGRACIONES.md) y [SUPABASE-PASO-A-PASO.md](SUPABASE-PASO-A-PASO.md).
+El inventario completo de las migraciones `001` a `029` y el despliegue de Edge Functions (`invitar-personal`, `respaldo-automatico`, `expirar-reservas`) están detallados en [MIGRACIONES.md](MIGRACIONES.md) y [SUPABASE-PASO-A-PASO.md](SUPABASE-PASO-A-PASO.md).
 
 ---
 
-## 5. Cómo crear usuarios de prueba (`admin` y `librero`)
+## 5. Cómo crear usuarios de prueba (`admin`, `librero` y `bibliomovil`)
 
 1. En el panel de Supabase, ve a **Authentication → Users → Add user → Create new user** y crea dos cuentas con correo y contraseña (por ejemplo, `admin@futrono.cl` y `librero@futrono.cl`, marcando *Auto Confirm User*).
 2. Para asignar el rol **`admin`** en la base de datos, abre el **SQL Editor** de Supabase y ejecuta:
@@ -97,13 +97,23 @@ El inventario completo de las migraciones `001` a `028` y el despliegue de Edge 
 
    ```sql
    insert into public.usuarios (id, email, rol, nombre, cargo)
-   select id, email, 'librero', 'Encargado de Mesón', 'Atención de Mesón y Bibliomóvil'
+   select id, email, 'librero', 'Encargado de Mesón', 'Atención de Mesón y sede'
    from auth.users
    where email = 'librero@futrono.cl'
    on conflict (id) do update set rol = 'librero';
    ```
 
-4. Una vez dentro con la cuenta `admin`, puedes gestionar o invitar más personal desde **Administración → Personal**.
+4. Para asignar el rol **`bibliomovil`** (operación en ruta: mapa, mesón de parada, catálogo móvil, lectores y préstamos; sin Administración ni Reportes), crea `ruta@futrono.cl` y ejecuta:
+
+   ```sql
+   insert into public.usuarios (id, email, rol, nombre, cargo)
+   select id, email, 'bibliomovil', 'Encargado de Ruta', 'Bibliomóvil'
+   from auth.users
+   where email = 'ruta@futrono.cl'
+   on conflict (id) do update set rol = 'bibliomovil';
+   ```
+
+5. Una vez dentro con la cuenta `admin`, puedes gestionar o invitar más personal —incluido el rol Bibliomóvil— desde **Administración → Personal**.
 
 ---
 

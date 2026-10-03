@@ -17,7 +17,7 @@ export default {
         const bgColor = type === 'success' ? 'bg-[#10b981]' : type === 'error' ? 'bg-[#e11d48]' : 'bg-[#1B3B48]';
         const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle';
 
-        toast.className = `${bgColor} text-white px-5 py-4 rounded-2xl shadow-soft-xl border border-white/10  font-bold flex items-center gap-3 transform transition-all duration-300 translate-y-10 scale-95 opacity-0 z-50 text-sm`;
+        toast.className = `${bgColor} toast-enter text-white px-5 py-4 rounded-2xl shadow-lg border border-white/10 font-bold flex items-center gap-3 transform transition-all duration-300 translate-y-10 scale-95 opacity-0 z-50 text-sm pointer-events-auto`;
         toast.innerHTML = `<i aria-hidden="true" class="fas ${icon} text-lg"></i> <span>${escapeHtml(message)}</span>`;
 
         container.appendChild(toast);
@@ -34,7 +34,7 @@ export default {
             const overlay = document.createElement('div');
             overlay.className = 'fixed inset-0 bg-patrimonio-lago/40 backdrop-blur-md z-[10000] transition-opacity duration-300 flex items-center justify-center p-4';
             overlay.innerHTML = `
-                <div class="bg-patrimonio-card dark:bg-stone-900 border border-stone-300 dark:border-stone-600 rounded-2xl max-w-sm w-full p-6 shadow-sm transform transition-all space-y-4">
+                <div class="ui-dialog bg-patrimonio-card dark:bg-stone-900 border border-stone-300 dark:border-stone-600 rounded-2xl max-w-sm w-full p-6 shadow-sm transform transition-all space-y-4">
                     <h3 class="font-serif text-lg font-bold text-stone-900 dark:text-stone-100">${escapeHtml(title)}</h3>
                     <p class="text-stone-600 dark:text-stone-300 text-sm">${escapeHtml(message)}</p>
                     <div class="flex justify-end gap-3 pt-2">
@@ -59,7 +59,7 @@ export default {
             const overlay = document.createElement('div');
             overlay.className = 'fixed inset-0 bg-patrimonio-lago/40 backdrop-blur-md z-[10000] transition-opacity duration-300 flex items-center justify-center p-4';
             overlay.innerHTML = `
-                <div class="bg-patrimonio-card dark:bg-stone-900 border border-stone-300 dark:border-stone-600 rounded-2xl max-w-sm w-full p-6 shadow-sm transform transition-all space-y-4">
+                <div class="ui-dialog bg-patrimonio-card dark:bg-stone-900 border border-stone-300 dark:border-stone-600 rounded-2xl max-w-sm w-full p-6 shadow-sm transform transition-all space-y-4">
                     <h3 class="font-serif text-lg font-bold text-stone-900 dark:text-stone-100">${escapeHtml(title)}</h3>
                     <p class="text-stone-600 dark:text-stone-300 text-sm">${escapeHtml(message)}</p>
                     <input id="modal-prompt-input" aria-label="Valor solicitado" type="text" placeholder="${escapeHtml(placeholder)}"

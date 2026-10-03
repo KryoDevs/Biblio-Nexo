@@ -805,7 +805,7 @@ class UIManager {
           </svg>
         </div>
 
-        <div class="glass-panel relative z-10 w-full max-w-md rounded-2xl shadow-2xl p-8">
+        <div class="glass-panel login-panel relative z-10 w-full max-w-md rounded-2xl shadow-2xl p-8">
           <h1 class="font-serif font-semibold text-xl text-stone-900 dark:text-stone-100 mb-1">Crea tu contraseña nueva</h1>
           <p class="text-xs text-stone-600 dark:text-stone-300 mb-5">Debe tener al menos 12 caracteres e incluir una mayúscula y un número.</p>
 
@@ -888,7 +888,7 @@ class UIManager {
           </svg>
         </div>
 
-        <div class="glass-panel relative z-10 w-full max-w-md rounded-2xl shadow-2xl p-8">
+        <div class="glass-panel login-panel relative z-10 w-full max-w-md rounded-2xl shadow-2xl p-8">
           <div class="flex items-center gap-2 mb-1">
             <i aria-hidden="true" class="fas fa-book text-patrimonio-madera"></i>
             <h1 class="font-serif font-semibold text-xl text-stone-900 dark:text-stone-100">Bienvenido/a a Biblio<span class="text-patrimonio-madera">Nexo</span></h1>
@@ -1009,7 +1009,7 @@ class UIManager {
         </button>
 
         <!-- Tarjeta de vidrio esmerilado: flota sobre el paisaje en vez de cortarlo -->
-        <div class="glass-panel relative z-10 w-full max-w-md rounded-[2rem] shadow-2xl p-8 md:p-9 transition-colors duration-500">
+        <div class="glass-panel login-panel relative z-10 w-full max-w-md rounded-[2rem] shadow-2xl p-8 md:p-9 transition-colors duration-500">
           <div class="flex items-center gap-2 mb-1">
             <i aria-hidden="true" class="fas fa-book text-patrimonio-madera text-xl"></i>
             <h1 class="font-serif font-semibold text-2xl leading-tight text-stone-900 dark:text-stone-100">Biblio<span class="text-patrimonio-madera">Nexo</span></h1>
@@ -1160,19 +1160,19 @@ class UIManager {
     let clase, icono, texto;
 
     if (!enLinea) {
-      clase = 'bg-rose-100 text-rose-800';
+      clase = 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-200';
       icono = 'fa-triangle-exclamation';
       texto = pendientes > 0 ? `Sin conexión · ${pendientes} ${plural}` : 'Sin conexión';
     } else if (sincronizando) {
-      clase = 'bg-patrimonio-lago/10 text-patrimonio-lago';
+      clase = 'bg-patrimonio-lago/10 text-patrimonio-lago dark:bg-sky-950/50 dark:text-sky-200';
       icono = 'fa-arrows-rotate fa-spin';
       texto = 'Sincronizando…';
     } else if (pendientes > 0) {
-      clase = 'bg-amber-100 text-amber-800';
+      clase = 'bg-amber-100 text-amber-800 dark:bg-amber-950/50 dark:text-amber-200';
       icono = 'fa-clock';
       texto = `${pendientes} ${plural}`;
     } else {
-      clase = 'bg-emerald-100 text-emerald-800';
+      clase = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200';
       icono = 'fa-circle-check';
       texto = 'En línea';
     }
