@@ -439,7 +439,7 @@ class UIManager {
     const hasta = Math.min((pagina + 1) * porPagina, total);
 
     return `
-      <div class="flex items-center justify-between gap-3 px-4 py-3 border-t border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/50/60">
+      <div class="flex items-center justify-between gap-3 px-4 py-3 border-t border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/60">
         <p class="text-xs text-stone-500 dark:text-stone-400">Mostrando ${desde}–${hasta} de ${total}</p>
         <div class="flex items-center gap-1">
           <button data-page="${pagina - 1}" aria-label="Página anterior" ${pagina === 0 ? 'disabled' : ''}
@@ -472,7 +472,7 @@ class UIManager {
   _bloqueConsentimiento(prefijo = 'new') {
     const c = UIManager.CONSENTIMIENTO;
     return `
-      <div class="border border-stone-300 dark:border-stone-600 rounded-xl p-3 bg-stone-50 dark:bg-stone-800/50/60 space-y-2">
+      <div class="border border-stone-300 dark:border-stone-600 rounded-xl p-3 bg-stone-50 dark:bg-stone-800/60 space-y-2">
         <p class="text-[10px] font-black uppercase tracking-widest text-stone-500 dark:text-stone-400">Tratamiento de datos personales</p>
         <p class="text-[11px] text-stone-600 dark:text-stone-300 leading-relaxed">${escapeHtml(c.texto)} <a href="/privacidad.html" target="_blank" rel="noopener" class="text-patrimonio-lago hover:underline">Ver la política completa.</a></p>
         <label class="flex items-start gap-2 cursor-pointer pt-1">
