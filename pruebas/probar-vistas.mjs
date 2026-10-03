@@ -404,6 +404,11 @@ for (const vista of ['dashboard', 'reports', 'catalog', 'users', 'loans', 'scann
     assert(cont.innerHTML.length > 50, 'la vista quedó vacía');
     assert(!cont.innerHTML.includes('undefined'), 'aparece "undefined" en pantalla');
     assert(!cont.innerHTML.includes('NaN'), 'aparece "NaN" en pantalla');
+    if (vista === 'users') {
+      const tbody = cont.querySelector('#users-tbody');
+      assert(tbody && tbody.tagName === 'TBODY', '#users-tbody debe ser un elemento <tbody> dentro de <table>');
+      assert(tbody.querySelectorAll('tr').length > 0, 'las filas <tr> de lectores no se conservaron en el DOM');
+    }
     assert(errores.length === antes, `errores nuevos: ${errores.slice(antes).join('; ')}`);
   });
 }
