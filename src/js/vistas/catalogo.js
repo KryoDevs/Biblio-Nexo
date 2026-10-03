@@ -34,6 +34,7 @@ export default {
     }
 
     container.innerHTML = html`
+      ${this.currentUserRole !== 'bibliomovil' ? html`
       <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 mb-6">
         <div class="catalog-card-header">
           <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100">Agregar libro</h3>
@@ -65,7 +66,7 @@ export default {
           </div>
           <button id="add-book-submit-btn" type="submit" class="btn-madera col-span-2 md:col-span-1 text-white font-sans font-medium rounded-xl shadow py-2 text-sm w-full h-[38px] flex items-center justify-center">Agregar</button>
         </form>
-      </div>
+      </div>` : ''}
       <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 overflow-x-auto">
         <div class="catalog-card-header flex flex-col gap-3">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -89,7 +90,7 @@ export default {
 
     this._booksCache = libros;
 
-    document.getElementById('add-book-form').addEventListener('submit', async e => {
+    document.getElementById('add-book-form')?.addEventListener('submit', async e => {
       e.preventDefault();
       if (!this.validateBookForm(false)) return;
       

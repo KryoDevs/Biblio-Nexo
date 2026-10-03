@@ -94,8 +94,8 @@ export default {
           <p class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100 leading-tight">${perfil.nombre || 'Sin nombre registrado'}</p>
           <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5 break-all">${perfil.email || ''}</p>
           <div class="mt-3">
-            <span class="stamp ${perfil.rol === 'admin' ? 'stamp-info' : 'stamp-success'} !rotate-0">
-              <i aria-hidden="true" class="fas ${perfil.rol === 'admin' ? 'fa-user-shield' : 'fa-user'}"></i> ${roleInfo.title}
+            <span class="stamp ${roleInfo.stamp || 'stamp-info'} !rotate-0">
+              <i aria-hidden="true" class="fas ${roleInfo.icon || 'fa-user'}"></i> ${roleInfo.title}
             </span>
           </div>
           ${perfil.cargo ? html`<p class="text-xs text-stone-600 dark:text-stone-300 mt-2">${perfil.cargo}</p>` : ''}
@@ -103,16 +103,16 @@ export default {
           <div class="border-t border-stone-200 dark:border-stone-700 mt-5 pt-4 space-y-2.5 text-left">
             <div>
               <p class="text-[10px] font-black uppercase tracking-widest text-stone-500 dark:text-stone-400">Último acceso</p>
-              <p class="text-xs text-stone-700">${fechaHora(perfil.ultimo_acceso)}</p>
+              <p class="text-xs text-stone-700 dark:text-stone-300">${fechaHora(perfil.ultimo_acceso)}</p>
             </div>
             <div>
               <p class="text-[10px] font-black uppercase tracking-widest text-stone-500 dark:text-stone-400">Cuenta creada</p>
-              <p class="text-xs text-stone-700">${fechaHora(perfil.creado_en)}</p>
+              <p class="text-xs text-stone-700 dark:text-stone-300">${fechaHora(perfil.creado_en)}</p>
             </div>
             ${perfil.actualizado_en ? html`
               <div>
                 <p class="text-[10px] font-black uppercase tracking-widest text-stone-500 dark:text-stone-400">Perfil actualizado</p>
-                <p class="text-xs text-stone-700">${fechaHora(perfil.actualizado_en)}</p>
+                <p class="text-xs text-stone-700 dark:text-stone-300">${fechaHora(perfil.actualizado_en)}</p>
               </div>` : ''}
           </div>
         </div>

@@ -343,14 +343,28 @@ comprobar('y no muestra ningún aviso de desajuste', uiManager.desajusteDeRol ==
 CONFIG.ADMIN_EMAILS = oldAdminEmails;
 
 console.log('\n9. Roles definidos en la configuración');
-for (const rol of ['admin', 'librero']) {
+for (const rol of ['admin', 'librero', 'bibliomovil']) {
   const vistas = CONFIG.VIEWS_BY_ROLE[rol].map(v => v.id);
   comprobar(`el rol "${rol}" tiene Mi perfil`, vistas.includes('profile'));
   comprobar(`el rol "${rol}" no tiene vistas repetidas`, new Set(vistas).size === vistas.length);
 }
 comprobar('solo el rol admin ve Administración',
   CONFIG.VIEWS_BY_ROLE.admin.some(v => v.id === 'admin') &&
-  !CONFIG.VIEWS_BY_ROLE.librero.some(v => v.id === 'admin'));
+  !CONFIG.VIEWS_BY_ROLE.librero.some(v => v.id === 'admin') &&
+  !CONFIG.VIEWS_BY_ROLE.bibliomovil.some(v => v.id === 'admin'));
+comprobar('el rol bibliomóvil aterriza en la vista de ruta',
+  CONFIG.VIEWS_BY_ROLE.bibliomovil[0].id === 'bibliomovil');
+comprobar('el rol bibliomóvil ve Mesón, Catálogo, Lectores y Préstamos',
+  ['scanner', 'catalog', 'users', 'loans'].every(id => CONFIG.VIEWS_BY_ROLE.bibliomovil.some(v => v.id === id)));
+comprobar('el rol bibliomóvil no ve Reportes',
+  !CONFIG.VIEWS_BY_ROLE.bibliomovil.some(v => v.id === 'reports'));
+const asignarRolSql = fs.readFileSync('supabase/migrations/010_consolidacion.sql', 'utf8');
+comprobar('asignar_rol acepta el rol bibliomóvil',
+  /p_rol not in \('admin', 'librero', 'bibliomovil'\)/.test(asignarRolSql));
+const inviteTs = fs.readFileSync('supabase/functions/invitar-personal/index.ts', 'utf8');
+comprobar('invitar-personal acepta el rol bibliomóvil', /rol !== "bibliomovil"/.test(inviteTs));
+comprobar('existe la migración de dominio del rol bibliomóvil',
+  fs.existsSync('supabase/migrations/029_rol_bibliomovil.sql'));
 
 console.log('\n10. Fase 1.1 — funcionamiento sin conexión (service worker, manifest)');
 const viteConfigPwa = fs.existsSync('vite.config.js') ? fs.readFileSync('vite.config.js', 'utf8') : '';

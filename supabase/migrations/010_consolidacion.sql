@@ -1453,8 +1453,8 @@ begin
   if not public.es_admin() then
     raise exception 'Solo un administrador puede cambiar roles.' using errcode = 'P0001';
   end if;
-  if p_rol not in ('admin', 'librero') then
-    raise exception 'Rol no válido. Debe ser admin o librero.' using errcode = 'P0001';
+  if p_rol not in ('admin', 'librero', 'bibliomovil') then
+    raise exception 'Rol no válido. Debe ser admin, librero o bibliomovil.' using errcode = 'P0001';
   end if;
   if p_usuario_id = auth.uid() and p_rol <> 'admin' then
     raise exception 'No puedes quitarte tu propio rol de administrador.' using errcode = 'P0001';

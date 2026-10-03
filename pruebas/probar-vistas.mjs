@@ -485,13 +485,42 @@ await prueba('un error tardío de Bibliomóvil no reemplaza la vista abierta des
 });
 
 await prueba('renderiza ambos roles sin romperse', async () => {
-  for (const rol of ['admin', 'librero']) {
+  for (const rol of ['admin', 'librero', 'bibliomovil']) {
     ui.currentUserRole = rol;
     ui.currentView = 'catalog';
     await ui.renderCatalog();
     ui.currentView = 'loans';
     await ui.renderLoans();
   }
+  ui.currentUserRole = 'admin';
+});
+
+await prueba('el rol bibliomóvil no entra a Administración', async () => {
+  ui.currentUserRole = 'bibliomovil';
+  ui.currentView = 'admin';
+  await ui.renderAdmin();
+  assert(/solo para administradores/i.test(document.getElementById('views-container').textContent),
+    'el bibliomóvil no debió ver el panel de administración');
+  assert(!document.querySelector('.admin-tab-btn'), 'se dibujaron pestañas de administración');
+  ui.currentUserRole = 'admin';
+});
+
+await prueba('el Dashboard del bibliomóvil ofrece accesos de ruta', async () => {
+  ui.currentUserRole = 'bibliomovil';
+  ui.currentView = 'dashboard';
+  await ui.renderDashboard();
+  const htmlDash = document.getElementById('views-container').innerHTML;
+  assert(/Ir al mapa/i.test(htmlDash), 'falta el acceso rápido al mapa');
+  assert(/Prestar en parada/i.test(htmlDash), 'falta el acceso a prestar en parada');
+  ui.currentUserRole = 'admin';
+});
+
+await prueba('el catálogo del bibliomóvil no ofrece el alta de libros de sede', async () => {
+  ui.currentUserRole = 'bibliomovil';
+  ui.currentView = 'catalog';
+  await ui.renderCatalog();
+  assert(!document.getElementById('add-book-form'), 'el alta de libros de sede no corresponde en ruta');
+  assert(document.getElementById('catalog-search-input'), 'debe seguir pudiendo buscar el catálogo');
   ui.currentUserRole = 'admin';
 });
 
@@ -1126,6 +1155,12 @@ await prueba('la pestaña "Enlaces remotos" de Administración lista lo generado
 await prueba('_vistaInicial() respeta ?vista= cuando el rol puede verla', () => {
   dom.reconfigure({ url: 'https://biblionexo.test/?vista=scanner' });
   assert(ui._vistaInicial('librero') === 'scanner', 'no usó la vista pedida por la URL');
+});
+
+await prueba('_vistaInicial() del bibliomóvil abre la ruta', () => {
+  dom.reconfigure({ url: 'https://biblionexo.test/' });
+  assert(ui._vistaInicial('bibliomovil') === 'bibliomovil',
+    'el personal de ruta debe aterrizar en Bibliomóvil');
 });
 
 await prueba('_vistaInicial() ignora un valor inventado o sin permiso', () => {

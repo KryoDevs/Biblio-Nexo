@@ -83,8 +83,8 @@ Deno.serve(async (req: Request) => {
   if (!email || !email.includes("@")) {
     return json({ error: "El correo no es válido." }, 400);
   }
-  if (rol !== "admin" && rol !== "librero") {
-    return json({ error: "El rol debe ser admin o librero." }, 400);
+  if (rol !== "admin" && rol !== "librero" && rol !== "bibliomovil") {
+    return json({ error: "El rol debe ser admin, librero o bibliomovil." }, 400);
   }
 
   // ── Invitar y asignar el rol, con privilegios de administración ─────────

@@ -52,12 +52,12 @@ export const CONFIG = {
     // pedía hacerlo cuando intentaba enviar un aviso. Lo que no puede es
     // eliminar lectores ni cambiar un RUT; eso sigue siendo de administración.
     bibliomovil: [
-      { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie', section: 'Panel' },
       { id: 'bibliomovil', label: 'Bibliomóvil', icon: 'fa-truck', section: 'Operación' },
       { id: 'scanner', label: 'Mesón', icon: 'fa-barcode', section: 'Operación' },
       { id: 'catalog', label: 'Catálogo', icon: 'fa-book', section: 'Operación' },
       { id: 'users', label: 'Lectores', icon: 'fa-users', section: 'Operación' },
       { id: 'loans', label: 'Préstamos', icon: 'fa-right-left', section: 'Operación' },
+      { id: 'dashboard', label: 'Dashboard', icon: 'fa-chart-pie', section: 'Panel' },
       { id: 'profile', label: 'Mi perfil', icon: 'fa-id-card', section: 'Sistema' }
     ],
 
@@ -76,10 +76,31 @@ export const CONFIG = {
   // Textos de bienvenida y accesos rápidos que cambian según el rol,
   // usados en el Dashboard para que no se sienta genérico.
   ROLE_LABELS: {
-    admin: { title: 'Administrador', welcome: 'Panel de control general de la biblioteca.' },
-    librero: { title: 'Librero', welcome: 'Resumen de tu turno y trabajo diario.' },
-    bibliomovil: { title: 'Bibliomóvil', welcome: 'Panel de gestión para la ruta del Bibliomóvil.' }
+    admin: {
+      title: 'Administrador',
+      welcome: 'Panel de control general de la biblioteca.',
+      icon: 'fa-user-shield',
+      stamp: 'stamp-danger'
+    },
+    librero: {
+      title: 'Librero',
+      welcome: 'Resumen de tu turno y trabajo diario.',
+      icon: 'fa-user',
+      stamp: 'stamp-info'
+    },
+    bibliomovil: {
+      title: 'Bibliomóvil',
+      welcome: 'Operación en ruta: mapa, préstamos de parada y catálogo móvil.',
+      icon: 'fa-truck',
+      stamp: 'stamp-success'
+    }
   }
 };
+
+export const ROLES_VALIDOS = ['admin', 'librero', 'bibliomovil'];
+
+export function infoRol(rol) {
+  return CONFIG.ROLE_LABELS[rol] || CONFIG.ROLE_LABELS.librero;
+}
 
 export default CONFIG;
