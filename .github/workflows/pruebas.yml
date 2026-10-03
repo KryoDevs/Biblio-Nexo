@@ -70,7 +70,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
 
       # Antes de tener package.json, esto era `npm install jsdom
       # fake-indexeddb --no-save` (las dos juntas, en un solo comando: sin
@@ -81,6 +81,9 @@ jobs:
       # local — no "lo último disponible ese día".
       - name: Instalar dependencias de las pruebas
         run: npm ci
+
+      - name: Revisar vulnerabilidades conocidas en dependencias
+        run: npm audit --audit-level=high
 
       - name: Probar la interfaz (Vitest)
         run: npm run test
@@ -100,6 +103,9 @@ jobs:
         # apuntando a /src/, por ejemplo, compila sin error pero da 404 en
         # dist/). Construir aquí convierte ese riesgo en un job rojo.
         run: npm run build
+
+      - name: Verificar el resultado PWA empaquetado
+        run: npm run verify:build
 
   # ==========================================================================
   # 3. Migraciones contra un PostgreSQL embebido
@@ -231,7 +237,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
 
       - name: Instalar el CLI de Supabase
         run: npm install supabase --no-save

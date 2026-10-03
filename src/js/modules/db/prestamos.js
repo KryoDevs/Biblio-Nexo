@@ -8,7 +8,7 @@
 // pendientes-checklist.md). Sin cambios de lógica: es el mismo código, solo
 // movido.
 
-import { supabase, conTiempoLimite, ESPERA, hoyEnChile } from './compartido.js';
+import { supabase, conTiempoLimite, ESPERA, hoyEnChile, traerTodasLasFilas } from './compartido.js';
 
 export const prestamos = {
     /**
@@ -22,12 +22,17 @@ export const prestamos = {
      * `filtro` puede ser 'todos', 'vencidos' o 'porVencer'.
      */
     async obtenerTodosActivosSinPaginar() {
-        const { data, error } = await conTiempoLimite(
+        // Sin `.range()`, PostgREST puede truncar al máximo configurado (1000)
+        // sin emitir error. El paginador y un desempate estable por id conservan
+        // la semántica de "todos" también en bibliotecas con mucho historial.
+        const { data, error } = await traerTodasLasFilas((desde, hasta) =>
             supabase
                 .from('prestamos')
                 .select('id, fecha_prestamo, fecha_devolucion_esperada, libros(titulo), lectores(nombre, rut, telefono)')
                 .is('fecha_devolucion_real', null)
                 .order('fecha_devolucion_esperada', { ascending: true })
+                .order('id', { ascending: true })
+                .range(desde, hasta)
         );
         if (error) throw new Error(error.message);
         return data || [];

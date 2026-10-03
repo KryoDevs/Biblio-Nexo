@@ -3,13 +3,14 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Sistema de gestión de biblioteca para la Biblioteca Pública Municipal de Futrono. Sin paso de compilación: vanilla JS con ES Modules. Estas dependencias son SOLO para correr las pruebas (pruebas/*.mjs) — la aplicación en sí no usa nada de npm, ver vendor/ para sus librerías.",
+  "description": "Sistema de gestión bibliotecaria para la Biblioteca Pública Municipal de Futrono, con front-end ES Modules, build Vite, PWA y pruebas automatizadas.",
   "engines": {
     "node": "22.x"
   },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "verify:build": "node pruebas/verificar-build.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -29,5 +30,8 @@
     "vite": "^8.2.2",
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^5.0.0"
+  },
+  "dependencies": {
+    "leaflet": "^1.9.4"
   }
 }

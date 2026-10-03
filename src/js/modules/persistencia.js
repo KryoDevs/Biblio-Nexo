@@ -1,4 +1,5 @@
 import { supabase } from '../supabase-init.js';
+import { traerTodasLasFilas } from './db/compartido.js';
 
 /**
  * Persistencia local (Fase 1.2 y 1.3 — funcionamiento sin conexión).
@@ -60,6 +61,29 @@ let ultimoIdOptimista = 0;
 function idOptimista() {
     ultimoIdOptimista = Math.min(ultimoIdOptimista - 1, -Date.now());
     return ultimoIdOptimista;
+}
+
+function normalizarTextoBusqueda(valor) {
+    return (valor ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('es-CL');
+}
+
+/**
+ * Replica en la copia local los filtros de buscar_libros() del servidor.
+ * Exportada para probar la lógica real (no una copia escrita en el test).
+ */
+export function filtrarLibrosLocales(libros, busqueda = '', esBibliomovil = null, filtroStock = 'todos') {
+    const consulta = normalizarTextoBusqueda(busqueda).trim();
+    return (Array.isArray(libros) ? libros : []).filter(libro => {
+        if (esBibliomovil !== null && esBibliomovil !== undefined && libro.es_bibliomovil !== esBibliomovil) return false;
+
+        const stock = Number(libro.stock ?? 0);
+        if (filtroStock === 'disponibles' && !(stock > 0)) return false;
+        if (filtroStock === 'prestados' && stock !== 0) return false;
+        if (!consulta) return true;
+
+        return [libro.titulo, libro.autor, libro.isbn]
+            .some(valor => normalizarTextoBusqueda(valor).includes(consulta));
+    });
 }
 
 const NOMBRE_BD = 'biblionexo-local';
@@ -286,29 +310,15 @@ class PersistentStorage {
         const bd = await abrir();
         const todos = await conAlmacen(bd, 'libros', 'readonly', almacen => pedido(almacen.getAll()));
 
-        // Mismos filtros que buscar_libros() en la base (010/026): el catálogo
-        // local se replica completo, así que sin esto la vista Bibliomóvil
-        // mostraba también los libros que no son del bibliomóvil cuando no
-        // había conexión — y el filtro de stock no filtraba nada.
-        const porBibliomovil = (esBibliomovil === null || esBibliomovil === undefined)
-            ? todos
-            : todos.filter(b => !!b.es_bibliomovil === esBibliomovil);
-        const porStock = porBibliomovil.filter(b => {
-            if (filtroStock === 'disponibles') return (b.stock ?? 0) > 0;
-            if (filtroStock === 'prestados') return (b.stock ?? 0) === 0;
-            return true;
-        });
-
-        const limpia = (busqueda || '').trim().toLowerCase();
-        const filtrados = limpia ? porStock.filter(b => 
-            (b.titulo && b.titulo.toLowerCase().includes(limpia)) ||
-            (b.autor && b.autor.toLowerCase().includes(limpia)) ||
-            (b.isbn && b.isbn.includes(limpia))
-        ) : porStock;
-        filtrados.sort((a, b) => (a.titulo || '').localeCompare(b.titulo || ''));
-        const inicio = pagina * porPagina;
+        // Mismos filtros que buscar_libros() en la base (010/026), incluidos
+        // el campo real de stock, el booleano estricto y la búsqueda sin tildes.
+        const filtrados = filtrarLibrosLocales(todos, busqueda, esBibliomovil, filtroStock);
+        filtrados.sort((a, b) => (a.titulo || '').localeCompare(b.titulo || '', 'es-CL'));
+        const tamano = Number.isInteger(Number(porPagina)) ? Math.max(1, Number(porPagina)) : 25;
+        const paginaSegura = Number.isInteger(Number(pagina)) ? Math.max(0, Number(pagina)) : 0;
+        const inicio = paginaSegura * tamano;
         return {
-            libros: filtrados.slice(inicio, inicio + porPagina),
+            libros: filtrados.slice(inicio, inicio + tamano),
             total: filtrados.length
         };
     }
@@ -418,11 +428,18 @@ class PersistentStorage {
      */
     async sincronizarLectoresActivos() {
         try {
-            const { data, error } = await supabase
-                .from('prestamos')
-                .select('fecha_devolucion_esperada, libros(titulo), lectores(id, nombre, rut, email, telefono, bloqueado_manual, motivo_bloqueo)')
-                .eq('estado', 'activo')
-                .limit(2000);
+            // .limit(2000) no garantiza 2000 filas: PostgREST puede imponer un
+            // máximo de 1000 y truncar en silencio. Paginar por id estable evita
+            // dejar sin copia offline a lectores con préstamos activos después
+            // del límite configurado en el servidor.
+            const { data, error } = await traerTodasLasFilas((desde, hasta) =>
+                supabase
+                    .from('prestamos')
+                    .select('id, fecha_devolucion_esperada, libros(titulo), lectores(id, nombre, rut, email, telefono, bloqueado_manual, motivo_bloqueo)')
+                    .eq('estado', 'activo')
+                    .order('id', { ascending: true })
+                    .range(desde, hasta)
+            );
             if (error) throw error;
 
             const vistos = new Map();
@@ -511,8 +528,18 @@ class PersistentStorage {
         if (onProgress) onProgress({ mensaje: 'Purgando lectores inactivos...' });
         const bajasLectores = await this.purgarLectoresEliminados();
         const purgados = await this.purgarLectoresAntiguos();
-        if (onProgress) onProgress({ mensaje: 'Sincronización completada.' });
-        return { libros, activos, bajasLectores, purgados };
+        const pasos = { libros, activos, bajasLectores, purgados };
+        const errores = Object.entries(pasos)
+            .filter(([, resultado]) => resultado?.error)
+            .map(([paso, resultado]) => ({ paso, mensaje: resultado.error }));
+        const completo = errores.length === 0;
+        if (onProgress) onProgress({ mensaje: completo
+            ? 'Sincronización completada.'
+            : `Sincronización incompleta: ${errores.length} paso(s) con error.` });
+        // La sincronización en segundo plano es best-effort y nunca lanza, pero
+        // quienes preparan una operación offline deben poder distinguir éxito
+        // de fallo; de lo contrario la UI podía anunciar "listo" sin descargar.
+        return { ...pasos, completo, errores };
     }
 
     /** Lectura para quien consuma el almacén (Fase 1.3 en adelante). */

@@ -9,6 +9,7 @@
  */
 
 import { JSDOM } from 'jsdom';
+import fs from 'node:fs';
 
 // ---------------------------------------------------------------------------
 // Registro de resultados
@@ -246,6 +247,12 @@ comprobar('la CSP ya no permite scripts en línea',
   `script-src = ${directiva('script-src').trim()}`);
 comprobar('la CSP sigue bloqueando orígenes de terceros por defecto',
   directiva('default-src').includes("'self'"));
+comprobar('la CSP permite únicamente los mosaicos de OpenStreetMap declarados para el mapa',
+  directiva('img-src').includes('tile.openstreetmap.org'));
+comprobar('la CSP permite el endpoint de rutas OSRM declarado para el Bibliomóvil',
+  directiva('connect-src').includes('router.project-osrm.org'));
+comprobar('la política de Vercel permite geolocalización solo en el propio sitio',
+  fs.readFileSync('vercel.json', 'utf8').includes('geolocation=(self)'));
 comprobar('no queda ningún manejador onclick/onerror en el HTML',
   !/\son(click|error|load)=/.test(html));
 
@@ -278,7 +285,7 @@ for (const d of soloCabecera) {
 }
 
 console.log('\n7d. La protección por cabecera existe para Vercel');
-const fs = (await import('node:fs'));
+
 comprobar('existe la configuración para Vercel (vercel.json)', fs.existsSync('vercel.json'));
 comprobar('  ...y envía frame-ancestors',
   fs.readFileSync('vercel.json', 'utf8').includes("frame-ancestors 'none'"));
@@ -345,8 +352,11 @@ comprobar('solo el rol admin ve Administración',
   !CONFIG.VIEWS_BY_ROLE.librero.some(v => v.id === 'admin'));
 
 console.log('\n10. Fase 1.1 — funcionamiento sin conexión (service worker, manifest)');
-comprobar('existe vite.config.js con configuración de PWA', fs.existsSync('vite.config.js') && /VitePWA/.test(fs.readFileSync('vite.config.js', 'utf8')));
-comprobar('index.html enlaza el manifest (opcional con Vite, pero verificado)', /rel="manifest"|VitePWA/.test(html) || true);
+const viteConfigPwa = fs.existsSync('vite.config.js') ? fs.readFileSync('vite.config.js', 'utf8') : '';
+comprobar('existe vite.config.js con configuración de PWA', /VitePWA/.test(viteConfigPwa));
+comprobar('el plugin genera el único manifest en /manifest.json',
+  /manifestFilename:\s*['"]manifest[.]json['"]/.test(viteConfigPwa) && !/rel="manifest"/.test(html));
+comprobar('no queda un manifest paralelo en public/', !fs.existsSync('public/manifest.json'));
 comprobar('index.html declara theme-color', /name="theme-color"/.test(html));
 
 comprobar('proyecto usa Vite PWA', fs.readFileSync('package.json', 'utf8').includes('vite-plugin-pwa'));

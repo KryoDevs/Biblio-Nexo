@@ -114,6 +114,12 @@ export default {
   },
 
   async switchView(viewName) {
+    const solicitud = (this._viewRenderVersion || 0) + 1;
+    this._viewRenderVersion = solicitud;
+    const vistaAnterior = this.currentView;
+    if (vistaAnterior === 'bibliomovil' && viewName !== 'bibliomovil') {
+      this._destruirMapaBibliomovil?.();
+    }
     this.currentView = viewName;
     this._setActiveNavButton(viewName);
     
@@ -146,6 +152,9 @@ export default {
     try {
         await (renderers[viewName] || renderers.dashboard)();
     } catch (e) {
+        // Una consulta lenta de una vista anterior no debe reemplazar el
+        // contenido de la sección a la que el usuario ya navegó.
+        if (solicitud !== this._viewRenderVersion || this.currentView !== viewName) return;
         // Se muestra la causa real: "Error cargando vista" no le sirve a nadie
         // del mesón para saber si es la conexión, un permiso o una migración.
         console.error(`Fallo al cargar la vista "${viewName}":`, e);
