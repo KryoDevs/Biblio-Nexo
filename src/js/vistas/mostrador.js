@@ -76,8 +76,8 @@ export default {
                     </div>
                   </label>
 
-                  <button id="qr-remoto-btn" type="button" class="bg-white dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700 text-stone-700 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-stone-50 dark:bg-stone-800/50 transition-all active:scale-95 shadow-sm">
-                     <i aria-hidden="true" class="fas fa-mobile-screen-button text-patrimonio-lago"></i>
+                  <button id="qr-remoto-btn" type="button" class="bg-white dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-stone-50 dark:hover:bg-stone-700 transition-all active:scale-95 shadow-sm">
+                     <i aria-hidden="true" class="fas fa-mobile-screen-button text-patrimonio-lago dark:text-stone-300"></i>
                      <span class="hidden sm:inline">Usar celular</span>
                   </button>
                </div>

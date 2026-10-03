@@ -300,7 +300,7 @@ export default {
         ${campo('edit-book-cover', 'URL de portada (opcional)', libro.portada_url, 'placeholder="https://..."')}
         <p class="text-[11px] text-stone-500 dark:text-stone-400">Usa este campo para las obras locales y patrimoniales, que no aparecen en catálogos internacionales.</p>
         <div class="flex justify-end gap-3 pt-1">
-          <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:bg-stone-700">Cancelar</button>
+          <button data-action="cancel" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cancelar</button>
           <button data-action="save" class="btn-madera text-white px-5 py-2 rounded-xl text-sm font-medium">Guardar cambios</button>
         </div>
       </div>`.toString();

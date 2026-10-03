@@ -145,10 +145,10 @@ export default {
           ${botonPeriodo('anio', 'Anual')}
         </div>
         <div class="flex flex-wrap gap-2">
-          <button id="backup-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:bg-stone-800/50 text-stone-700 font-medium rounded-xl px-4 py-2 text-sm" title="Descarga una copia completa de libros, lectores y préstamos">
+          <button id="backup-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 font-medium rounded-xl px-4 py-2 text-sm" title="Descarga una copia completa de libros, lectores y préstamos">
             <i aria-hidden="true" class="fas fa-database mr-1.5"></i> Respaldo completo
           </button>
-          <button id="export-csv-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:bg-stone-800/50 text-stone-700 font-medium rounded-xl px-4 py-2 text-sm">
+          <button id="export-csv-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 hover:bg-stone-50 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-200 font-medium rounded-xl px-4 py-2 text-sm">
             <i aria-hidden="true" class="fas fa-file-csv mr-1.5"></i> Exportar CSV
           </button>
           <button id="print-report-btn" class="btn-madera text-white font-medium rounded-xl shadow px-4 py-2 text-sm">
