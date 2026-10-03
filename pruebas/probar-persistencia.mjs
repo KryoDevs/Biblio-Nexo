@@ -182,6 +182,25 @@ comprobar('un lector con préstamo YA DEVUELTO no se replica por esta vía (no e
 comprobar('el padrón completo nunca se volcó: solo están los lectores tocados en esta prueba',
     lectoresLocales.every(l => [10, 11].includes(l.id)), JSON.stringify(lectoresLocales.map(l => l.id)));
 
+// Más de dos páginas: el límite configurado en PostgREST puede ser 1000 aunque
+// el cliente pida 2000. El último lector del lote tiene que llegar igual.
+console.log('  Paginación de los préstamos activos: supera el límite máximo por consulta');
+const prestamosAntesDeLote = tablas.prestamos;
+tablas.prestamos = Array.from({ length: 2005 }, (_, indice) => ({
+    id: 1000 + indice,
+    estado: 'activo',
+    fecha_devolucion_esperada: '2026-09-30',
+    lectores: indice === 2004
+        ? { id: 2999, nombre: 'Lector del último bloque', rut: '99999999-9', email: null, telefono: null, bloqueado_manual: false }
+        : { id: 11, nombre: 'Lector repetido', rut: '22222222-2', email: null, telefono: null, bloqueado_manual: false },
+    libros: { titulo: 'Libro de prueba' }
+}));
+r = await persistencia.sincronizarLectoresActivos();
+lectoresLocales = await persistencia.obtenerLectoresLocal();
+comprobar('la consulta pagina las 2005 filas y deduplica los lectores', r.lectores === 2, JSON.stringify(r));
+comprobar('el lector del último bloque también queda disponible offline', lectoresLocales.some(l => l.id === 2999));
+tablas.prestamos = prestamosAntesDeLote;
+
 // ---------------------------------------------------------------------------
 // 3. Derecho de supresión: una lápida de lector borra la copia local
 // ---------------------------------------------------------------------------
@@ -255,6 +274,8 @@ try {
 comprobar('un fallo de red en un paso no hace que sincronizarTodo() lance una excepción', !lanzo);
 comprobar('el resumen deja ver qué paso falló, sin ocultarlo',
     !!(r && r.libros && r.libros.error), JSON.stringify(r && r.libros));
+comprobar('el resultado marca la sincronización como incompleta ante un paso fallido',
+    r?.completo === false && r?.errores?.some(e => e.paso === 'libros'), JSON.stringify(r?.errores));
 delete erroresSimulados.libros;
 
 // ---------------------------------------------------------------------------

@@ -1,10 +1,16 @@
 # Análisis de fallas, correcciones y mejoras — BiblioNexo
 
 **Fecha:** 2 de octubre de 2026
-**Rama:** `arena/01a0fee9-biblio-nexo`
-**Alcance:** revisión completa del repositorio (front-end vanilla JS + migraciones
-PostgreSQL/Supabase + Edge Functions + pruebas + despliegue), con corrección de
-todo lo encontrado y verificación con la batería completa de pruebas.
+**Rama de la auditoría anterior:** `arena/01a0fee9-biblio-nexo`
+**Rama de continuación actual:** `arena/01a0ff0a-biblio-nexo`
+**Alcance:** la revisión anterior cubrió el front-end, migraciones PostgreSQL/Supabase,
+Edge Functions, pruebas y despliegue. Esta continuación verifica los cambios del
+Bibliomóvil, sincronización offline, PWA, dependencias y documentación operativa.
+
+> **Cómo leer este registro:** las secciones 1–8 conservan el informe histórico de
+> la ronda anterior; sus cifras de pruebas, push y CI no describen esta rama.
+> Las secciones 9 en adelante registran hallazgos y evidencia de la continuación
+> actual, y son la fuente de verdad del estado más reciente.
 
 Este documento es, a la vez, el **informe** (qué está bien, qué está mal, qué se
 puede mejorar, con causa raíz de cada falla) y el **registro del proceso**
@@ -388,7 +394,103 @@ RPC). Las correcciones van acompañadas de pruebas que cubren exactamente esos
 puntos, de modo que la próxima regresión de este tipo se detecta en el CI y no en
 el mesón.
 
-Ninguna de las correcciones cambió reglas de negocio: el servidor sigue siendo la
+Ninguna de las correcciones de la ronda anterior cambió reglas de negocio: el servidor sigue siendo la
 autoridad (stock con `FOR UPDATE`, límites, bloqueos y renovaciones), y la
 aplicación se limita a reflejar esas reglas —ahora también sin conexión y en la
 interfaz—.
+
+---
+
+## 9. Continuación de la auditoría — rama `arena/01a0ff0a-biblio-nexo`
+
+Esta sección es la bitácora actual. Sigue el ciclo solicitado: detectar, explicar
+causa raíz, corregir y volver a verificar. La ronda amplía Bibliomóvil y revisa
+sincronización, seguridad del mapa, PWA, dependencia y guías de despliegue.
+
+### Hallazgos y causa raíz
+
+| Severidad | Qué fallaba | Causa raíz y corrección |
+|---|---|---|
+| **Alta** | El planificador no ofrecía un mapa vial completo ni persistía un recorrido local utilizable. | La vista previa solo cubría el catálogo; se incorporaron mapa Leaflet bajo demanda, origen manual/GPS tras acción explícita, paradas editables y reordenables, persistencia local, distancia orientativa, cálculo OSRM, enlaces de navegación y controles de reintento. |
+| **Alta** | Un error de sincronización podía anunciar “preparación completa”; además, una consulta fija podía truncar préstamos activos sin aviso. | `sincronizarTodo()` era best-effort y su resultado no distinguía pasos fallidos; consultas sin paginación dependían del límite PostgREST. Se añadió resultado `completo/errores` y paginación estable, verificada con 2.005 préstamos. |
+| **Alta** | La solicitud de una ruta anterior podía pintar resultados sobre un plan nuevo; un timeout podía dejar “Calculando…” indefinidamente. | Faltaban cancelación y control de versión. Se abortan peticiones obsoletas y ahora timeout/interrupción deja un estado de respaldo y una acción para recalcular. |
+| **Media** | El navegador podía bloquear tiles/rutas por CSP; la política de geolocalización no estaba habilitada para la app. | `img-src`/`connect-src` no contemplaban los hosts declarados y `Permissions-Policy` no daba `self`. Se limitaron los permisos a los servicios necesarios y la geolocalización al mismo origen. |
+| **Media** | Había dos manifests posibles y no se comprobaban los archivos reales del build. | Existía `public/manifest.json` además de la generación PWA. Se dejó a Vite como única fuente, bajo `/manifest.json`, y se añadió un verificador para manifest, iconos y recursos locales. |
+| **Media** | `SUPABASE-PASO-A-PASO.md` ordenaba pegar SQL manualmente, listaba solo 001–013 y contenía instrucciones de error obsoletas. | La guía no se actualizó cuando el repo llegó a 026 y a la CLI. Se reescribió alrededor de `supabase db push`, línea base remota cautelosa, despliegue de Edge Functions y prueba de RLS. |
+| **Media** | Las tareas `pg_cron` llaman a Edge Functions sin JWT, mientras Supabase verifica JWT por defecto. | La guía no hacía explícito el modo de despliegue. Se documentó `--no-verify-jwt` únicamente para las dos funciones de cron, que exigen un secreto aleatorio propio; `invitar-personal` conserva JWT. Se advierte revisar el project-ref hard-coded de las migraciones 018/023. |
+| **Media** | `obtenerTodosActivosSinPaginar()` aún dependía del límite implícito de PostgREST. | El nombre prometía “todos” sin `.range()`. Se pasó al helper paginador con orden estable y desempate por id. |
+| **Baja** | El CSS/JS de páginas auxiliares conservaba URLs relativas a `vendor/` que Vite interpretaba como entradas faltantes y advertía en el build. | Las rutas no tenían `/` inicial. Se normalizaron a `/vendor/...` y el verificador confirma que cada recurso esté en `dist/`. |
+| **Baja** | Al cambiar filtros del Bibliomóvil podían quedar simultáneamente clases de color activo e inactivo, con resultado visual dependiente del orden CSS. | El listener solo alternaba la clase de fondo activa. Ahora sincroniza todo el conjunto de colores/hover y una prueba comprueba `aria-pressed` y clases mutuamente excluyentes. |
+
+Durante el loop, la nueva prueba de búsqueda offline detectó que la normalización
+Unicode de acentos no se estaba aplicando por un escape incorrecto en la expresión
+regular. Se corrigió a `[\u0300-\u036f]` y la prueba ahora comprueba que `arbol`
+encuentre `Árboles`.
+
+También se reprodujo una carrera de navegación: un error tardío de Bibliomóvil
+podía reemplazar el Catálogo ya abierto. El router ahora identifica cada carga y
+descarta errores de solicitudes antiguas; se agregó una regresión de DOM.
+
+### Lo que queda bien y lo que queda pendiente
+
+- **Bien verificado:** datos de lectores siguen fuera de proveedores de mapas;
+  OSRM y enlaces reciben coordenadas explícitas, no etiquetas ni fichas; GPS solo
+  se consulta tras pulsar el botón; el mapa es una carga diferida y se destruye al
+  salir de la vista; los filtros offline siguen la semántica SQL.
+- **Limitación conocida:** el cálculo depende de OSRM público y de internet; la
+  línea recta se rotula como aproximación, no como indicación vial. Hay que
+  confirmar los caminos en terreno. Las coordenadas y nombres del plan quedan en
+  `localStorage` del navegador compartido hasta que el personal borre el plan.
+- **Pendiente operativo importante:** confirmar con Jurídica los textos públicos,
+  el contrato/retención de proveedores de mapas y el uso del servicio OSRM.
+  El código no reemplaza el cifrado del disco ni el bloqueo del equipo del mesón.
+- **Accesibilidad pendiente:** reordenar y activar controles tiene alternativas de
+  teclado, pero seleccionar una coordenada requiere puntero. Añadir campos
+  accesibles de latitud/longitud u otro mecanismo no visual antes de declarar
+  accesible todo el flujo del mapa.
+- **Hallazgo de documentación:** las migraciones 018/023 apuntan al proyecto
+  Futrono. No se deben reutilizar en otro proyecto sin revisar esos endpoints.
+
+### Registro de verificación
+
+| Comando | Resultado en esta rama |
+|---|---|
+| `npm ci` | OK; lockfile reproducible, 0 vulnerabilidades reportadas por npm. npm emite un aviso de obsolescencia transitoria de `glob@11.1.0` bajo Workbox. |
+| `npm audit --audit-level=high` | **0 vulnerabilidades** (el fix real eliminó las cuatro que había reportado la simulación previa). |
+| `npm test` | **23/23** en 6 archivos Vitest. |
+| `npm run test:legacy` | OK: 101 interfaz, 112 vistas, 13 escaneo remoto, 43 persistencia, 48 cola offline y 18 estado de conexión; también pasan consolidación, firmas RPC y Tailwind. |
+| `npm run test:legacy:contraste` | OK; todos los pares comprobados cumplen WCAG AA. |
+| `python pruebas/probar-migraciones.py` | **204/204**, dos escenarios PostgreSQL; se ejecutó secuencialmente. |
+| `python pruebas/probar_librero.py` | **129/129** contra PostgreSQL local. |
+| `npm run build` + `npm run verify:build` | OK; un manifest, dos íconos y recursos locales presentes; sin advertencias de recursos sin resolver. |
+| `git diff --check` | OK. |
+
+Nota del proceso: en un intento inicial los dos scripts PostgreSQL se lanzaron en
+paralelo y colisionaron porque comparten el directorio local `/tmp/biblionexo-pruebas`;
+la suite falló aplicando 006. No era un fallo de migración: al ejecutarse por
+separado, ambos scripts finalizaron en verde. En CI son jobs/entornos aislados.
+
+## 10. Estado de publicación de esta continuación
+
+**Pendiente al redactar esta sección:** todavía no hay commit ni push de la rama
+actual verificados. No se considera publicada hasta comprobar el SHA remoto y,
+si se dispara CI, el resultado de sus checks. Este apartado se actualizará con
+esa evidencia al cerrar el trabajo.
+
+## 11. Próximas mejoras propuestas
+
+1. Sustituir OSRM de demostración por un servicio de rutas contratado o
+   administrado por el municipio, con disponibilidad, límites y retención
+   documentados.
+2. Hacer una prueba piloto del recorrido en terreno con caminos rurales, GPS de
+   varios teléfonos y pérdida de conexión; evaluar paquetes de mapas offline si
+   la cobertura es insuficiente.
+3. Añadir campos accesibles de coordenadas para poder definir paradas sin
+   depender del puntero; validar el flujo con lector de pantalla.
+4. Añadir pruebas E2E en navegador contra un proyecto Supabase de staging para
+   selección, reordenamiento y recuperación de rutas.
+5. Revisar periódicamente la dependencia `glob` transitiva de Workbox y actualizar
+   el plugin cuando exista una versión compatible y estable.
+6. Mantener como trabajo municipal —no como promesa del software— cifrado de
+   discos, bloqueo automático de sesión, restauración comprobada de respaldos y
+   revisión jurídica de privacidad.

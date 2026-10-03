@@ -1,164 +1,830 @@
-import { supabase } from '../supabase-init.js';
+// Vista Bibliomóvil: catálogo filtrado, preparación offline y plan de paradas.
+// El mapa se carga de forma diferida para que Leaflet no aumente el coste de
+// arranque del resto de la aplicación.
 import { db } from '../modules/db.js';
 import persistencia from '../modules/persistencia.js';
+import { crudo, html } from '../modules/utilidades.js';
+import {
+  CENTRO_INICIAL_FUTRONO,
+  MAX_PARADAS_RUTA,
+  cargarPlanRuta,
+  distanciaRectaTotal,
+  guardarPlanRuta,
+  leerRutaOsrm,
+  normalizarPlanRuta,
+  ordenarParadasPorCercania,
+  puntosDeRuta,
+  urlCalculoVial,
+  urlGoogleMaps,
+  urlOpenStreetMap
+} from '../modules/bibliomovil-ruta.js';
 
-// Vista Catálogo. Extraído de js/modules/ui-base.js el 22 de agosto de 2026
-// (división por vista, ver pendientes-checklist.md y
-// claude/plan-division-ui-base-2026-08-22.md). El bloque venía marcado
-// internamente como "CATÁLOGO" en ui-base.js, pero eso ya no aplicaba desde
-// que la vista Administración se movió a js/vistas/admin.js en una ronda
-// anterior — el marcador quedó apuntando a algo que ya no estaba ahí. Sin
-// cambios de lógica: es el mismo código, solo movido.
-//
-// `_bindPaginacion` se queda en ui-base.js (la usan Catálogo, Lectores y
-// Préstamos por igual, junto a `_paginacionHtml`). `promptCreateLoan` llama
-// a `flujoPrestamo`, que vive en js/vistas/prestamos.js — sigue funcionando
-// igual porque `Object.assign(UIManager.prototype, ...)` (js/modules/ui.js)
-// mezcla los métodos de todas las vistas en el mismo prototipo: `this.foo()`
-// no le importa en qué archivo se declaró `foo`.
+const URL_MOSAICOS_OSM = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+const ATRIBUCION_OSM = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
+const CLAVE_ULTIMA_PREPARACION = 'biblionexo_ultima_preparacion_ruta';
 
-import { html, crudo } from '../modules/utilidades.js';
+function idParadaNuevo() {
+  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+  return `parada-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function distanciaLegible(km) {
+  return Number.isFinite(km)
+    ? `${km.toLocaleString('es-CL', { maximumFractionDigits: 1 })} km`
+    : '—';
+}
+
+function duracionLegible(minutos) {
+  if (!Number.isFinite(minutos)) return '';
+  const redondeados = Math.round(minutos);
+  const horas = Math.floor(redondeados / 60);
+  const min = redondeados % 60;
+  if (!horas) return `${min} min`;
+  return min ? `${horas} h ${min} min` : `${horas} h`;
+}
+
+function textoErrorGeolocalizacion(error) {
+  if (error?.code === 1) return 'No se autorizó el acceso a la ubicación. Puedes elegir el punto de partida en el mapa.';
+  if (error?.code === 2) return 'El dispositivo no pudo determinar la ubicación. Elige el punto de partida en el mapa.';
+  if (error?.code === 3) return 'La ubicación tardó demasiado. Inténtalo otra vez o marca el punto en el mapa.';
+  return 'No se pudo obtener la ubicación. Puedes elegir el punto de partida en el mapa.';
+}
 
 export default {
-  // Vista Bibliomóvil (Modo Ruta). Los métodos compartidos con el Catálogo
-  // (_renderBookRows, _bindCatalogRowEvents, showEditBookModal, prestar,
-  // reservar, filtros) viven una sola vez en catalogo.js y se mezclan sobre
-  // el mismo prototipo — antes había copias acá que los pisaban (ver
-  // Object.assign en ui.js y el comentario de _refrescarVistaDeLibros).
   async renderBibliomovil() {
     const container = this._container();
     if (!container) return;
 
-    const porPagina = this.param('filas_por_pagina');
-        // Fase 3 offline: delegar filtrado a db.libros
+    clearTimeout(this._bibliomovilSearchTimer);
+    this._destruirMapaBibliomovil();
+    const solicitudRender = (this._bibliomovilRenderVersion || 0) + 1;
+    this._bibliomovilRenderVersion = solicitudRender;
+    this._bibliomovilPlan = cargarPlanRuta();
+
+    const porPagina = Number(this.param('filas_por_pagina')) || 25;
     const { libros, total } = await db.obtenerLibros(
-      this.bibliomovilSearch || '', 
-      this.bookPage, 
-      porPagina, 
-      true, // esBibliomovil = true
+      this.bibliomovilSearch || '',
+      this.bookPage,
+      porPagina,
+      true,
       this.bibliomovilFilter || 'todos'
     );
-    // Si el usuario ya cambió de vista mientras esperábamos la respuesta, no pintamos nada
-    if (this.currentView !== 'bibliomovil') return;
+    // Si la respuesta llegó después de navegar a otra sección, no se inserta
+    // contenido ni se inicializa un mapa en un contenedor que ya no existe.
+    if (solicitudRender !== this._bibliomovilRenderVersion || this.currentView !== 'bibliomovil' || !container.isConnected) return;
 
-    // Si se borró el último elemento de la última página, se retrocede una
     if (libros.length === 0 && this.bookPage > 0) {
       this.bookPage = Math.max(0, Math.ceil(total / porPagina) - 1);
       return this.renderBibliomovil();
     }
 
     container.innerHTML = html`
-      <div class="bibliomovil-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 mb-6">
-        <div class="p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h2 class="font-serif font-bold text-xl text-stone-900 dark:text-stone-100 flex items-center gap-2">
-              <i aria-hidden="true" class="fas fa-truck text-patrimonio-lago"></i> Modo Ruta
-            </h2>
-            <p class="text-sm text-stone-500 dark:text-stone-400 mt-1">
-              Última preparación: <span id="bibliomovil-sync-status" class="font-semibold text-stone-700 dark:text-stone-300">Desconocida</span>
-            </p>
+      <div class="space-y-6">
+        <section class="bibliomovil-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600">
+          <div class="p-5 md:p-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h2 class="font-serif font-bold text-xl text-stone-900 dark:text-stone-100 flex items-center gap-2">
+                <i aria-hidden="true" class="fas fa-truck text-patrimonio-lago"></i> Modo Ruta
+              </h2>
+              <p class="text-sm text-stone-600 dark:text-stone-300 mt-1">
+                Última preparación de datos: <span id="bibliomovil-sync-status" class="font-semibold text-stone-800 dark:text-stone-200">Desconocida</span>
+              </p>
+              <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">Prepara el catálogo antes de salir; el plan de paradas se guarda en este navegador.</p>
+            </div>
+            <button id="btn-preparar-ruta" type="button" class="bg-patrimonio-madera text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:bg-[#5E3214] transition-all flex items-center gap-2">
+              <i aria-hidden="true" class="fas fa-cloud-arrow-down"></i> <span id="btn-preparar-ruta-texto">Preparar datos offline</span>
+            </button>
           </div>
-          <button id="btn-preparar-ruta" class="bg-patrimonio-madera text-white px-5 py-2.5 rounded-xl font-bold shadow-md hover:bg-[#5E3214] transition-all flex items-center gap-2">
-            <i aria-hidden="true" class="fas fa-cloud-arrow-down"></i> <span id="btn-preparar-ruta-texto">Preparar ruta de hoy</span>
-          </button>
-        </div>
-      </div>
-      <div class="bibliomovil-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 overflow-x-auto">
-        <div class="bibliomovil-card-header flex flex-col gap-3">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100">Catálogo de libros</h3>
-          <div class="relative sm:w-64">
-            <i aria-hidden="true" class="fas fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 dark:text-stone-400 text-xs"></i>
-            <input id="bibliomovil-search-input" aria-label="Buscar en el catálogo por título, autor o ISBN" type="text" placeholder="Buscar por título, autor o ISBN..." value="${this.bibliomovilSearch || ''}"
-              class="w-full pl-8 pr-3 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago" />
+        </section>
+
+        <section class="bibliomovil-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 overflow-hidden" aria-labelledby="bibliomovil-route-title">
+          <div class="p-5 md:p-6 border-b border-stone-200 dark:border-stone-700">
+            <h2 id="bibliomovil-route-title" class="font-serif font-bold text-xl text-stone-900 dark:text-stone-100">Mapa y recorrido</h2>
+            <p class="text-sm text-stone-600 dark:text-stone-300 mt-1">Marca las paradas en el mapa, ordénalas y abre la navegación en tu aplicación de mapas.</p>
           </div>
-        </div>
-        <div class="flex flex-wrap gap-2 mt-1">
-          <button class="bibliomovil-filter-btn px-4 py-2 rounded-full text-xs uppercase tracking-wider font-bold transition-all ${(!this.bibliomovilFilter || this.bibliomovilFilter === 'todos') ? 'bg-stone-800 text-white dark:bg-stone-200 dark:text-stone-900 shadow-md scale-105' : 'bg-stone-200 text-stone-600 hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700'}" data-filter="todos">Todos</button>
-          <button class="bibliomovil-filter-btn px-4 py-2 rounded-full text-xs uppercase tracking-wider font-bold transition-all ${this.bibliomovilFilter === 'disponibles' ? 'bg-emerald-600 text-white dark:bg-emerald-500 dark:text-stone-900 shadow-md scale-105' : 'bg-stone-200 text-stone-600 hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700'}" data-filter="disponibles">En estante</button>
-          <button class="bibliomovil-filter-btn px-4 py-2 rounded-full text-xs uppercase tracking-wider font-bold transition-all ${this.bibliomovilFilter === 'prestados' ? 'bg-amber-600 text-white dark:bg-amber-500 dark:text-stone-900 shadow-md scale-105' : 'bg-stone-200 text-stone-600 hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-300 dark:hover:bg-stone-700'}" data-filter="prestados">Agotados</button>
-        </div>
-      </div>
-        <div id="bibliomovil-tbody" class="flex flex-col gap-4 p-4">${this._renderBookRows(libros)}</div>
-        <div id="bibliomovil-pagination">${crudo(this._paginacionHtml(this.bookPage, total, porPagina, 'bibliomovil-page-btn'))}</div>
+          <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.85fr)] gap-5 p-4 md:p-6">
+            <div class="min-w-0">
+              <div id="bibliomovil-map" class="bibliomovil-map" role="application" aria-label="Mapa interactivo para seleccionar el origen y las paradas del Bibliomóvil">
+                <p class="bibliomovil-map-placeholder">Cargando el mapa…</p>
+              </div>
+              <p id="bibliomovil-map-status" role="status" aria-live="polite" class="text-xs text-stone-600 dark:text-stone-300 mt-2">El mapa requiere conexión a internet. La lista del recorrido permanece disponible sin conexión.</p>
+            </div>
+
+            <div class="space-y-4 min-w-0">
+              <div class="rounded-xl border border-stone-200 dark:border-stone-700 p-4">
+                <h3 class="font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2"><i aria-hidden="true" class="fas fa-flag text-patrimonio-lago"></i> Punto de partida</h3>
+                <label for="bibliomovil-origin-name" class="block text-xs font-bold text-stone-600 dark:text-stone-300 mt-3 mb-1">Nombre del origen (opcional)</label>
+                <input id="bibliomovil-origin-name" maxlength="100" type="text" value="${this._bibliomovilPlan.origen?.nombre || ''}" placeholder="Biblioteca Municipal o ubicación actual" class="w-full px-3 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100">
+                <div class="flex flex-wrap gap-2 mt-3">
+                  <button id="bibliomovil-select-origin" type="button" class="px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 text-xs font-bold text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800"><i aria-hidden="true" class="fas fa-map-pin mr-1"></i> Marcar en el mapa</button>
+                  <button id="bibliomovil-geolocate" type="button" class="px-3 py-2 rounded-lg bg-patrimonio-lago text-white text-xs font-bold hover:opacity-90"><i aria-hidden="true" class="fas fa-location-crosshairs mr-1"></i> Usar mi ubicación</button>
+                  <button id="bibliomovil-clear-origin" type="button" class="px-3 py-2 rounded-lg text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20" ${this._bibliomovilPlan.origen ? '' : 'hidden'}>Quitar origen</button>
+                </div>
+              </div>
+
+              <div class="rounded-xl border border-stone-200 dark:border-stone-700 p-4">
+                <h3 class="font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2"><i aria-hidden="true" class="fas fa-location-dot text-patrimonio-madera"></i> Agregar parada</h3>
+                <label for="bibliomovil-stop-name" class="block text-xs font-bold text-stone-600 dark:text-stone-300 mt-3 mb-1">Nombre o referencia</label>
+                <input id="bibliomovil-stop-name" maxlength="100" type="text" placeholder="Ej.: Llifén, Nontuelá, escuela…" class="w-full px-3 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100">
+                <div class="flex flex-wrap gap-2 mt-3">
+                  <button id="bibliomovil-select-stop" type="button" class="px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 text-xs font-bold text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800"><i aria-hidden="true" class="fas fa-crosshairs mr-1"></i> Elegir ubicación en el mapa</button>
+                  <button id="bibliomovil-add-stop" type="button" disabled class="px-3 py-2 rounded-lg bg-patrimonio-madera text-white text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed"><i aria-hidden="true" class="fas fa-plus mr-1"></i> Añadir parada</button>
+                </div>
+                <p class="text-xs text-stone-500 dark:text-stone-400 mt-2">Al elegir una ubicación, haz clic sobre el mapa. El punto amarillo es una selección pendiente hasta que confirmes “Añadir parada”.</p>
+              </div>
+
+              <div class="rounded-xl border border-stone-200 dark:border-stone-700 p-4">
+                <div class="flex items-center justify-between gap-2">
+                  <h3 class="font-bold text-stone-900 dark:text-stone-100">Orden del recorrido</h3>
+                  <span id="bibliomovil-stop-count" class="text-xs font-bold text-stone-600 dark:text-stone-300">0 paradas</span>
+                </div>
+                <ol id="bibliomovil-route-stops" class="bibliomovil-route-stops mt-3" aria-label="Paradas ordenadas del recorrido"></ol>
+                <p id="bibliomovil-route-empty" class="text-sm text-stone-500 dark:text-stone-400 mt-3">Aún no hay paradas. Marca un punto en el mapa para comenzar.</p>
+                <div class="flex flex-wrap gap-2 mt-4">
+                  <button id="bibliomovil-optimize-stops" type="button" class="px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 text-xs font-bold text-stone-700 dark:text-stone-200 disabled:opacity-40" ${this._bibliomovilPlan.paradas.length < 2 ? 'disabled' : ''}><i aria-hidden="true" class="fas fa-shuffle mr-1"></i> Ordenar por cercanía</button>
+                  <button id="bibliomovil-clear-route" type="button" class="px-3 py-2 rounded-lg text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-50 dark:hover:bg-rose-900/20" ${this._bibliomovilPlan.paradas.length || this._bibliomovilPlan.origen ? '' : 'disabled'}>Limpiar ruta</button>
+                </div>
+                <p class="text-xs text-stone-500 dark:text-stone-400 mt-2">La sugerencia por cercanía usa distancia en línea recta; revisa el orden vial antes de salir.</p>
+              </div>
+
+              <p id="bibliomovil-route-status" role="status" aria-live="polite" class="rounded-lg bg-stone-100 dark:bg-stone-800 p-3 text-sm text-stone-700 dark:text-stone-200">Agrega un origen y al menos una parada, o dos paradas, para calcular el recorrido.</p>
+              <button id="bibliomovil-retry-route" type="button" class="px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 text-xs font-bold text-stone-700 dark:text-stone-200 disabled:opacity-40" ${puntosDeRuta(this._bibliomovilPlan).length < 2 ? 'disabled' : ''}><i aria-hidden="true" class="fas fa-rotate-right mr-1"></i> Recalcular recorrido vial</button>
+              <div class="flex flex-wrap gap-2">
+                <a id="bibliomovil-google-maps" hidden target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-lg bg-patrimonio-lago text-white text-xs font-bold hover:opacity-90">Abrir en Google Maps</a>
+                <a id="bibliomovil-osm-directions" hidden target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 text-xs font-bold text-stone-800 dark:text-stone-100 hover:bg-stone-100 dark:hover:bg-stone-800">Abrir en OpenStreetMap</a>
+              </div>
+            </div>
+          </div>
+          <p class="mx-4 md:mx-6 mb-5 rounded-lg border border-amber-300/70 bg-amber-50 dark:bg-amber-950/30 p-3 text-xs text-amber-950 dark:text-amber-100">
+            Privacidad y precisión: el plan se guarda solo en este navegador. OpenStreetMap recibe solicitudes de mosaicos; al calcular la ruta vial, OSRM recibe únicamente las coordenadas (no los nombres ni datos de lectores). No ingreses domicilios ni información personal. Confirma siempre el recorrido: el cálculo público puede no incluir caminos locales y no funciona sin internet.
+          </p>
+        </section>
+
+        <section class="bibliomovil-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 overflow-hidden">
+          <div class="p-4 md:p-5 border-b border-stone-200 dark:border-stone-700 flex flex-col gap-3">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <h2 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100">Catálogo de libros del Bibliomóvil</h2>
+              <div class="relative sm:w-72">
+                <i aria-hidden="true" class="fas fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 dark:text-stone-400 text-xs"></i>
+                <input id="bibliomovil-search-input" aria-label="Buscar en el catálogo del Bibliomóvil por título, autor o ISBN" type="text" placeholder="Buscar por título, autor o ISBN…" value="${this.bibliomovilSearch || ''}" class="w-full pl-8 pr-3 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago">
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2" role="group" aria-label="Filtrar libros del Bibliomóvil por disponibilidad">
+              <button type="button" class="bibliomovil-filter-btn px-4 py-2 rounded-full text-xs uppercase tracking-wider font-bold transition-all ${(!this.bibliomovilFilter || this.bibliomovilFilter === 'todos') ? 'bg-stone-800 text-white dark:bg-stone-200 dark:text-stone-900 shadow-md' : 'bg-stone-200 text-stone-700 hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700'}" data-filter="todos" aria-pressed="${!this.bibliomovilFilter || this.bibliomovilFilter === 'todos'}">Todos</button>
+              <button type="button" class="bibliomovil-filter-btn px-4 py-2 rounded-full text-xs uppercase tracking-wider font-bold transition-all ${this.bibliomovilFilter === 'disponibles' ? 'bg-emerald-700 text-white dark:bg-emerald-500 dark:text-stone-900 shadow-md' : 'bg-stone-200 text-stone-700 hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700'}" data-filter="disponibles" aria-pressed="${this.bibliomovilFilter === 'disponibles'}">En estante</button>
+              <button type="button" class="bibliomovil-filter-btn px-4 py-2 rounded-full text-xs uppercase tracking-wider font-bold transition-all ${this.bibliomovilFilter === 'prestados' ? 'bg-amber-700 text-white dark:bg-amber-500 dark:text-stone-900 shadow-md' : 'bg-stone-200 text-stone-700 hover:bg-stone-300 dark:bg-stone-800 dark:text-stone-200 dark:hover:bg-stone-700'}" data-filter="prestados" aria-pressed="${this.bibliomovilFilter === 'prestados'}">Agotados</button>
+            </div>
+          </div>
+          <div id="bibliomovil-tbody" class="flex flex-col gap-4 p-4">${this._renderBookRows(libros)}</div>
+          <div id="bibliomovil-pagination">${crudo(this._paginacionHtml(this.bookPage, total, porPagina, 'bibliomovil-page-btn'))}</div>
+        </section>
       </div>
     `;
 
     this._booksCache = libros;
-
     this._bindCatalogRowEvents(container);
-    this._bindPaginacion(container, '.bibliomovil-page-btn', p => { this.bookPage = p; this.renderBibliomovil(); });
-
-    container.querySelectorAll('.bibliomovil-filter-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.bibliomovilFilter = btn.dataset.filter;
-        this.bookPage = 0;
-        this.renderBibliomovil();
-      });
+    this._bindPaginacion(container, '.bibliomovil-page-btn', pagina => {
+      this.bookPage = pagina;
+      this._actualizarListaBibliomovil();
     });
-
-    // Buscador con debounce: espera 350ms sin escribir antes de consultar la BD.
-    // Al buscar se vuelve a la primera página, porque el total de resultados cambió.
-    const searchInput = document.getElementById('bibliomovil-search-input');
-    searchInput.addEventListener('input', () => {
-      clearTimeout(this._bibliomovilSearchTimer);
-      this._bibliomovilSearchTimer = setTimeout(async () => {
-        this.bibliomovilSearch = searchInput.value.trim();
-        this.bookPage = 0;
-        const { libros: resultados, total: totalNuevo } = await db.obtenerLibros(this.bibliomovilSearch, 0, porPagina, true, this.bibliomovilFilter || 'todos');
-        const tbody = document.getElementById('bibliomovil-tbody');
-        if (this.currentView !== 'bibliomovil' || !tbody) return;
-        this._booksCache = resultados;
-        // _renderBookRows siempre devuelve HtmlSeguro — llamar .toString() es suficiente
-        tbody.innerHTML = this._renderBookRows(resultados).toString();
-        const paginacion = document.getElementById('bibliomovil-pagination');
-        if (paginacion) {
-          paginacion.innerHTML = this._paginacionHtml(0, totalNuevo, porPagina, 'bibliomovil-page-btn');
-          this._bindPaginacion(container, '.bibliomovil-page-btn', p => { this.bookPage = p; this.renderBibliomovil(); });
-        }
-        this._bindCatalogRowEvents(container);
-      }, 350);
-    });
-
-    // Indicador de última preparación de ruta
+    this._dibujarListaParadasBibliomovil();
+    this._conectarControlesRutaBibliomovil();
+    this._conectarControlesCatalogoBibliomovil(container, porPagina);
     this._actualizarIndicadorRuta();
 
-    // Botón "Preparar ruta de hoy"
-    const btnPreparar = document.getElementById('btn-preparar-ruta');
-    if (btnPreparar) {
-      btnPreparar.addEventListener('click', async () => {
-        const textoBtn = document.getElementById('btn-preparar-ruta-texto');
-        btnPreparar.disabled = true;
-        const actualizar = ({ mensaje }) => {
-          if (textoBtn) textoBtn.textContent = mensaje;
-        };
-        actualizar({ mensaje: 'Iniciando descarga...' });
-        try {
-          await persistencia.sincronizarTodo(actualizar);
-          localStorage.setItem('biblionexo_ultima_preparacion_ruta', Date.now());
-          this._actualizarIndicadorRuta();
-          this.showToast('¡Ruta preparada! Los datos están listos para trabajar sin conexión.', 'success');
-        } catch (err) {
-          this.showToast('Error al preparar la ruta: ' + (err.message || 'Inténtalo de nuevo.'), 'error');
-        } finally {
-          btnPreparar.disabled = false;
-          if (textoBtn) textoBtn.textContent = 'Preparar ruta de hoy';
+    await this._montarMapaBibliomovil();
+  },
+
+  _obtenerPlanRutaBibliomovil() {
+    if (!this._bibliomovilPlan) this._bibliomovilPlan = cargarPlanRuta();
+    this._bibliomovilPlan = normalizarPlanRuta(this._bibliomovilPlan);
+    return this._bibliomovilPlan;
+  },
+
+  _guardarPlanRutaBibliomovil() {
+    this._bibliomovilPlan = normalizarPlanRuta(this._bibliomovilPlan);
+    const guardado = guardarPlanRuta(this._bibliomovilPlan);
+    if (!guardado) {
+      this.showToast('El plan está disponible en esta pantalla, pero el navegador no permitió guardarlo para después.', 'error');
+    }
+    return guardado;
+  },
+
+  _dibujarListaParadasBibliomovil() {
+    const lista = document.getElementById('bibliomovil-route-stops');
+    const vacio = document.getElementById('bibliomovil-route-empty');
+    const contador = document.getElementById('bibliomovil-stop-count');
+    const botonLimpiar = document.getElementById('bibliomovil-clear-route');
+    const botonOrdenar = document.getElementById('bibliomovil-optimize-stops');
+    const botonOrigen = document.getElementById('bibliomovil-clear-origin');
+    const botonElegirParada = document.getElementById('bibliomovil-select-stop');
+    if (!lista) return;
+
+    const plan = this._obtenerPlanRutaBibliomovil();
+    const paradas = plan.paradas;
+    if (contador) contador.textContent = `${paradas.length} ${paradas.length === 1 ? 'parada' : 'paradas'}`;
+    if (vacio) vacio.hidden = paradas.length > 0;
+    if (botonLimpiar) botonLimpiar.disabled = paradas.length === 0 && !plan.origen;
+    if (botonOrdenar) botonOrdenar.disabled = paradas.length < 2;
+    if (botonOrigen) botonOrigen.hidden = !plan.origen;
+    if (botonElegirParada) botonElegirParada.disabled = paradas.length >= MAX_PARADAS_RUTA;
+
+    lista.innerHTML = html`${paradas.map((parada, indice) => html`
+      <li class="bibliomovil-stop-item">
+        <span class="bibliomovil-stop-number" aria-hidden="true">${indice + 1}</span>
+        <span class="bibliomovil-stop-copy min-w-0">
+          <span class="block font-bold text-stone-900 dark:text-stone-100 truncate">${parada.nombre}</span>
+          <span class="block text-xs text-stone-500 dark:text-stone-400">${parada.lat.toFixed(5)}, ${parada.lon.toFixed(5)}</span>
+        </span>
+        <span class="flex items-center gap-1 shrink-0">
+          <button type="button" data-route-action="up" data-route-id="${parada.id}" aria-label="Mover ${parada.nombre} hacia arriba" ${indice === 0 ? 'disabled' : ''} class="bibliomovil-stop-action"><i aria-hidden="true" class="fas fa-arrow-up"></i></button>
+          <button type="button" data-route-action="down" data-route-id="${parada.id}" aria-label="Mover ${parada.nombre} hacia abajo" ${indice === paradas.length - 1 ? 'disabled' : ''} class="bibliomovil-stop-action"><i aria-hidden="true" class="fas fa-arrow-down"></i></button>
+          <button type="button" data-route-action="remove" data-route-id="${parada.id}" aria-label="Quitar ${parada.nombre} de la ruta" class="bibliomovil-stop-action bibliomovil-stop-action--remove"><i aria-hidden="true" class="fas fa-trash"></i></button>
+        </span>
+      </li>
+    `)}`.toString();
+
+    lista.querySelectorAll('[data-route-action]').forEach(boton => {
+      boton.addEventListener('click', () => {
+        const indice = plan.paradas.findIndex(parada => parada.id === boton.dataset.routeId);
+        if (indice < 0) return;
+        const accion = boton.dataset.routeAction;
+        if (accion === 'remove') {
+          plan.paradas.splice(indice, 1);
+        } else if (accion === 'up' && indice > 0) {
+          [plan.paradas[indice - 1], plan.paradas[indice]] = [plan.paradas[indice], plan.paradas[indice - 1]];
+        } else if (accion === 'down' && indice < plan.paradas.length - 1) {
+          [plan.paradas[indice + 1], plan.paradas[indice]] = [plan.paradas[indice], plan.paradas[indice + 1]];
         }
+        this._guardarPlanRutaBibliomovil();
+        this._dibujarListaParadasBibliomovil();
+        this._actualizarMapaRutaBibliomovil();
       });
+    });
+  },
+
+  _conectarControlesCatalogoBibliomovil(container, porPagina) {
+    const estilosFiltroInactivo = [
+      'bg-stone-200', 'text-stone-700', 'hover:bg-stone-300',
+      'dark:bg-stone-800', 'dark:text-stone-200', 'dark:hover:bg-stone-700'
+    ];
+    const estilosFiltroActivo = {
+      todos: ['bg-stone-800', 'text-white', 'dark:bg-stone-200', 'dark:text-stone-900', 'shadow-md'],
+      disponibles: ['bg-emerald-700', 'text-white', 'dark:bg-emerald-500', 'dark:text-stone-900', 'shadow-md'],
+      prestados: ['bg-amber-700', 'text-white', 'dark:bg-amber-500', 'dark:text-stone-900', 'shadow-md']
+    };
+    const clasesVisualesFiltro = new Set([
+      ...estilosFiltroInactivo,
+      ...Object.values(estilosFiltroActivo).flat()
+    ]);
+
+    container.querySelectorAll('.bibliomovil-filter-btn').forEach(boton => {
+      boton.addEventListener('click', () => {
+        this.bibliomovilFilter = boton.dataset.filter;
+        this.bookPage = 0;
+        container.querySelectorAll('.bibliomovil-filter-btn').forEach(filtro => {
+          const activo = filtro.dataset.filter === this.bibliomovilFilter;
+          filtro.setAttribute('aria-pressed', String(activo));
+          const estilo = activo ? estilosFiltroActivo[filtro.dataset.filter] : estilosFiltroInactivo;
+          const clasesActivas = new Set(estilo || estilosFiltroInactivo);
+          clasesVisualesFiltro.forEach(clase => filtro.classList.toggle(clase, clasesActivas.has(clase)));
+        });
+        this._actualizarListaBibliomovil(porPagina);
+      });
+    });
+
+    const campoBusqueda = container.querySelector('#bibliomovil-search-input');
+    campoBusqueda?.addEventListener('input', () => {
+      this.bibliomovilSearch = campoBusqueda.value.trim();
+      this.bookPage = 0;
+      const solicitud = (this._bibliomovilSearchVersion || 0) + 1;
+      this._bibliomovilSearchVersion = solicitud;
+      clearTimeout(this._bibliomovilSearchTimer);
+      this._bibliomovilSearchTimer = setTimeout(() => {
+        if (solicitud === this._bibliomovilSearchVersion) this._actualizarListaBibliomovil(porPagina);
+      }, 350);
+    });
+  },
+
+  async _actualizarListaBibliomovil(porPagina = Number(this.param('filas_por_pagina')) || 25) {
+    const solicitud = (this._bibliomovilBooksVersion || 0) + 1;
+    this._bibliomovilBooksVersion = solicitud;
+    const busqueda = this.bibliomovilSearch || '';
+    const filtro = this.bibliomovilFilter || 'todos';
+    const pagina = this.bookPage || 0;
+
+    try {
+      const { libros, total } = await db.obtenerLibros(busqueda, pagina, porPagina, true, filtro);
+      if (solicitud !== this._bibliomovilBooksVersion || this.currentView !== 'bibliomovil') return;
+      if (!libros.length && pagina > 0) {
+        this.bookPage = Math.max(0, Math.ceil(total / porPagina) - 1);
+        return this._actualizarListaBibliomovil(porPagina);
+      }
+
+      const tbody = document.getElementById('bibliomovil-tbody');
+      const paginacion = document.getElementById('bibliomovil-pagination');
+      const container = this._container();
+      if (!tbody || !container) return;
+      this._booksCache = libros;
+      tbody.innerHTML = this._renderBookRows(libros).toString();
+      if (paginacion) {
+        paginacion.innerHTML = this._paginacionHtml(this.bookPage, total, porPagina, 'bibliomovil-page-btn');
+        this._bindPaginacion(container, '.bibliomovil-page-btn', paginaSiguiente => {
+          this.bookPage = paginaSiguiente;
+          this._actualizarListaBibliomovil(porPagina);
+        });
+      }
+      this._bindCatalogRowEvents(container);
+    } catch (error) {
+      if (solicitud !== this._bibliomovilBooksVersion) return;
+      const tbody = document.getElementById('bibliomovil-tbody');
+      if (tbody) tbody.innerHTML = html`<p class="p-4 text-sm text-rose-700 dark:text-rose-300">No se pudo actualizar el catálogo: ${error?.message || 'error desconocido.'}</p>`.toString();
     }
   },
 
-  /** Actualiza el texto "Última preparación: ..." en la tarjeta Modo Ruta. */
-  _actualizarIndicadorRuta() {
-    const el = document.getElementById('bibliomovil-sync-status');
-    if (!el) return;
-    const ts = localStorage.getItem('biblionexo_ultima_preparacion_ruta');
-    if (!ts) { el.textContent = 'Nunca'; return; }
-    const hace = Math.round((Date.now() - Number(ts)) / 60000);
-    if (hace < 1)        el.textContent = 'Hace menos de un minuto';
-    else if (hace < 60)  el.textContent = `Hace ${hace} min`;
-    else if (hace < 1440) el.textContent = `Hace ${Math.round(hace / 60)} h`;
-    else                 el.textContent = `Hace ${Math.round(hace / 1440)} día(s)`;
+  _conectarControlesRutaBibliomovil() {
+    const botonPreparar = document.getElementById('btn-preparar-ruta');
+    if (botonPreparar) {
+      botonPreparar.addEventListener('click', async () => {
+        const textoBoton = document.getElementById('btn-preparar-ruta-texto');
+        botonPreparar.disabled = true;
+        if (textoBoton) textoBoton.textContent = 'Descargando datos…';
+        try {
+          const resumen = await persistencia.sincronizarTodo(({ mensaje }) => {
+            if (textoBoton) textoBoton.textContent = mensaje;
+          });
+          if (!resumen?.completo) {
+            const errores = resumen?.errores || [];
+            const pasos = errores.map(e => e.paso).join(', ') || 'uno o más pasos';
+            this.showToast(`Preparación incompleta (${pasos}). No se marcó como lista; revisa la conexión e inténtalo de nuevo.`, 'error');
+            return;
+          }
+          try {
+            localStorage.setItem(CLAVE_ULTIMA_PREPARACION, String(Date.now()));
+          } catch {
+            this.showToast('Los datos se sincronizaron, pero no se pudo guardar la fecha de preparación en este navegador.', 'error');
+            return;
+          }
+          this._actualizarIndicadorRuta();
+          this.showToast('¡Datos preparados! El catálogo y la información permitida están sincronizados para trabajar offline.', 'success');
+        } catch (error) {
+          this.showToast(`Error al preparar los datos: ${error.message || 'Inténtalo de nuevo.'}`, 'error');
+        } finally {
+          botonPreparar.disabled = false;
+          if (textoBoton) textoBoton.textContent = 'Preparar datos offline';
+        }
+      });
+    }
+
+    document.getElementById('bibliomovil-retry-route')?.addEventListener('click', () => {
+      if (puntosDeRuta(this._obtenerPlanRutaBibliomovil()).length < 2) return;
+      this._bibliomovilRouteCache = null;
+      this._actualizarMapaRutaBibliomovil(true);
+    });
+
+    const botonOrigen = document.getElementById('bibliomovil-select-origin');
+    botonOrigen?.addEventListener('click', () => this._armarSeleccionMapaBibliomovil('origen'));
+
+    const botonParada = document.getElementById('bibliomovil-select-stop');
+    botonParada?.addEventListener('click', () => {
+      if (this._obtenerPlanRutaBibliomovil().paradas.length >= MAX_PARADAS_RUTA) {
+        this.showToast(`El plan admite hasta ${MAX_PARADAS_RUTA} paradas.`, 'error');
+        return;
+      }
+      this._armarSeleccionMapaBibliomovil('parada');
+    });
+
+    const botonAgregar = document.getElementById('bibliomovil-add-stop');
+    botonAgregar?.addEventListener('click', () => {
+      const punto = this._bibliomovilCoordenadaPendiente;
+      if (!punto) return;
+      const plan = this._obtenerPlanRutaBibliomovil();
+      if (plan.paradas.length >= MAX_PARADAS_RUTA) {
+        this.showToast(`El plan admite hasta ${MAX_PARADAS_RUTA} paradas.`, 'error');
+        return;
+      }
+      const nombre = document.getElementById('bibliomovil-stop-name')?.value.trim();
+      plan.paradas.push({
+        id: idParadaNuevo(),
+        nombre: nombre || `Parada ${plan.paradas.length + 1}`,
+        lat: punto.lat,
+        lon: punto.lon
+      });
+      this._bibliomovilCoordenadaPendiente = null;
+      const campoNombre = document.getElementById('bibliomovil-stop-name');
+      if (campoNombre) campoNombre.value = '';
+      if (botonAgregar) botonAgregar.disabled = true;
+      this._guardarPlanRutaBibliomovil();
+      this._dibujarListaParadasBibliomovil();
+      this._actualizarMapaRutaBibliomovil();
+      const estadoMapa = document.getElementById('bibliomovil-map-status');
+      if (estadoMapa) estadoMapa.textContent = 'Parada guardada. Puedes elegir otra ubicación en el mapa.';
+    });
+
+    const campoOrigen = document.getElementById('bibliomovil-origin-name');
+    campoOrigen?.addEventListener('change', () => {
+      const plan = this._obtenerPlanRutaBibliomovil();
+      if (!plan.origen) return;
+      plan.origen.nombre = campoOrigen.value.trim() || 'Punto de partida';
+      this._guardarPlanRutaBibliomovil();
+      this._actualizarMapaRutaBibliomovil();
+    });
+
+    document.getElementById('bibliomovil-geolocate')?.addEventListener('click', event => {
+      this._usarUbicacionActualBibliomovil(event.currentTarget);
+    });
+
+    document.getElementById('bibliomovil-clear-origin')?.addEventListener('click', () => {
+      const plan = this._obtenerPlanRutaBibliomovil();
+      plan.origen = null;
+      const campo = document.getElementById('bibliomovil-origin-name');
+      if (campo) campo.value = '';
+      this._guardarPlanRutaBibliomovil();
+      this._dibujarListaParadasBibliomovil();
+      this._actualizarMapaRutaBibliomovil();
+    });
+
+    document.getElementById('bibliomovil-optimize-stops')?.addEventListener('click', () => {
+      const plan = this._obtenerPlanRutaBibliomovil();
+      plan.paradas = ordenarParadasPorCercania(plan.paradas, plan.origen);
+      this._guardarPlanRutaBibliomovil();
+      this._dibujarListaParadasBibliomovil();
+      this._actualizarMapaRutaBibliomovil();
+      this.showToast('Orden sugerido por cercanía. Es una estimación en línea recta; revisa la ruta vial.', 'success');
+    });
+
+    document.getElementById('bibliomovil-clear-route')?.addEventListener('click', async () => {
+      const confirmar = await this.showConfirm('¿Limpiar el punto de partida y todas las paradas guardadas en este navegador?', {
+        title: 'Limpiar recorrido', confirmText: 'Limpiar ruta'
+      });
+      if (!confirmar) return;
+      this._bibliomovilPlan = { version: 1, origen: null, paradas: [] };
+      this._bibliomovilCoordenadaPendiente = null;
+      this._bibliomovilModoMapa = null;
+      this._bibliomovilMapState?.map?.getContainer().classList.remove('bibliomovil-map--seleccionando');
+      this._guardarPlanRutaBibliomovil();
+      const campoOrigen = document.getElementById('bibliomovil-origin-name');
+      const campoParada = document.getElementById('bibliomovil-stop-name');
+      if (campoOrigen) campoOrigen.value = '';
+      if (campoParada) campoParada.value = '';
+      const botonAgregar = document.getElementById('bibliomovil-add-stop');
+      if (botonAgregar) botonAgregar.disabled = true;
+      this._dibujarListaParadasBibliomovil();
+      this._actualizarMapaRutaBibliomovil();
+    });
   },
 
+  _armarSeleccionMapaBibliomovil(modo) {
+    const mapa = this._bibliomovilMapState?.map;
+    if (!mapa) {
+      this.showToast('El mapa todavía no está disponible. Revisa la conexión e inténtalo de nuevo.', 'error');
+      return;
+    }
+    this._bibliomovilModoMapa = modo;
+    this._bibliomovilCoordenadaPendiente = null;
+    const botonAgregar = document.getElementById('bibliomovil-add-stop');
+    if (botonAgregar) botonAgregar.disabled = true;
+    this._bibliomovilMapState.pendingMarker?.remove();
+    this._bibliomovilMapState.pendingMarker = null;
+    mapa.getContainer().classList.add('bibliomovil-map--seleccionando');
+    const estado = document.getElementById('bibliomovil-map-status');
+    if (estado) estado.textContent = modo === 'origen'
+      ? 'Haz clic en el mapa para definir el punto de partida.'
+      : 'Haz clic en el mapa para ubicar la nueva parada.';
+  },
+
+  async _usarUbicacionActualBibliomovil(boton) {
+    if (!navigator.geolocation) {
+      this.showToast('Este navegador no ofrece ubicación. Puedes marcar el origen en el mapa.', 'error');
+      return;
+    }
+    if (boton) {
+      boton.disabled = true;
+      boton.setAttribute('aria-busy', 'true');
+    }
+    try {
+      const posicion = await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,
+          timeout: 12000,
+          maximumAge: 300000
+        });
+      });
+      this._bibliomovilPlan = this._obtenerPlanRutaBibliomovil();
+      const nombre = document.getElementById('bibliomovil-origin-name')?.value.trim();
+      this._bibliomovilPlan.origen = {
+        nombre: nombre || 'Ubicación actual',
+        lat: posicion.coords.latitude,
+        lon: posicion.coords.longitude
+      };
+      const campo = document.getElementById('bibliomovil-origin-name');
+      if (campo && !campo.value.trim()) campo.value = 'Ubicación actual';
+      this._guardarPlanRutaBibliomovil();
+      this._dibujarListaParadasBibliomovil();
+      this._actualizarMapaRutaBibliomovil(true);
+      const estado = document.getElementById('bibliomovil-map-status');
+      if (estado) estado.textContent = 'Punto de partida definido desde la ubicación autorizada en este dispositivo.';
+    } catch (error) {
+      const estado = document.getElementById('bibliomovil-map-status');
+      if (estado) estado.textContent = textoErrorGeolocalizacion(error);
+      this.showToast(textoErrorGeolocalizacion(error), 'error');
+    } finally {
+      if (boton) {
+        boton.disabled = false;
+        boton.removeAttribute('aria-busy');
+        // Se conserva el texto e ícono del botón; aria-busy comunica el estado.
+      }
+    }
+  },
+
+  async _montarMapaBibliomovil() {
+    const elemento = document.getElementById('bibliomovil-map');
+    if (!elemento || this.currentView !== 'bibliomovil') return;
+    try {
+      // CSS y código de Leaflet se descargan solo al entrar en Bibliomóvil.
+      await import('leaflet/dist/leaflet.css');
+      const moduloLeaflet = await import('leaflet');
+      const L = moduloLeaflet.default;
+      if (this.currentView !== 'bibliomovil' || !elemento.isConnected) return;
+
+      elemento.replaceChildren();
+      const mapa = L.map(elemento, { scrollWheelZoom: false, preferCanvas: true })
+        .setView([CENTRO_INICIAL_FUTRONO.lat, CENTRO_INICIAL_FUTRONO.lon], 12);
+      const mosaicos = L.tileLayer(URL_MOSAICOS_OSM, {
+        maxZoom: 19,
+        attribution: ATRIBUCION_OSM,
+        referrerPolicy: 'strict-origin-when-cross-origin'
+      }).addTo(mapa);
+      L.control.scale({ imperial: false }).addTo(mapa);
+
+      const estadoMapa = document.getElementById('bibliomovil-map-status');
+      mosaicos.on('load', () => {
+        if (estadoMapa) estadoMapa.textContent = 'Mapa de OpenStreetMap cargado. Selecciona el origen o una parada desde los botones.';
+      });
+      mosaicos.on('tileerror', () => {
+        if (estadoMapa) estadoMapa.textContent = 'No se pudieron cargar los mosaicos del mapa. Comprueba la conexión; el plan de paradas sigue disponible.';
+      });
+      mapa.on('click', evento => this._alElegirPuntoEnMapaBibliomovil(evento));
+
+      this._bibliomovilMapState = {
+        L,
+        map: mapa,
+        routeLine: null,
+        markers: [],
+        pendingMarker: null,
+        routeController: null
+      };
+      this._actualizarMapaRutaBibliomovil(true);
+      requestAnimationFrame(() => {
+        if (this._bibliomovilMapState?.map === mapa) mapa.invalidateSize({ pan: false });
+      });
+    } catch (error) {
+      console.error('No se pudo inicializar el mapa del Bibliomóvil:', error);
+      const estadoMapa = document.getElementById('bibliomovil-map-status');
+      if (estadoMapa) estadoMapa.textContent = 'No se pudo cargar el mapa. El plan de paradas puede seguir guardándose; vuelve a entrar cuando tengas conexión.';
+      const mapa = document.getElementById('bibliomovil-map');
+      if (mapa) mapa.innerHTML = html`<p class="bibliomovil-map-placeholder">El mapa no está disponible. Revisa la conexión e inténtalo de nuevo.</p>`.toString();
+    }
+  },
+
+  _alElegirPuntoEnMapaBibliomovil(evento) {
+    const modo = this._bibliomovilModoMapa;
+    const estadoMapa = document.getElementById('bibliomovil-map-status');
+    const state = this._bibliomovilMapState;
+    if (!modo || !state || !evento?.latlng) return;
+    const punto = { lat: evento.latlng.lat, lon: evento.latlng.lng };
+    const nombre = modo === 'origen'
+      ? (document.getElementById('bibliomovil-origin-name')?.value.trim() || 'Punto de partida')
+      : (document.getElementById('bibliomovil-stop-name')?.value.trim() || 'Nueva parada');
+
+    if (modo === 'origen') {
+      const plan = this._obtenerPlanRutaBibliomovil();
+      plan.origen = { ...punto, nombre };
+      this._bibliomovilModoMapa = null;
+      state.map.getContainer().classList.remove('bibliomovil-map--seleccionando');
+      this._guardarPlanRutaBibliomovil();
+      this._dibujarListaParadasBibliomovil();
+      this._actualizarMapaRutaBibliomovil(true);
+      if (estadoMapa) estadoMapa.textContent = `Origen guardado: ${nombre}.`;
+      return;
+    }
+
+    this._bibliomovilCoordenadaPendiente = punto;
+    const botonAgregar = document.getElementById('bibliomovil-add-stop');
+    if (botonAgregar) botonAgregar.disabled = false;
+    state.pendingMarker?.remove();
+    state.pendingMarker = this._crearMarcadorBibliomovil(punto, '…', nombre, 'pendiente').addTo(state.map);
+    this._bibliomovilModoMapa = null;
+    state.map.getContainer().classList.remove('bibliomovil-map--seleccionando');
+    if (estadoMapa) estadoMapa.textContent = `Punto pendiente: ${nombre} (${punto.lat.toFixed(5)}, ${punto.lon.toFixed(5)}). Confirma “Añadir parada” para guardarlo.`;
+  },
+
+  _crearMarcadorBibliomovil(punto, numero, nombre, tipo = 'parada') {
+    const state = this._bibliomovilMapState;
+    const icon = state.L.divIcon({
+      className: `bibliomovil-marker-wrap bibliomovil-marker-wrap--${tipo}`,
+      html: `<span class="bibliomovil-marker"><span>${numero}</span></span>`,
+      iconSize: [34, 40],
+      iconAnchor: [17, 38]
+    });
+    const marcador = state.L.marker([punto.lat, punto.lon], { icon, title: nombre, keyboard: true });
+    const popup = document.createElement('span');
+    popup.textContent = `${nombre} · ${punto.lat.toFixed(5)}, ${punto.lon.toFixed(5)}`;
+    marcador.bindPopup(popup);
+    return marcador;
+  },
+
+  _actualizarMapaRutaBibliomovil(calcular = true) {
+    const state = this._bibliomovilMapState;
+    const plan = this._obtenerPlanRutaBibliomovil();
+    const puntos = puntosDeRuta(plan);
+    const key = JSON.stringify(puntos.map(p => [p.lat, p.lon]));
+    if (state && state.routeKey !== key) {
+      state.routeController?.abort();
+      state.routeController = null;
+      this._bibliomovilRouteVersion = (this._bibliomovilRouteVersion || 0) + 1;
+      state.routeKey = key;
+    }
+    const enlaces = [
+      ['bibliomovil-google-maps', urlGoogleMaps(plan)],
+      ['bibliomovil-osm-directions', urlOpenStreetMap(plan)]
+    ];
+    enlaces.forEach(([id, url]) => {
+      const ancla = document.getElementById(id);
+      if (!ancla) return;
+      ancla.hidden = !url;
+      if (url) ancla.href = url;
+      else ancla.removeAttribute('href');
+    });
+
+    const botonReintentar = document.getElementById('bibliomovil-retry-route');
+    if (botonReintentar) botonReintentar.disabled = puntos.length < 2 || !state;
+    if (!state) {
+      this._actualizarEstadoRutaBibliomovil(puntos, false);
+      return;
+    }
+
+    state.routeLine?.remove();
+    state.markers.forEach(marcador => marcador.remove());
+    state.markers = [];
+    state.pendingMarker?.remove();
+    state.pendingMarker = null;
+
+    const posiciones = [];
+    if (plan.origen) {
+      const marcadorOrigen = this._crearMarcadorBibliomovil(plan.origen, 'S', plan.origen.nombre, 'origen').addTo(state.map);
+      state.markers.push(marcadorOrigen);
+      posiciones.push([plan.origen.lat, plan.origen.lon]);
+    }
+    plan.paradas.forEach((parada, indice) => {
+      const marcador = this._crearMarcadorBibliomovil(parada, String(indice + 1), parada.nombre).addTo(state.map);
+      state.markers.push(marcador);
+      posiciones.push([parada.lat, parada.lon]);
+    });
+
+    const cache = this._bibliomovilRouteCache;
+    if (puntos.length >= 2 && cache?.key === key) {
+      state.routeLine = state.L.polyline(cache.latLngs, {
+        color: '#0f766e', weight: 5, opacity: 0.82, lineJoin: 'round'
+      }).addTo(state.map);
+    } else if (puntos.length >= 2) {
+      state.routeLine = state.L.polyline(posiciones, {
+        color: '#b45309', weight: 4, opacity: 0.75, dashArray: '8 8', lineJoin: 'round'
+      }).addTo(state.map);
+    }
+
+    if (posiciones.length >= 2) {
+      state.map.fitBounds(state.L.latLngBounds(posiciones), { padding: [28, 28], maxZoom: 15 });
+    } else if (posiciones.length === 1) {
+      state.map.setView(posiciones[0], Math.max(state.map.getZoom(), 14));
+    } else {
+      state.map.setView([CENTRO_INICIAL_FUTRONO.lat, CENTRO_INICIAL_FUTRONO.lon], 12);
+    }
+
+    this._actualizarEstadoRutaBibliomovil(puntos, cache?.key === key);
+    if (calcular && puntos.length >= 2 && cache?.key !== key) {
+      this._calcularRutaVialBibliomovil(plan, puntos, key, state);
+    }
+  },
+
+  _actualizarEstadoRutaBibliomovil(puntos, calculada) {
+    const estado = document.getElementById('bibliomovil-route-status');
+    if (!estado) return;
+    if (puntos.length < 2) {
+      estado.textContent = 'Agrega un origen y al menos una parada, o dos paradas, para calcular el recorrido.';
+      return;
+    }
+    if (calculada && this._bibliomovilRouteCache?.key === JSON.stringify(puntos.map(p => [p.lat, p.lon]))) {
+      const ruta = this._bibliomovilRouteCache;
+      const distancia = ruta.distanciaKm === null ? '' : ` · ${distanciaLegible(ruta.distanciaKm)}`;
+      const duracion = ruta.duracionMin === null ? '' : ` · ${duracionLegible(ruta.duracionMin)}`;
+      estado.textContent = `Recorrido vial orientativo (OSRM)${distancia}${duracion}. Revisa accesos y condiciones del camino antes de salir.`;
+      return;
+    }
+    if (!navigator.onLine) {
+      estado.textContent = `Sin conexión: se conserva el orden y se muestra una línea recta aproximada (${distanciaLegible(distanciaRectaTotal(puntos))}); la ruta vial requiere internet.`;
+      return;
+    }
+    estado.textContent = 'Calculando la ruta vial… Las líneas rectas se muestran solo como referencia mientras responde el servicio.';
+  },
+
+  async _calcularRutaVialBibliomovil(plan, puntos, key, state) {
+    const estado = document.getElementById('bibliomovil-route-status');
+    const url = urlCalculoVial(plan);
+    if (!url || !estado || this.currentView !== 'bibliomovil' || !navigator.onLine) return;
+
+    state.routeController?.abort();
+    const controller = new AbortController();
+    state.routeController = controller;
+    const solicitud = (this._bibliomovilRouteVersion || 0) + 1;
+    this._bibliomovilRouteVersion = solicitud;
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const respuestaHttp = await fetch(url, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        cache: 'no-store',
+        referrerPolicy: 'no-referrer',
+        signal: controller.signal
+      });
+      if (!respuestaHttp.ok) throw new Error(`El servicio de rutas respondió ${respuestaHttp.status}.`);
+      const respuesta = await respuestaHttp.json();
+      const ruta = leerRutaOsrm(respuesta);
+      if (!ruta) throw new Error('El servicio no encontró un recorrido vial para esos puntos.');
+      if (solicitud !== this._bibliomovilRouteVersion || this.currentView !== 'bibliomovil' || state !== this._bibliomovilMapState) return;
+
+      this._bibliomovilRouteCache = { key, ...ruta };
+      state.routeLine?.remove();
+      state.routeLine = state.L.polyline(ruta.latLngs, {
+        color: '#0f766e', weight: 5, opacity: 0.82, lineJoin: 'round'
+      }).addTo(state.map);
+      const distancia = ruta.distanciaKm === null ? '' : ` · ${distanciaLegible(ruta.distanciaKm)}`;
+      const duracion = ruta.duracionMin === null ? '' : ` · ${duracionLegible(ruta.duracionMin)}`;
+      estado.textContent = `Recorrido vial orientativo (OSRM)${distancia}${duracion}. Revisa accesos y condiciones del camino antes de salir.`;
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        // Los cambios de plan o de vista incrementan la versión; en esos casos
+        // el aborto es intencional. Si la solicitud sigue vigente, fue un
+        // timeout/interrupción y hay que salir del estado "Calculando…".
+        if (solicitud === this._bibliomovilRouteVersion && this.currentView === 'bibliomovil' && state === this._bibliomovilMapState && estado) {
+          const recta = distanciaLegible(distanciaRectaTotal(puntos));
+          estado.textContent = `El cálculo vial se interrumpió o tardó demasiado. Se mantiene una línea recta aproximada (${recta}); puedes usar los enlaces de navegación o intentarlo otra vez.`;
+        }
+        return;
+      }
+      if (solicitud !== this._bibliomovilRouteVersion || this.currentView !== 'bibliomovil' || state !== this._bibliomovilMapState) return;
+      console.warn('No se pudo calcular la ruta vial del Bibliomóvil:', error);
+      this._bibliomovilRouteCache = null;
+      if (state.routeLine) {
+        state.routeLine.setStyle({ color: '#b45309', dashArray: '8 8', weight: 4 });
+      }
+      if (estado) {
+        const recta = distanciaLegible(distanciaRectaTotal(puntos));
+        estado.textContent = `No se pudo calcular la ruta vial. Se muestra una línea recta aproximada (${recta}); usa los enlaces de navegación o inténtalo de nuevo con conexión.`;
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  },
+
+  _destruirMapaBibliomovil() {
+    clearTimeout(this._bibliomovilSearchTimer);
+    this._bibliomovilSearchVersion = (this._bibliomovilSearchVersion || 0) + 1;
+    this._bibliomovilBooksVersion = (this._bibliomovilBooksVersion || 0) + 1;
+    this._bibliomovilRouteVersion = (this._bibliomovilRouteVersion || 0) + 1;
+    const state = this._bibliomovilMapState;
+    state?.routeController?.abort();
+    if (state?.map) state.map.remove();
+    this._bibliomovilMapState = null;
+    this._bibliomovilModoMapa = null;
+    this._bibliomovilCoordenadaPendiente = null;
+  },
+
+  /** Actualiza el tiempo desde la última preparación completa de datos. */
+  _actualizarIndicadorRuta() {
+    const elemento = document.getElementById('bibliomovil-sync-status');
+    if (!elemento) return;
+    let marca;
+    try {
+      marca = localStorage.getItem(CLAVE_ULTIMA_PREPARACION);
+    } catch {
+      elemento.textContent = 'No disponible en este navegador';
+      return;
+    }
+    if (!marca) {
+      elemento.textContent = 'Nunca';
+      return;
+    }
+    const instante = Number(marca);
+    if (!Number.isFinite(instante) || instante <= 0 || instante > Date.now() + 60000) {
+      elemento.textContent = 'Fecha de preparación inválida';
+      return;
+    }
+    const hace = Math.max(0, Math.round((Date.now() - instante) / 60000));
+    if (hace < 1) elemento.textContent = 'Hace menos de un minuto';
+    else if (hace < 60) elemento.textContent = `Hace ${hace} min`;
+    else if (hace < 1440) elemento.textContent = `Hace ${Math.round(hace / 60)} h`;
+    else elemento.textContent = `Hace ${Math.round(hace / 1440)} día(s)`;
+  }
 };

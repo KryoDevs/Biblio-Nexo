@@ -405,6 +405,70 @@ for (const vista of ['dashboard', 'reports', 'catalog', 'users', 'loans', 'scann
   });
 }
 
+await prueba('Bibliomóvil renderiza el plan, los accesos de navegación y escapa los nombres locales', async () => {
+  const inicializarMapa = ui._montarMapaBibliomovil;
+  const descriptorStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  Object.defineProperty(globalThis, 'localStorage', { value: dom.window.localStorage, configurable: true, writable: true });
+  const key = 'biblionexo-bibliomovil-plan-v1';
+  ui._montarMapaBibliomovil = async () => {};
+  ui.currentView = 'bibliomovil';
+  ui.bibliomovilSearch = '';
+  ui.bibliomovilFilter = 'todos';
+  ui.bookPage = 0;
+  localStorage.setItem(key, JSON.stringify({
+    origen: { nombre: 'Inicio', lat: -40.1, lon: -72.2 },
+    paradas: [{ id: 'prueba-1', nombre: '<img src=x onerror=alert(1)>', lat: -40.2, lon: -72.3 }]
+  }));
+  try {
+    await ui.renderBibliomovil();
+    const cont = document.getElementById('views-container');
+    assert(cont.querySelector('#bibliomovil-map'), 'falta el mapa interactivo');
+    assert(cont.querySelector('#bibliomovil-select-stop'), 'falta la selección de paradas');
+    assert(cont.querySelector('#bibliomovil-google-maps'), 'falta el acceso a Google Maps');
+    assert(cont.querySelector('#bibliomovil-osm-directions'), 'falta el acceso a OpenStreetMap');
+    assert(cont.querySelector('#bibliomovil-retry-route'), 'falta el control para recalcular una ruta');
+    const disponible = cont.querySelector('.bibliomovil-filter-btn[data-filter="disponibles"]');
+    disponible.dispatchEvent(new dom.window.Event('click'));
+    assert(disponible.getAttribute('aria-pressed') === 'true', 'el filtro de disponibles no queda seleccionado');
+    assert(disponible.classList.contains('bg-emerald-700') && !disponible.classList.contains('bg-stone-200'),
+      'el filtro conserva colores de estado inactivo al seleccionarse');
+    const lista = cont.querySelector('#bibliomovil-route-stops');
+    assert(lista.textContent.includes('<img src=x onerror=alert(1)>'), 'el nombre local no aparece como texto');
+    assert(!lista.querySelector('img'), 'un nombre local se interpretó como HTML ejecutable');
+  } finally {
+    ui._montarMapaBibliomovil = inicializarMapa;
+    localStorage.removeItem(key);
+    ui.currentView = 'dashboard';
+    if (descriptorStorage) Object.defineProperty(globalThis, 'localStorage', descriptorStorage);
+    else delete globalThis.localStorage;
+  }
+});
+
+await prueba('un error tardío de Bibliomóvil no reemplaza la vista abierta después', async () => {
+  const renderBibliomovilOriginal = ui.renderBibliomovil;
+  const renderCatalogOriginal = ui.renderCatalog;
+  let rechazar;
+  ui.currentView = 'dashboard';
+  ui.renderBibliomovil = () => new Promise((_, reject) => { rechazar = reject; });
+  ui.renderCatalog = async () => {
+    document.getElementById('views-container').innerHTML = '<p id="vista-actual">Catálogo vigente</p>';
+  };
+  try {
+    const cargaAntigua = ui.switchView('bibliomovil');
+    await Promise.resolve();
+    await ui.switchView('catalog');
+    rechazar(new Error('fallo tardío de la consulta'));
+    await cargaAntigua;
+    assert(document.getElementById('vista-actual')?.textContent === 'Catálogo vigente',
+      'un error atrasado sobrescribió el catálogo');
+    assert(ui.currentView === 'catalog', 'el router perdió la vista vigente');
+  } finally {
+    ui.renderBibliomovil = renderBibliomovilOriginal;
+    ui.renderCatalog = renderCatalogOriginal;
+    ui.currentView = 'dashboard';
+  }
+});
+
 await prueba('renderiza ambos roles sin romperse', async () => {
   for (const rol of ['admin', 'librero']) {
     ui.currentUserRole = rol;

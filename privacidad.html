@@ -39,8 +39,8 @@
     <link rel="icon" href="icono-192x192.png" type="image/png" sizes="192x192">
     <link rel="icon" href="icono-512x512.png" type="image/png" sizes="512x512">
 
-    <link rel="stylesheet" href="vendor/css/fonts.css">
-    <link rel="stylesheet" href="vendor/css/fontawesome.min.css">
+    <link rel="stylesheet" href="/vendor/css/fonts.css">
+    <link rel="stylesheet" href="/vendor/css/fontawesome.min.css">
     <link rel="stylesheet" href="/src/assets/css/styles.css">
 </head>
 <body class="pagina-legal">
@@ -57,7 +57,7 @@
     </header>
 
     <h1>Política de Privacidad y Términos de Uso</h1>
-    <p class="version">Versión 1 · Borrador del 23 de agosto de 2026</p>
+    <p class="version">Versión 2 · Borrador del 2 de octubre de 2026</p>
 
     <div class="aviso-borrador">
       <strong>Este documento es un borrador</strong> y todavía no ha sido revisado ni aprobado por la Dirección Jurídica municipal. Describe con exactitud lo que el sistema hace hoy en términos técnicos; los datos de contacto marcados <span class="pordefinir">por definir</span> deben completarse antes de publicar esta página como vigente.
@@ -73,8 +73,9 @@
     <p>
       Únicamente para administrar el préstamo de material bibliográfico: identificar a quién se entrega
       cada ejemplar, controlar plazos de devolución y avisarte cuando debas devolver un libro.
-      No hacemos perfilamiento, no tomamos decisiones automatizadas que te afecten legalmente, y no
-      cedemos tus datos a terceros ni los usamos con fines comerciales o publicitarios.
+      No hacemos perfilamiento ni tomamos decisiones automatizadas que te afecten legalmente. El módulo
+      de Bibliomóvil planifica paradas operativas; no consulta fichas de lectores y no debe usarse para
+      guardar domicilios particulares ni información personal.
     </p>
 
     <h2>3. ¿Qué datos recopilamos?</h2>
@@ -104,11 +105,15 @@
 
     <h2>5. ¿Con quién compartimos tus datos?</h2>
     <p>
-      Con nadie fuera de la propia Municipalidad de Futrono. El sistema no envía tus datos a redes
-      sociales, agencias de publicidad ni corredores de datos. Los proveedores técnicos que hacen
-      funcionar el sistema (alojamiento de la base de datos y del sitio) actúan como encargados del
-      tratamiento, bajo las mismas obligaciones de confidencialidad — nunca acceden a tus datos con
-      fines propios.
+      Los datos de tu ficha de lector y tu historial no se envían a proveedores de mapas ni se usan con
+      fines comerciales. El sistema sí utiliza servicios técnicos de alojamiento y, si el personal abre
+      Bibliomóvil, mosaicos de mapas de OpenStreetMap. Al calcular el recorrido vial, el navegador envía
+      a OSRM únicamente las coordenadas de los puntos elegidos (no sus nombres, RUT, correo ni datos de
+      lectores). Si el personal pulsa “Abrir en Google Maps” u “OpenStreetMap”, esas coordenadas se
+      comparten con el proveedor elegido para navegar. Los servicios de mapas pueden recibir la dirección
+      IP y datos técnicos de la solicitud; se recomienda no ingresar domicilios ni ubicaciones personales.
+      El plan se guarda en el perfil local del navegador y no se sincroniza con Supabase. La Municipalidad
+      debe revisar los términos y condiciones de cada proveedor antes de considerar este borrador vigente.
     </p>
 
     <h2>6. Tus derechos</h2>
@@ -146,8 +151,9 @@
 
     <h2>9. ¿Usamos cookies o analítica de terceros?</h2>
     <p>
-      No usamos Google Analytics ni ningún rastreador de terceros — nadie fuera de la Municipalidad
-      recibe estadísticas sobre cómo usas el sistema. Cuando algo falla, un registro de errores propio
+      No usamos Google Analytics ni rastreadores publicitarios. Las solicitudes necesarias para cargar
+      el mapa y calcular u abrir una ruta sí llegan a los proveedores indicados en la sección 5; no se
+      usan para crear estadísticas dentro de BiblioNexo. Cuando algo falla, un registro de errores propio
       guarda automáticamente lo necesario para corregirlo (qué pantalla, qué error), pero antes de
       guardarlo <strong>elimina tu RUT, correo, teléfono y cualquier token de sesión</strong> — está pensado
       para arreglar fallas, no para observar tu comportamiento.

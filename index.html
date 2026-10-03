@@ -9,10 +9,11 @@
       Política de Seguridad de Contenido.
 
       Todo se sirve desde este mismo origen ('self'), salvo las excepciones
-      declaradas: la API de Supabase y Open Library (las portadas, y también
-      su API de datos, que se usa para completar título y autor por ISBN al
-      registrar un libro nuevo desde el escáner). Cualquier otro origen queda
-      bloqueado por el navegador.
+      declaradas: la API de Supabase y Open Library (portadas y datos de ISBN),
+      más mosaicos de OpenStreetMap y el servicio público OSRM para planificar
+      rutas del Bibliomóvil. Cualquier otro origen queda bloqueado por el navegador.
+      Las etiquetas de las paradas nunca se envían al servicio de rutas: solo
+      coordenadas explícitamente seleccionadas por el personal.
 
       Esto cierra el riesgo de cadena de suministro: antes se cargaban Tailwind,
       Supabase, Chart.js y FontAwesome desde CDN de terceros, así que si alguno
@@ -50,9 +51,9 @@
       script-src 'self';
       style-src 'self' 'unsafe-inline';
       font-src 'self';
-      img-src 'self' data: https://covers.openlibrary.org;
-        manifest-src 'self';
-      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://openlibrary.org;
+      img-src 'self' data: https://covers.openlibrary.org https://*.tile.openstreetmap.org;
+      manifest-src 'self';
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://openlibrary.org https://router.project-osrm.org;
       base-uri 'self';
       form-action 'self';
       object-src 'none'">
@@ -74,14 +75,11 @@
     <link rel="icon" href="icono-512x512.png" type="image/png" sizes="512x512">
     <link rel="apple-touch-icon" href="icono-192x192.png">
 
-    <!-- Fase 1.1 (funcionamiento sin conexión): permite "Agregar a inicio" en el
-         celular y declara los colores de la app. manifest.json trae ambos
-         íconos (192×192 y 512×512, ítem 13 — mismo diseño, sin estirar ni
-         inventar nada). -->
-    <link rel="manifest" href="/manifest.json">
+    <!-- Vite PWA inyecta un único /manifest.json durante el build. La fuente
+         de verdad de su nombre, idioma, alcance e íconos está en vite.config.js. -->
     <meta name="theme-color" content="#7A431D">
 
-    <!-- Todo autoalojado: sin CDN externos ni filtración de IP a terceros -->
+    <!-- Recursos de la aplicación autoalojados; los servicios externos declarados en la CSP se usan solo cuando corresponde. -->
     <link rel="stylesheet" href="/vendor/css/fonts.css">
     <link rel="stylesheet" href="/vendor/css/fontawesome.min.css">
     <link rel="stylesheet" href="/src/assets/css/styles.css">

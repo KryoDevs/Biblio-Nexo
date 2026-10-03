@@ -8,7 +8,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://covers.openlibrary.org; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://openlibrary.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+          "value": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://covers.openlibrary.org https://*.tile.openstreetmap.org; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://openlibrary.org https://router.project-osrm.org; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
         },
         {
           "key": "X-Frame-Options",
@@ -24,7 +24,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(self), microphone=(), geolocation=()"
+          "value": "camera=(self), microphone=(), geolocation=(self)"
         },
         {
           "key": "Strict-Transport-Security",

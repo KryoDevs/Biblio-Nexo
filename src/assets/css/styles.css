@@ -700,3 +700,141 @@ html.dark {
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
     z-index: 20;
 }
+
+/* ==========================================
+   Planificador del Bibliomóvil
+   ========================================== */
+.bibliomovil-map {
+    position: relative;
+    width: 100%;
+    height: clamp(340px, 54vh, 620px);
+    min-height: 340px;
+    overflow: hidden;
+    border: 1px solid #d6d3d1;
+    border-radius: 1rem;
+    background: #e7ede9;
+    z-index: 0;
+}
+.bibliomovil-map .leaflet-container {
+    width: 100%;
+    height: 100%;
+    min-height: 340px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: #e7ede9;
+}
+.bibliomovil-map--seleccionando,
+.bibliomovil-map--seleccionando .leaflet-container {
+    cursor: crosshair;
+}
+.bibliomovil-map-placeholder {
+    display: flex;
+    min-height: 340px;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    color: #57534e;
+    text-align: center;
+}
+.bibliomovil-marker-wrap {
+    border: 0 !important;
+    background: transparent !important;
+}
+.bibliomovil-marker {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    place-items: center;
+    border: 3px solid #fff;
+    border-radius: 50% 50% 50% 0;
+    background: #7a431d;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 32%);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    transform: rotate(-45deg);
+}
+.bibliomovil-marker-wrap--origen .bibliomovil-marker {
+    background: #1b3b48;
+}
+.bibliomovil-marker-wrap--pendiente .bibliomovil-marker {
+    border-color: #fff;
+    background: #b45309;
+    animation: marcador-pendiente 1.15s ease-in-out infinite alternate;
+}
+.bibliomovil-marker > span {
+    transform: rotate(45deg);
+}
+.bibliomovil-route-stops {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.bibliomovil-stop-item {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+    border: 1px solid #e7e5e4;
+    border-radius: 0.75rem;
+    padding: 0.6rem;
+    background: #fff;
+}
+.dark .bibliomovil-stop-item {
+    border-color: #44403c;
+    background: #292524;
+}
+.bibliomovil-stop-number {
+    display: grid;
+    width: 1.85rem;
+    height: 1.85rem;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 999px;
+    background: #7a431d;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 900;
+}
+.bibliomovil-stop-copy {
+    flex: 1 1 auto;
+}
+.bibliomovil-stop-action {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    place-items: center;
+    border-radius: 0.5rem;
+    color: #44403c;
+}
+.bibliomovil-stop-action:hover:not(:disabled) {
+    background: #f5f5f4;
+}
+.bibliomovil-stop-action:disabled {
+    cursor: not-allowed;
+    opacity: 0.35;
+}
+.bibliomovil-stop-action--remove {
+    color: #be123c;
+}
+.bibliomovil-stop-action--remove:hover:not(:disabled) {
+    background: #fff1f2;
+}
+@keyframes marcador-pendiente {
+    from { transform: rotate(-45deg) scale(0.94); }
+    to { transform: rotate(-45deg) scale(1.08); }
+}
+@media (max-width: 640px) {
+    .bibliomovil-map,
+    .bibliomovil-map .leaflet-container,
+    .bibliomovil-map-placeholder {
+        min-height: 320px;
+        height: 48vh;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .bibliomovil-marker-wrap--pendiente .bibliomovil-marker { animation: none; }
+}

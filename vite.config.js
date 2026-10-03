@@ -25,38 +25,38 @@ export default defineConfig({
       // script en línea — necesario porque el CSP de index.html tiene
       // script-src 'self' que bloquea scripts inline (fix crítico #2).
       injectRegister: 'script',
+      // La aplicación usa /manifest.json desde index.html y los headers de Vercel.
+      // Esta opción va al nivel del plugin, no dentro del contenido del manifest.
+      manifestFilename: 'manifest.json',
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2,ttf}'],
         // Excluir rutas de supabase si las hubiera, aunque el SW usualmente solo intercepta get
         navigateFallback: 'index.html',
       },
       manifest: {
-        // filename fuerza que el archivo generado sea manifest.json, que es lo
-        // que apunta el <link rel="manifest"> en index.html. Sin esto, vite-pwa
-        // genera manifest.webmanifest y la etiqueta devuelve 404 (fix crítico #3).
-        filename: 'manifest.json',
-        name: "BiblioNexo",
+        name: "BiblioNexo — Biblioteca Municipal de Futrono",
         short_name: "BiblioNexo",
-        start_url: "/",
+        description: "Sistema de gestión de préstamos de la Biblioteca Pública Municipal de Futrono.",
+        id: "/index.html",
+        start_url: "/index.html",
+        scope: "/",
         display: "standalone",
+        lang: "es-CL",
+        dir: "ltr",
         background_color: "#F7F4EB",
         theme_color: "#7A431D",
         icons: [
           {
             src: "/icono-192x192.png",
             sizes: "192x192",
-            type: "image/png"
-          },
-          {
-            src: "/icono-512x512.png",
-            sizes: "512x512",
-            type: "image/png"
+            type: "image/png",
+            purpose: "any"
           },
           {
             src: "/icono-512x512.png",
             sizes: "512x512",
             type: "image/png",
-            purpose: "maskable"
+            purpose: "any"
           }
         ]
       }

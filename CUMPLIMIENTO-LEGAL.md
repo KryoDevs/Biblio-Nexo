@@ -2,7 +2,7 @@
 
 **Sistema:** BiblioNexo — Gestión de préstamos bibliotecarios
 **Responsable del tratamiento:** Ilustre Municipalidad de Futrono
-**Última actualización:** julio de 2026
+**Última actualización:** 2 de octubre de 2026
 
 > **Este documento requiere revisión y firma de la Dirección Jurídica municipal
 > antes de tener valor de cumplimiento.** Lo que sigue describe con exactitud lo
@@ -82,7 +82,9 @@ posible acreditar qué se informó exactamente a cada persona.
 | Destinatario | Rol | Ubicación |
 |---|---|---|
 | Supabase | Encargado del tratamiento (base de datos y autenticación) | *(verificar región del proyecto)* |
-| Google | Solo si se habilita el ingreso con cuenta Google, para personal | Internacional |
+| Google | Inicio de sesión del personal si se habilita; además recibe coordenadas solo cuando el personal elige abrir una ruta en Google Maps | Internacional |
+| OpenStreetMap | Mosaicos del mapa interactivo; recibe IP y solicitudes de teselas visibles | Servicio público; revisar política y uso permitido |
+| OSRM público | Calcula el trazado vial al solicitar una ruta; recibe coordenadas de los puntos, no los nombres ni datos de lectores | Endpoint público de demostración; disponibilidad y retención por verificar |
 
 **Acción pendiente:** la Ley 21.719 exige un contrato de encargo de tratamiento
 con cada proveedor. Hay que suscribir el *Data Processing Agreement* de Supabase
@@ -129,14 +131,14 @@ poder cumplir y acreditar.
 - Escape de HTML en todo dato mostrado en pantalla.
 - Filtros de búsqueda saneados contra inyección.
 - Cifrado en tránsito mediante HTTPS.
-- Respaldo descargable bajo demanda.
+- Respaldo automático programado y registro de resultados; verificar que la tarea y el bucket estén activos en el proyecto publicado.
 - Herramienta de verificación de RLS en Administración → Cumplimiento.
 
 **Pendientes de la organización, no del código:**
 
 - Verificar que las políticas RLS estén efectivamente definidas. Sin ellas, el
   control de acceso por rol es solo apariencia.
-- Definir la periodicidad de los respaldos y dónde se custodian.
+- Definir retención, custodio, pruebas de restauración y ubicación de los respaldos; confirmar en producción la ejecución automática.
 - Procedimiento de notificación de brechas: la Ley 21.719 exige avisar a la
   Agencia y a los afectados, y la Ley 21.663 impone alerta temprana en 3 horas
   e informe inicial en 72 al CSIRT Nacional. Sin un procedimiento escrito y un
@@ -144,54 +146,50 @@ poder cumplir y acreditar.
 - Evaluación de impacto en privacidad, si la autoridad la estima exigible.
 - Capacitación del personal de la biblioteca sobre el manejo de datos.
 
-## 9 bis. Riesgo abierto: la copia local del equipo del mesón (Fase 1)
+## 9 bis. Copias locales y rutas del Bibliomóvil
 
-**Estado:** identificado el 30 de julio de 2026, al diseñar el trabajo sin
-conexión. **No corregido.** La funcionalidad que lo produce todavía no existe;
-esto se escribe para que no se construya sin resolverlo.
+**Estado al 2 de octubre de 2026:** las salvaguardas de software para la copia
+offline ya están implementadas; persisten riesgos operativos que requieren
+controles municipales. Este apartado reemplaza el análisis prospectivo escrito
+antes de que existiera la Fase offline.
 
-Para que la biblioteca pueda atender cuando se cae internet —que es lo habitual
-en Futrono— el equipo del mesón necesita una copia local de parte del padrón de
-lectores, guardada en el navegador (IndexedDB) del computador de la biblioteca.
+### Copia offline del catálogo y de lectores
 
-Eso abre dos problemas que hay que resolver **dentro** de la Fase 1, no después:
+- El catálogo se guarda en IndexedDB y se sincroniza por cambios.
+- **No se replica el padrón completo:** entran solo lectores consultados en el
+  mesón o con préstamo activo. Los lectores inactivos se purgan después de 30
+  días; las lápidas de borrado del servidor también se aplican a la copia local.
+- El service worker no guarda respuestas de Supabase en caché; los datos
+  personales entran por las vías controladas de IndexedDB.
+- La preparación offline informa éxito solo si concluyen todos los pasos de
+  sincronización. Un error no se marca como “preparado”.
 
-**1. El derecho de supresión no llega a la copia local.**
+**Riesgo residual de la organización:** IndexedDB y el almacenamiento local del
+navegador no están cifrados por BiblioNexo. El municipio debe cifrar el disco
+del equipo del mesón y configurar bloqueo automático de sesión; sin eso, una
+persona con acceso físico al perfil del navegador puede leer la copia que aún
+no haya vencido o sido purgada.
 
-Los lectores se borran de verdad: existe un botón Eliminar para el
-administrador, y la política `lectores borrado admin` de la migración 008 lo
-permite. La supresión anonimizadora descrita en la sección 8 convive con ese
-borrado directo, no lo reemplaza.
+### Plan de ruta
 
-Una sincronización basada en marcas temporales (migración 011) transmite altas y
-modificaciones, pero **no puede transmitir un borrado**: la fila desapareció y
-no queda nada que traiga la fecha. Si una persona ejerce su derecho de supresión
-y el administrador borra su ficha, su nombre, RUT, correo y teléfono siguen en
-el disco del equipo del mesón indefinidamente.
+El Bibliomóvil guarda localmente en `localStorage` el nombre de cada parada y
+sus coordenadas; no replica ese plan a Supabase ni lo mezcla con fichas de
+lectores. La ubicación del dispositivo solo se consulta después de pulsar
+“Usar mi ubicación”, con permiso del navegador. El personal puede borrar el
+plan desde la propia vista.
 
-El municipio habría respondido la solicitud y seguiría tratando el dato.
+Para cargar el mapa, el navegador solicita mosaicos a OpenStreetMap. Al calcular
+un trazado vial, envía a OSRM público únicamente las coordenadas (no nombres ni
+fichas); los enlaces de navegación a Google Maps u OpenStreetMap también
+contienen coordenadas. Estos proveedores reciben IP y datos técnicos de las
+solicitudes. La disponibilidad del endpoint público de OSRM no está garantizada
+ni es un compromiso de servicio.
 
-*Corrección comprometida:* tabla de lápidas en el servidor que registre id y
-hora de cada borrado, y purga en el almacén local que elimine a todo lector que
-ya no esté en el servidor. Ambas cosas antes de que la copia local se use con
-datos reales.
-
-**2. Datos personales en un disco que no controla el sistema.**
-
-La copia local queda sin cifrar en el perfil del navegador del equipo del mesón,
-un computador de uso compartido en un edificio municipal. Decisiones tomadas
-para acotarlo, que deben respetarse al implementar:
-
-- El service worker **no** cachea ninguna respuesta de Supabase. Los datos
-  personales van solo al almacén local, donde se controla qué entra y por
-  cuánto tiempo.
-- **No se replica el padrón completo.** Solo los lectores con préstamo activo y
-  los consultados recientemente, con purga automática por antigüedad.
-- El catálogo de libros sí se replica entero: no contiene datos personales.
-
-*Pendiente de la organización:* cifrado de disco en el equipo del mesón y
-bloqueo de sesión del sistema operativo. Sin eso, cualquiera con acceso físico
-al computador de la biblioteca alcanza la copia local.
+**Medidas y límites:** no ingresar domicilios particulares, datos de lectores ni
+ubicaciones que identifiquen a una persona; acordar el uso de los proveedores
+con Jurídica; y recordar que los mosaicos y el cálculo vial requieren internet.
+Sin conexión se conserva el orden de paradas y se dibuja solo una línea recta
+aproximada, no instrucciones de manejo.
 
 ## 10. Incidentes
 
