@@ -160,6 +160,10 @@ export default {
           </p>
         </section>
 
+        </div> <!-- End TAB RUTA -->
+        
+        <!-- TAB CATALOGO -->
+        <div id="tab-catalogo" class="biblio-tab-content hidden space-y-6">
         <section class="bibliomovil-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 overflow-hidden">
           <div class="p-4 md:p-5 border-b border-stone-200 dark:border-stone-700 flex flex-col gap-3">
             <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -178,6 +182,7 @@ export default {
           <div id="bibliomovil-tbody" class="flex flex-col gap-4 p-4">${this._renderBookRows(libros)}</div>
           <div id="bibliomovil-pagination">${crudo(this._paginacionHtml(this.bookPage, total, porPagina, 'bibliomovil-page-btn'))}</div>
         </section>
+      </div> <!-- End TAB CATALOGO -->
       </div>
     `;
 
@@ -193,6 +198,41 @@ export default {
     this._actualizarIndicadorRuta();
 
     await this._montarMapaBibliomovil();
+    
+    // Configurar TABS
+    const tabBtns = container.querySelectorAll('.biblio-tab-btn');
+    const tabContents = container.querySelectorAll('.biblio-tab-content');
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Estilos activos
+        tabBtns.forEach(b => {
+          b.classList.remove('bg-patrimonio-lago', 'text-white');
+          b.classList.add('bg-stone-200', 'text-stone-700', 'dark:bg-stone-800', 'dark:text-stone-300');
+        });
+        btn.classList.add('bg-patrimonio-lago', 'text-white');
+        btn.classList.remove('bg-stone-200', 'text-stone-700', 'dark:bg-stone-800', 'dark:text-stone-300');
+        
+        // Mostrar contenido
+        const targetId = btn.getAttribute('data-target');
+        tabContents.forEach(tc => {
+          if(tc.id === targetId) {
+             tc.classList.remove('hidden');
+             tc.classList.add('block');
+             // Workaround para leaflet
+             if (targetId === 'tab-ruta' && this._mapaBibliomovil) {
+                 setTimeout(() => this._mapaBibliomovil.invalidateSize(), 100);
+             }
+          } else {
+             tc.classList.add('hidden');
+             tc.classList.remove('block');
+          }
+        });
+      });
+    });
+    
+    // Iniciar Mesón Móvil
+    this._conectarMesonMovil(container);
+
   },
 
   _obtenerPlanRutaBibliomovil() {
@@ -537,7 +577,324 @@ export default {
     }
   },
 
-  async _montarMapaBibliomovil() {
+  
+  async _notificarParadaBibliomovil(parada) {
+      this.showToast(`Buscando préstamos de ${parada.nombre}...`, 'info');
+      try {
+          const { db } = await import('../modules/db.js');
+          const prestamos = await db.obtenerPendientesPorParada(parada.nombre);
+          if (prestamos.length === 0) {
+              this.showToast(`No hay préstamos activos registrados en ${parada.nombre}.`, 'info');
+              return;
+          }
+          if (this.showBulkNotifyModal) {
+              this.showBulkNotifyModal(prestamos);
+          }
+      } catch (err) {
+          this.showToast(err.message || 'Error al buscar préstamos de la parada.', 'error');
+      }
+  },
+  
+  _conectarMesonMovil(container) {
+     const btnStart = container.querySelector('#btn-start-scanner');
+     const btnStop = container.querySelector('#btn-stop-scanner');
+     const inputRut = container.querySelector('#biblio-manual-rut');
+     const msgStatus = container.querySelector('#scan-status-msg');
+     const btnLimpiar = container.querySelector('#btn-biblio-limpiar-lector');
+     const toggleBuzon = container.querySelector('#biblio-toggle-buzon');
+     
+     if (!btnStart) return;
+     
+     this._mesonMovilEstado = { lector: null, libro: null, buzon: false };
+     
+     const selectParada = container.querySelector('#biblio-parada-actual');
+     if (selectParada) {
+         const plan = this._obtenerPlanRutaBibliomovil();
+         if (plan.origen) {
+             const opt = document.createElement('option');
+             opt.value = JSON.stringify({ nombre: plan.origen.nombre, lat: plan.origen.lat, lng: plan.origen.lon });
+             opt.textContent = `Punto de partida: ${plan.origen.nombre}`;
+             selectParada.appendChild(opt);
+         }
+         plan.paradas.forEach((p, i) => {
+             const opt = document.createElement('option');
+             opt.value = JSON.stringify({ nombre: p.nombre, lat: p.lat, lng: p.lon });
+             opt.textContent = `Parada ${i+1}: ${p.nombre}`;
+             selectParada.appendChild(opt);
+         });
+     }
+     
+     if (toggleBuzon) {
+         toggleBuzon.addEventListener('change', (e) => {
+             this._mesonMovilEstado.buzon = e.target.checked;
+             if (e.target.checked) {
+                 msgStatus.textContent = "Modo buzón activado. Escanea libros para devolverlos directamente.";
+                 this._mesonMovilEstado.lector = null;
+                 this._actualizarUiLectorBibliomovil(container);
+             }
+         });
+     }
+     
+     let barcodeBuffer = '';
+     let lastKeyTime = 0;
+     const onKeyDown = (e) => {
+         if (document.getElementById('tab-terreno').classList.contains('hidden')) return;
+         if (e.target === inputRut) return;
+         
+         const now = Date.now();
+         if (now - lastKeyTime > 50) {
+             barcodeBuffer = '';
+         }
+         lastKeyTime = now;
+         
+         if (e.key === 'Enter' && barcodeBuffer.length > 3) {
+             this._procesarEscaneoBibliomovil(barcodeBuffer, container);
+             barcodeBuffer = '';
+             e.preventDefault();
+         } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+             barcodeBuffer += e.key;
+         }
+     };
+     window.addEventListener('keydown', onKeyDown);
+     
+     import('../modules/scanner.js').then(module => {
+        const scanner = module.default;
+        
+        btnStart.addEventListener('click', () => {
+           btnStart.classList.add('hidden');
+           btnStop.classList.remove('hidden');
+           msgStatus.textContent = "Cámara encendida. Apunta al código.";
+           scanner.start(async (texto) => {
+              this._procesarEscaneoBibliomovil(texto, container);
+           }, (err) => {
+              msgStatus.textContent = err || "Error iniciando cámara.";
+              btnStart.classList.remove('hidden');
+              btnStop.classList.add('hidden');
+           });
+        });
+        
+        btnStop.addEventListener('click', () => {
+           scanner.stop();
+           btnStart.classList.remove('hidden');
+           btnStop.classList.add('hidden');
+           msgStatus.textContent = "Cámara detenida.";
+        });
+        
+        const oldDestroy = this._destruirMapaBibliomovil;
+        this._destruirMapaBibliomovil = () => {
+           scanner.stop();
+           window.removeEventListener('keydown', onKeyDown);
+           oldDestroy.call(this);
+        };
+     });
+     
+     inputRut.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+           this._procesarEscaneoBibliomovil(inputRut.value.trim(), container);
+           inputRut.value = '';
+        }
+     });
+     
+     btnLimpiar.addEventListener('click', () => {
+         this._mesonMovilEstado.lector = null;
+         this._actualizarUiLectorBibliomovil(container);
+     });
+  },
+  
+  _playAudio(tipo) {
+      try {
+          const ctx = window.AudioContext || window.webkitAudioContext;
+          if (!ctx) return;
+          const audioCtx = new ctx();
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          
+          if (tipo === 'exito') {
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+              osc.frequency.exponentialRampToValueAtTime(1760, audioCtx.currentTime + 0.1);
+              gain.gain.setValueAtTime(0, audioCtx.currentTime);
+              gain.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.02);
+              gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.15);
+              osc.start(); osc.stop(audioCtx.currentTime + 0.2);
+          } else if (tipo === 'error') {
+              osc.type = 'sawtooth';
+              osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+              osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.2);
+              gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+              gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.3);
+              osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+          }
+      } catch(e) {}
+  },
+  
+  _validarRut(rut) {
+      if (!/^[0-9]+-[0-9kK]{1}$/.test(rut)) return false;
+      const [numero, dv] = rut.split('-');
+      let suma = 0, multiplicador = 2;
+      for (let i = numero.length - 1; i >= 0; i--) {
+          suma += parseInt(numero.charAt(i)) * multiplicador;
+          multiplicador = multiplicador < 7 ? multiplicador + 1 : 2;
+      }
+      const dvEsperado = 11 - (suma % 11);
+      const dvCalculado = dvEsperado === 11 ? '0' : (dvEsperado === 10 ? 'K' : dvEsperado.toString());
+      return dv.toUpperCase() === dvCalculado;
+  },
+
+  async _procesarEscaneoBibliomovil(texto, container) {
+      const msgStatus = container.querySelector('#scan-status-msg');
+      msgStatus.textContent = `Procesando: ${texto.substring(0, 20)}...`;
+      
+      const rutMatch = texto.match(/\b([0-9]{7,8}-?[0-9Kk])\b/);
+      if (rutMatch || texto.length < 15) {
+          let rut = rutMatch ? rutMatch[1] : texto;
+          if (!rut.includes('-') && rut.length > 1) rut = rut.slice(0, -1) + '-' + rut.slice(-1);
+          
+          if (this._validarRut(rut)) {
+              if (this._mesonMovilEstado.buzon) {
+                  this._playAudio('error');
+                  msgStatus.textContent = "Estás en modo buzón. Escanea libros, no carnets.";
+                  return;
+              }
+              await this._cargarLectorBibliomovil(rut, container);
+          } else if (!rutMatch) {
+              // Si no es RUT válido y no matcheó regex, probamos como libro (puede ser un EAN8 u otro)
+              await this._cargarLibroBibliomovil(texto, container);
+          } else {
+              this._playAudio('error');
+              msgStatus.textContent = "RUT escaneado no es válido (Módulo 11 falló).";
+          }
+      } else {
+          await this._cargarLibroBibliomovil(texto, container);
+      }
+  },
+  
+  async _cargarLectorBibliomovil(rut, container) {
+      const msgStatus = container.querySelector('#scan-status-msg');
+      try {
+          const module = await import('../modules/db.js');
+          const dbObj = module.db || module;
+          const estado = await dbObj.estadoLector(rut);
+          
+          if (estado.existe) {
+              this._mesonMovilEstado.lector = estado.lector;
+              this._mesonMovilEstado.lectorEstado = estado;
+              this._playAudio('exito');
+              msgStatus.textContent = "Lector identificado.";
+              this._actualizarUiLectorBibliomovil(container);
+          } else {
+              this._playAudio('error');
+              msgStatus.textContent = "Lector no encontrado. Registrando...";
+              if (this.showLectorModal) this.showLectorModal(null, rut);
+          }
+      } catch (err) {
+          this._playAudio('error');
+          msgStatus.textContent = err.message || "Error buscando lector.";
+      }
+  },
+  
+  async _cargarLibroBibliomovil(codigo, container) {
+      const msgStatus = container.querySelector('#scan-status-msg');
+      
+      if (!this._mesonMovilEstado.buzon && !this._mesonMovilEstado.lector) {
+          this._playAudio('error');
+          msgStatus.textContent = "Escanea o ingresa un lector primero, o activa el Buzón.";
+          return;
+      }
+      
+      try {
+          const module = await import('../modules/db.js');
+          const dbObj = module.db || module;
+          // consultarLibro es offline support
+          const info = await dbObj.consultarLibro(codigo); // { libro, prestamos }
+          
+          if (!info || !info.libro) {
+              this._playAudio('error');
+              msgStatus.textContent = "Libro no encontrado en el catálogo.";
+              return;
+          }
+          
+          const libro = info.libro;
+          const prestamoActivo = info.prestamos.find(p => !p.fecha_devolucion_real);
+          
+          if (this._mesonMovilEstado.buzon) {
+              if (prestamoActivo) {
+                  await dbObj.devolverPrestamo(prestamoActivo.id);
+                  this._playAudio('exito');
+                  this.showToast(`Buzón: ${libro.titulo} devuelto correctamente.`, 'success');
+                  msgStatus.textContent = "Libro devuelto con éxito.";
+              } else {
+                  this._playAudio('error');
+                  msgStatus.textContent = "Este libro no registra un préstamo activo.";
+              }
+              return;
+          }
+          
+          // Flujo Normal (Lector seleccionado)
+          if (prestamoActivo && prestamoActivo.lector_id === this._mesonMovilEstado.lector.id) {
+               // Devolverlo si es de él
+               await dbObj.devolverPrestamo(prestamoActivo.id);
+               this._playAudio('exito');
+               this.showToast(`Devolución exitosa: ${libro.titulo}.`, 'success');
+               await this._cargarLectorBibliomovil(this._mesonMovilEstado.lector.rut, container); // refrescar UI
+          } else if (prestamoActivo) {
+               this._playAudio('error');
+               msgStatus.textContent = "El libro está prestado a otro usuario.";
+          } else {
+               // Prestar
+               this._playAudio('exito');
+               if(this.showConfirmarPrestamoModal) {
+                    let ubicacion = null;
+                    const selectParada = container.querySelector('#biblio-parada-actual');
+                    if (selectParada && selectParada.value) {
+                        try { ubicacion = JSON.parse(selectParada.value); } catch(e) {}
+                    }
+                    this.showConfirmarPrestamoModal(libro.id, this._mesonMovilEstado.lector.rut, this._mesonMovilEstado.lectorEstado, async () => {
+                         await this._cargarLectorBibliomovil(this._mesonMovilEstado.lector.rut, container);
+                    }, ubicacion);
+               }
+          }
+      } catch (err) {
+          this._playAudio('error');
+          msgStatus.textContent = err.message || "Error buscando libro.";
+      }
+  },
+  
+  _actualizarUiLectorBibliomovil(container) {
+      const panelEmpty = container.querySelector('#biblio-lector-empty');
+      const panelData = container.querySelector('#biblio-lector-data');
+      const lector = this._mesonMovilEstado.lector;
+      
+      if (!lector) {
+          panelEmpty.classList.remove('hidden');
+          panelData.classList.add('hidden');
+          return;
+      }
+      
+      panelEmpty.classList.add('hidden');
+      panelData.classList.remove('hidden');
+      
+      container.querySelector('#biblio-lector-nombre').textContent = `${lector.nombres} ${lector.apellidos}`;
+      container.querySelector('#biblio-lector-rut').textContent = lector.rut;
+      
+      // Contar prestamos (esto asume que tenemos esa info, en una implementacion real haríamos count a la tabla prestamos)
+      import('../modules/db.js').then(async ({ db }) => {
+          const { count } = await db.supabase.from('prestamos').select('*', { count: 'exact', head: true }).eq('lector_id', lector.id).is('fecha_devolucion_real', null);
+          container.querySelector('#biblio-lector-prestamos').textContent = count || 0;
+          const estadoSpan = container.querySelector('#biblio-lector-estado');
+          if (lector.estado === 'suspendido') {
+              estadoSpan.textContent = 'Suspendido';
+              estadoSpan.className = 'font-bold text-rose-600';
+          } else {
+              estadoSpan.textContent = 'Al día';
+              estadoSpan.className = 'font-bold text-emerald-600';
+          }
+      });
+  },
+
+async _montarMapaBibliomovil() {
     const elemento = document.getElementById('bibliomovil-map');
     if (!elemento || this.currentView !== 'bibliomovil') return;
     try {
@@ -588,6 +945,22 @@ export default {
   },
 
   _alElegirPuntoEnMapaBibliomovil(evento) {
+    const lat = evento.latlng.lat;
+    const lng = evento.latlng.lng;
+    
+    // Intento de geocodificación inversa para no tener que escribir a mano (Automatizar proceso tedioso)
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+      .then(res => res.json())
+      .then(data => {
+         const nameInput = document.getElementById('bibliomovil-stop-name');
+         if (nameInput && !nameInput.value) {
+            // Usar village, town, city, road, etc.
+            const addr = data.address || {};
+            const localName = addr.village || addr.town || addr.city || addr.road || addr.hamlet || data.name || 'Parada Automática';
+            nameInput.value = localName;
+         }
+      }).catch(e => console.log('Error geocodificación', e));
+
     const modo = this._bibliomovilModoMapa;
     const estadoMapa = document.getElementById('bibliomovil-map-status');
     const state = this._bibliomovilMapState;

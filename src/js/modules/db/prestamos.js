@@ -44,7 +44,7 @@ export const prestamos = {
         limite.setDate(limite.getDate() + diasAviso);
         const hastaAviso = limite.toISOString().split('T')[0];
 
-        const campos = 'id, fecha_prestamo, fecha_devolucion_esperada, estado, renovaciones, libros(id, titulo, stock), lectores(id, nombre, rut, email, telefono)';
+        const campos = 'id, fecha_prestamo, fecha_devolucion_esperada, estado, renovaciones, parada_nombre, parada_lat, parada_lng, libros(id, titulo, stock), lectores(id, nombre, rut, email, telefono)';
 
         const aplicarFiltro = q => {
             if (filtro === 'vencidos') return q.lt('fecha_devolucion_esperada', hoy);
@@ -99,9 +99,20 @@ export const prestamos = {
         limite.setDate(limite.getDate() + diasAviso);
 
         const { data, error } = await conTiempoLimite(supabase.from('prestamos')
-            .select('id, fecha_devolucion_esperada, renovaciones, libros(id, titulo), lectores(id, nombre, rut, email, telefono)')
+            .select('id, fecha_devolucion_esperada, renovaciones, parada_nombre, libros(id, titulo), lectores(id, nombre, rut, email, telefono)')
             .eq('estado', 'activo')
             .lte('fecha_devolucion_esperada', limite.toISOString().split('T')[0])
+            .order('fecha_devolucion_esperada')
+            .limit(500), ESPERA);
+        if (error) throw error;
+        return data || [];
+    },
+
+    async obtenerPendientesPorParada(nombreParada) {
+        const { data, error } = await conTiempoLimite(supabase.from('prestamos')
+            .select('id, fecha_devolucion_esperada, renovaciones, parada_nombre, libros(id, titulo), lectores(id, nombre, rut, email, telefono)')
+            .eq('estado', 'activo')
+            .eq('parada_nombre', nombreParada)
             .order('fecha_devolucion_esperada')
             .limit(500), ESPERA);
         if (error) throw error;

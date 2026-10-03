@@ -371,7 +371,7 @@ export default {
    * Muestra la situación del lector y, según el caso, ofrece prestar,
    * registrarlo como lector nuevo, o explica por qué no se puede prestar.
    */
-  showConfirmarPrestamoModal(libroId, rut, estado, alTerminar) {
+  showConfirmarPrestamoModal(libroId, rut, estado, alTerminar, ubicacion = null) {
     const overlay = document.createElement('div');
     overlay.className = 'fixed inset-0 bg-patrimonio-lago/50 backdrop-blur-sm z-[10000] flex items-center justify-center p-4';
 
@@ -429,7 +429,7 @@ export default {
       const btn = e.currentTarget;
       btn.disabled = true;
       try {
-        const r = await db.registrarPrestamo(libroId, rut);
+        const r = await db.registrarPrestamo(libroId, rut, ubicacion);
         cerrar();
         // Fase 1.3: sin conexión, db.js encoló el préstamo en vez de
         // lanzar — se avisa que quedó pendiente, no que ya se completó
@@ -452,7 +452,7 @@ export default {
       this.showNuevoLectorModal(rut, async () => {
         // Tras registrarlo, se reintenta el préstamo con su situación ya actualizada
         const nuevoEstado = await db.estadoLector(rut);
-        this.showConfirmarPrestamoModal(libroId, rut, nuevoEstado, alTerminar);
+        this.showConfirmarPrestamoModal(libroId, rut, nuevoEstado, alTerminar, ubicacion);
       });
     });
 

@@ -370,7 +370,7 @@ class UIManager {
     } else {
       cuerpo =
         `Te recordamos que “${titulo}” debe ser devuelto el ${fecha}, en ${dias} ${plural}.\n\n` +
-        `Pasada esa fecha, tu inscripción queda suspendida y no podrás llevar otros libros hasta devolverlo. ` +
+        (prestamo.parada_nombre ? `Recuerda que mañana el Bibliomóvil estará visitando tu sector en la parada ${prestamo.parada_nombre}. Puedes aprovechar nuestra visita para devolver o renovar el libro.\n\n` : `Pasada esa fecha, tu inscripción queda suspendida y no podrás llevar otros libros hasta devolverlo. `) +
         `Si necesitas más tiempo, puedes renovar el préstamo acercándote a la biblioteca.`;
     }
 

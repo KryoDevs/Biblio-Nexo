@@ -1,50 +1,50 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es-CL">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BiblioNexo — Biblioteca Municipal de Futrono</title>
+    <title>BiblioNexo â€” Biblioteca Municipal de Futrono</title>
 
     <!--
-      Política de Seguridad de Contenido.
+      PolÃ­tica de Seguridad de Contenido.
 
       Todo se sirve desde este mismo origen ('self'), salvo las excepciones
       declaradas: la API de Supabase y Open Library (portadas y datos de ISBN),
-      más mosaicos de OpenStreetMap y el servicio público OSRM para planificar
-      rutas del Bibliomóvil. Cualquier otro origen queda bloqueado por el navegador.
-      Las etiquetas de las paradas nunca se envían al servicio de rutas: solo
-      coordenadas explícitamente seleccionadas por el personal.
+      mÃ¡s mosaicos de OpenStreetMap y el servicio pÃºblico OSRM para planificar
+      rutas del BibliomÃ³vil. Cualquier otro origen queda bloqueado por el navegador.
+      Las etiquetas de las paradas nunca se envÃ­an al servicio de rutas: solo
+      coordenadas explÃ­citamente seleccionadas por el personal.
 
       Esto cierra el riesgo de cadena de suministro: antes se cargaban Tailwind,
-      Supabase, Chart.js y FontAwesome desde CDN de terceros, así que si alguno
-      de ellos era comprometido, se ejecutaba código arbitrario en un sistema
+      Supabase, Chart.js y FontAwesome desde CDN de terceros, asÃ­ que si alguno
+      de ellos era comprometido, se ejecutaba cÃ³digo arbitrario en un sistema
       municipal con datos personales de vecinos.
 
-      IMPORTANTE: lo ideal es enviar esta política como CABECERA HTTP, no como
-      meta. La cabecera permite además frame-ancestors y es más difícil de
-      manipular. Ver LEEME.md, sección de publicación.
+      IMPORTANTE: lo ideal es enviar esta polÃ­tica como CABECERA HTTP, no como
+      meta. La cabecera permite ademÃ¡s frame-ancestors y es mÃ¡s difÃ­cil de
+      manipular. Ver LEEME.md, secciÃ³n de publicaciÃ³n.
 
       script-src ya NO permite 'unsafe-inline'. Los manejadores onclick/onerror
       que quedaban se reemplazaron por addEventListener, y el guardia de
-      arranque se movió a js/arranque.js. Eso significa que, aunque alguien
-      lograra inyectar una etiqueta <script> o un atributo onclick en la página,
-      el navegador se negaría a ejecutarlo.
+      arranque se moviÃ³ a js/arranque.js. Eso significa que, aunque alguien
+      lograra inyectar una etiqueta <script> o un atributo onclick en la pÃ¡gina,
+      el navegador se negarÃ­a a ejecutarlo.
 
-      style-src sí conserva 'unsafe-inline', porque hay atributos style con
-      valores calculados (los colores de las leyendas de los gráficos). Es un
-      riesgo bastante menor: con CSS no se ejecuta código.
+      style-src sÃ­ conserva 'unsafe-inline', porque hay atributos style con
+      valores calculados (los colores de las leyendas de los grÃ¡ficos). Es un
+      riesgo bastante menor: con CSS no se ejecuta cÃ³digo.
 
-      OJO CON LO QUE NO ESTÁ AQUÍ: falta frame-ancestors a propósito.
+      OJO CON LO QUE NO ESTÃ AQUÃ: falta frame-ancestors a propÃ³sito.
 
       Algunas directivas solo funcionan como cabecera HTTP y el navegador las
       ignora cuando llegan por <meta>: frame-ancestors, sandbox, report-uri y
-      report-to. Tenerlas escritas aquí es peor que no tenerlas, porque dan la
-      impresión de una protección que no existe — y además el navegador lo
+      report-to. Tenerlas escritas aquÃ­ es peor que no tenerlas, porque dan la
+      impresiÃ³n de una protecciÃ³n que no existe â€” y ademÃ¡s el navegador lo
       reclama en la consola.
 
-      La protección contra clickjacking se envía por cabecera, en
-      vercel.json, que va en la raíz del proyecto y Vercel lee
-      automáticamente al desplegar.
+      La protecciÃ³n contra clickjacking se envÃ­a por cabecera, en
+      vercel.json, que va en la raÃ­z del proyecto y Vercel lee
+      automÃ¡ticamente al desplegar.
     -->
     <meta http-equiv="Content-Security-Policy" content="
       default-src 'self';
@@ -59,7 +59,7 @@
       object-src 'none'">
 
     <meta name="referrer" content="strict-origin-when-cross-origin">
-    <meta name="description" content="Sistema de gestión de préstamos de la Biblioteca Pública Municipal de Futrono.">
+    <meta name="description" content="Sistema de gestiÃ³n de prÃ©stamos de la Biblioteca PÃºblica Municipal de Futrono.">
 
     <!-- Vista previa al compartir el enlace (por ejemplo, en WhatsApp o Slack
          entre personal municipal). No afecta el buscador: eso ya lo cubre la
@@ -67,48 +67,49 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="BiblioNexo">
     <meta property="og:locale" content="es_CL">
-    <meta property="og:title" content="BiblioNexo — Biblioteca Municipal de Futrono">
-    <meta property="og:description" content="Sistema de gestión de préstamos de la Biblioteca Pública Municipal de Futrono.">
+    <meta property="og:title" content="BiblioNexo â€” Biblioteca Municipal de Futrono">
+    <meta property="og:description" content="Sistema de gestiÃ³n de prÃ©stamos de la Biblioteca PÃºblica Municipal de Futrono.">
     <meta property="og:image" content="icono-512x512.png">
 
     <link rel="icon" href="icono-192x192.png" type="image/png" sizes="192x192">
     <link rel="icon" href="icono-512x512.png" type="image/png" sizes="512x512">
     <link rel="apple-touch-icon" href="icono-192x192.png">
 
-    <!-- Vite PWA inyecta un único /manifest.json durante el build. La fuente
-         de verdad de su nombre, idioma, alcance e íconos está en vite.config.js. -->
+    <!-- Vite PWA inyecta un Ãºnico /manifest.json durante el build. La fuente
+         de verdad de su nombre, idioma, alcance e Ã­conos estÃ¡ en vite.config.js. -->
     <meta name="theme-color" content="#7A431D">
 
-    <!-- Recursos de la aplicación autoalojados; los servicios externos declarados en la CSP se usan solo cuando corresponde. -->
+    <!-- Recursos de la aplicaciÃ³n autoalojados; los servicios externos declarados en la CSP se usan solo cuando corresponde. -->
     <link rel="stylesheet" href="/vendor/css/fonts.css">
     <link rel="stylesheet" href="/vendor/css/fontawesome.min.css">
     <link rel="stylesheet" href="/src/assets/css/styles.css">
 
-    <!-- Guardia de arranque. Va como módulo (deferido) y ANTES que main.js:
-         el navegador ejecuta los módulos en orden de documento antes de
-         DOMContentLoaded, así que la función de error y el vigía de 10 s ya
-         existen cuando arranca la aplicación. Tiene que ser un módulo para
-         que Vite lo empaquete: un script clásico que apunte a /src/ no se
-         copia a dist/ y en producción daría 404 (ver pruebas/probar-interfaz.mjs). -->
+    <!-- Guardia de arranque. Va como mÃ³dulo (deferido) y ANTES que main.js:
+         el navegador ejecuta los mÃ³dulos en orden de documento antes de
+         DOMContentLoaded, asÃ­ que la funciÃ³n de error y el vigÃ­a de 10 s ya
+         existen cuando arranca la aplicaciÃ³n. Tiene que ser un mÃ³dulo para
+         que Vite lo empaquete: un script clÃ¡sico que apunte a /src/ no se
+         copia a dist/ y en producciÃ³n darÃ­a 404 (ver pruebas/probar-interfaz.mjs). -->
     <script type="module" src="/src/js/arranque.js"></script>
 </head>
 <body class="bg-patrimonio-base font-sans text-stone-800">
 
     <main id="views-container" tabindex="-1" aria-label="Contenido principal" class="h-screen w-full bg-patrimonio-lago flex items-center justify-center">
         <i aria-hidden="true" class="fas fa-spinner fa-spin text-4xl text-patrimonio-madera"></i>
-        <span class="sr-only">Cargando el sistema…</span>
+        <span class="sr-only">Cargando el sistemaâ€¦</span>
     </main>
 
     <!-- Contenedor Global de Notificaciones -->
     <div id="toast-container" role="status" aria-live="polite" class="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
 
-    <!-- Librerías autoalojadas. Sin integrity porque ya no hay tercero que verificar:
-         los archivos se sirven desde el mismo origen que la aplicación. -->
-    <!-- html5-qrcode ya no se carga aquí: pesa 368 KB y solo hace falta en el
-         Mesón. Se pide al encender la cámara (ver js/modules/scanner.js). -->
+    <!-- LibrerÃ­as autoalojadas. Sin integrity porque ya no hay tercero que verificar:
+         los archivos se sirven desde el mismo origen que la aplicaciÃ³n. -->
+    <!-- html5-qrcode ya no se carga aquÃ­: pesa 368 KB y solo hace falta en el
+         MesÃ³n. Se pide al encender la cÃ¡mara (ver js/modules/scanner.js). -->
     <script id="script-supabase" src="/vendor/js/supabase.js"></script>
 
-    <!-- Módulo Principal -->
+    <!-- MÃ³dulo Principal -->
     <script id="script-app" type="module" src="/src/js/main.js"></script>
 </body>
 </html>
+

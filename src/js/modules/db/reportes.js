@@ -49,13 +49,17 @@ export const reportes = {
             // "En estante" = suma del stock disponible de todos los libros (copias que no están prestadas ahora mismo)
             const enEstante = (stockRows.data || []).reduce((sum, b) => sum + (b.stock || 0), 0);
 
+            // Obtener conteo por parada para el mapa de calor
+            const { data: paradasData } = await conTiempoLimite(supabase.rpc('estadisticas_paradas'), ESPERA).catch(() => ({ data: [] }));
+
             return {
                 libros: libros.count || 0,
                 lectores: lectores.count || 0,
                 prestamos: activos.count || 0,
                 devueltos: devueltos.count || 0,
                 noDevueltos: vencidos.count || 0,
-                enEstante
+                enEstante,
+                paradas: paradasData || []
             };
         } catch (e) {
             return { libros: 0, lectores: 0, prestamos: 0, devueltos: 0, noDevueltos: 0, enEstante: 0 };

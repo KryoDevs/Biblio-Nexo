@@ -425,10 +425,16 @@ async function _ejecutarRpcMuta(rpcName, params, mensajeCola, errorMsgs = {}) {
 }
 
 export const db = {
-    async registrarPrestamo(libroId, lectorRut) {
+    async registrarPrestamo(libroId, lectorRut, ubicacion = null) {
+        const payload = { p_libro_id: libroId, p_lector_rut: lectorRut };
+        if (ubicacion && ubicacion.nombre) {
+            payload.p_parada_nombre = ubicacion.nombre;
+            payload.p_parada_lat = ubicacion.lat || null;
+            payload.p_parada_lng = ubicacion.lng || null;
+        }
         return _ejecutarRpcMuta(
             'prestar_libro',
-            { p_libro_id: libroId, p_lector_rut: lectorRut },
+            payload,
             `Préstamo del libro #${libroId} al RUT ${lectorRut}`,
             { porDefecto: 'Fallo al registrar préstamo.' }
         );
