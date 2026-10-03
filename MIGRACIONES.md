@@ -1,9 +1,10 @@
-# Migraciones de BiblioNexo (001–026)
+# Migraciones de BiblioNexo (001–028)
 
-Este documento describe el estado del repositorio al **2 de octubre de 2026**.
+Este documento describe el estado del repositorio al **3 de octubre de 2026**.
 Las migraciones se encuentran en `supabase/migrations/` y se aplican por número,
-con la CLI de Supabase. No se debe asumir qué hay aplicado en una base remota:
-primero se compara el historial del servidor con estos archivos.
+con la CLI de Supabase o siguiendo el orden documentado abajo. No se debe asumir
+qué hay aplicado en una base remota: primero se compara el historial del servidor
+con estos archivos.
 
 ## Inventario
 
@@ -18,7 +19,7 @@ primero se compara el historial del servidor con estos archivos.
 | `007_correcciones_y_cumplimiento_legal.sql` | Correcciones del esquema y medidas de cumplimiento. |
 | `008_perfiles_y_permisos_librero.sql` | Perfiles y permisos del personal librero. |
 | `009_registro_de_errores.sql` | Registro técnico de errores. |
-| `010_consolidacion.sql` | Definiciones consolidadas de RPC y manifiestos de verificación. |
+| `010_consolidacion.sql` | Definiciones consolidadas de RPC (58 funciones, 56 en manifiesto) y manifiestos de verificación. |
 | `011_marcas_de_sincronizacion.sql` | Marcas de cambios y disparadores para sincronización delta. |
 | `012_permisos_auth_users.sql` | Permisos mínimos necesarios sobre `auth.users`. |
 | `013_politicas_usuarios.sql` | Políticas RLS de perfiles y asignación de roles. |
@@ -34,7 +35,9 @@ primero se compara el historial del servidor con estos archivos.
 | `023_expirar_reservas.sql` | Programación de expiración de reservas apartadas. |
 | `024_rpc_eliminar_lector.sql` | Marcador histórico; la implementación de la RPC vive en la consolidación 010. |
 | `025_anonimizacion_lectores.sql` | Fecha de anonimización en el registro del lector. |
-| `026_es_bibliomovil.sql` | Marca explícita para el catálogo del Bibliomóvil. |
+| `026_es_bibliomovil.sql` | Marca explícita (`es_bibliomovil`) para el catálogo del Bibliomóvil. |
+| `027_prestamos_coordenadas.sql` | Agrega de forma idempotente `parada_nombre`, `parada_lat` y `parada_lng` a `public.prestamos` para préstamos realizados en ruta del Bibliomóvil. |
+| `028_reparar_sobrecarga_prestar_libro_y_paradas.sql` | Elimina la sobrecarga obsoleta `public.prestar_libro(bigint, text)` (dejando como única firma la de 5 argumentos con `DEFAULT NULL` consolidada en `010_consolidacion.sql`) y crea el índice parcial `idx_prestamos_parada_nombre`. |
 
 Las funciones auxiliares de los respaldos y cron requieren además desplegar las
 Edge Functions correspondientes (`supabase/functions/`) y configurar los
@@ -118,7 +121,7 @@ idempotente previa, documentada expresamente).
 Con una sesión de administrador:
 
 ```sql
-select * from public.verificar_definiciones() where estado <> 'Correcto';
+select * from public.verificar_definiciones() where diagnostico <> 'Correcto';
 select * from public.verificar_rls();
 select * from public.verificar_circulacion();
 ```
