@@ -41,11 +41,17 @@ supabase db push
 supabase migration list --linked
 ```
 
-El repositorio contiene las migraciones 001–026. La CLI las aplica en orden;
+El repositorio contiene las migraciones 001–030. La CLI las aplica en orden;
 consulta [MIGRACIONES.md](MIGRACIONES.md) para sus propósitos y dependencias.
 No edites ni vuelvas a ejecutar una migración histórica que ya se aplicó en
 producción para “arreglarla”: prepara una migración nueva, salvo el caso
 explícito de consolidación que documenta ese archivo.
+
+**Cuando no se pueda usar la CLI** (por ejemplo, si solo se tiene acceso al panel web), la migración
+030 tiene su propia guía con los bloques listos para pegar en el editor SQL, en
+[`docs/despliegue/030-separacion-catalogos-sql-editor.md`](docs/despliegue/030-separacion-catalogos-sql-editor.md),
+con la comprobación previa, la verificación posterior y la reversa. Es una excepción documentada, no
+la vía normal: los bloques los valida `pruebas/probar-despliegue-manual.py` contra un PostgreSQL real.
 
 Después de aplicar, con una sesión administrativa, ejecuta los diagnósticos:
 

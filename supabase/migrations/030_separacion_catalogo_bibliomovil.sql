@@ -34,6 +34,13 @@
 --     funciones del sistema (ver la cabecera de ese archivo).
 -- ============================================================================
 
+-- La columna la creó la 026. Se repite aquí de forma idempotente para que esta
+-- migración también funcione sola —por ejemplo, pegada a mano en el editor SQL
+-- de Supabase— en una base donde la 026 no se haya aplicado todavía. Si ya
+-- existe, no hace nada.
+alter table public.libros
+  add column if not exists es_bibliomovil boolean default false;
+
 alter table public.libros
   alter column es_bibliomovil set default false;
 

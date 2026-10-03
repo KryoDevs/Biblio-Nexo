@@ -399,6 +399,11 @@ No forma parte de la aplicación ni de la suite: `dist/` está en `.gitignore` y
   distinguen «colección vacía» de «búsqueda sin resultados».
 - **`probar-migraciones.py`**: que `libros.es_bibliomovil` quede `not null` con `default false`, que
   cada colección devuelva solo sus ejemplares y que ningún libro quede fuera de las dos.
+- **`probar-despliegue-manual.py`**: lee los bloques SQL **del documento**
+  `docs/despliegue/030-separacion-catalogos-sql-editor.md` (la guía para pegar en el editor SQL de
+  Supabase cuando no se puede usar la CLI), reproduce el bug en una base anterior a esta ronda, los
+  aplica uno por uno y valida las consultas del Paso 5 y la reversa. Existe para que el documento y
+  las migraciones no se separen: si alguien corrige una cosa y olvida la otra, la prueba falla.
 - **`persistencia.test.js`** (Vitest): ejercita la función real `filtrarLibrosLocales()`, con el campo
   `stock` que de verdad usa la copia local, la semántica `NULL` = sede, los filtros de disponibilidad y
   la búsqueda sin tildes.
