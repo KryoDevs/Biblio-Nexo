@@ -256,14 +256,14 @@ export default {
       if (buscando) {
         return html`
           <div class="px-4 py-10 text-center">
-            <i aria-hidden="true" class="fas fa-magnifying-glass text-2xl text-stone-400 dark:text-stone-500"></i>
+            <i aria-hidden="true" class="fas fa-magnifying-glass text-2xl text-stone-500 dark:text-stone-400"></i>
             <p class="mt-2 font-bold text-stone-700 dark:text-stone-200">Sin resultados para «${buscando}»</p>
             <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">Prueba con otra palabra, o revisa los filtros de disponibilidad.</p>
           </div>`;
       }
       return html`
         <div class="px-4 py-10 text-center">
-          <i aria-hidden="true" class="fas fa-book-open text-2xl text-stone-400 dark:text-stone-500"></i>
+          <i aria-hidden="true" class="fas fa-book-open text-2xl text-stone-500 dark:text-stone-400"></i>
           <p class="mt-2 font-bold text-stone-700 dark:text-stone-200">
             ${esColleccionRuta ? 'El Bibliomóvil todavía no tiene títulos asignados' : 'Esta colección todavía no tiene títulos'}
           </p>
