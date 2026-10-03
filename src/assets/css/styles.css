@@ -222,6 +222,10 @@ tbody tr:hover {
 .stamp-danger { color: #be123c; } /* rose-700 */
 .stamp-info { color: var(--patrimonio-lago); }
 .stamp-success { color: var(--patrimonio-bosque); }
+/* Colección del Bibliomóvil (migración 030): madera, como el lomo de un
+   libro de viaje. Se distingue de los sellos de género/ubicación sin
+   depender solo del color (lleva su propio ícono y texto). */
+.stamp-movil { color: var(--patrimonio-madera); }
 
 /* Sello sobre fondo oscuro (sidebar) — variante clara sin relleno */
 .stamp-onDark {
@@ -758,6 +762,92 @@ html.dark {
 /* ==========================================
    Planificador del Bibliomóvil
    ========================================== */
+/* Hoja de ruta imprimible (botón «Imprimir hoja de ruta»).
+   Vive fuera del marco de la aplicación —se agrega al body solo al imprimir—
+   para que el CSS pueda ocultar todo lo demás sin pelearse con la estructura
+   de la vista. Nunca se ve en pantalla: solo en papel. */
+.hoja-ruta-print {
+    display: none;
+}
+@media print {
+    body.imprimiendo-hoja-ruta > * {
+        display: none !important;
+    }
+    body.imprimiendo-hoja-ruta > .hoja-ruta-print {
+        display: block !important;
+        color: #1c1917;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+    .hoja-ruta-print h1 {
+        font-family: 'Newsreader', Georgia, serif;
+        font-size: 24px;
+        font-weight: 600;
+        margin: 0 0 2px;
+    }
+    .hoja-ruta-print .hoja-ruta__institucion {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #57534e;
+        margin: 0 0 2px;
+    }
+    .hoja-ruta-print .hoja-ruta__fecha {
+        font-size: 12px;
+        color: #57534e;
+        margin: 0 0 18px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid #d6d3d1;
+    }
+    .hoja-ruta-print .hoja-ruta__lista {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    .hoja-ruta-print .hoja-ruta__lista li {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 7px 0;
+        border-bottom: 1px dotted #d6d3d1;
+    }
+    .hoja-ruta-print .hoja-ruta__punto {
+        display: inline-block;
+        min-width: 22px;
+        height: 22px;
+        line-height: 22px;
+        text-align: center;
+        border: 1.5px solid #1c1917;
+        border-radius: 50%;
+        font-size: 11px;
+        font-weight: 800;
+    }
+    .hoja-ruta-print .hoja-ruta__datos strong {
+        display: block;
+        font-size: 14px;
+    }
+    .hoja-ruta-print .hoja-ruta__datos span {
+        font-size: 11.5px;
+        color: #57534e;
+    }
+    .hoja-ruta-print .hoja-ruta__nota {
+        margin-top: 16px;
+        font-size: 11px;
+        color: #57534e;
+        line-height: 1.5;
+    }
+    .hoja-ruta-print .hoja-ruta__anotaciones {
+        margin-top: 22px;
+        height: 120px;
+        border: 1px solid #d6d3d1;
+        border-radius: 8px;
+        padding: 8px 10px;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #a8a29e;
+    }
+}
+
 .bibliomovil-map {
     position: relative;
     width: 100%;

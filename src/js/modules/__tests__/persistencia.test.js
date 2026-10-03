@@ -1,72 +1,53 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import persistencia from '../persistencia.js';
+import { describe, it, expect } from 'vitest';
+// Se importa la función REAL, no una copia escrita en la prueba. La versión
+// anterior de este archivo reimplementaba los filtros dentro del test
+// ("aplicarFiltros") y comparaba esa copia consigo misma: podía pasar en verde
+// mientras filtrarLibrosLocales() —la que se ejecuta sin conexión— estuviera
+// mal. Y lo estaba: usaba los campos `ejemplares_disponibles` en vez de
+// `stock` (la forma real de la tabla) y trataba NULL como «ninguna colección».
+import { filtrarLibrosLocales } from '../persistencia.js';
 
-describe('db.persistencia - Filtros Bibliomóvil', () => {
-    
-    // Lista de prueba con las combinaciones de propiedades
-    const todosSimulados = [
-        { id: 1, titulo: 'Libro A', es_bibliomovil: true, ejemplares_disponibles: 2 },
-        { id: 2, titulo: 'Libro B', es_bibliomovil: true, ejemplares_disponibles: 0 },
-        { id: 3, titulo: 'Libro C', es_bibliomovil: false, ejemplares_disponibles: 1 },
-        { id: 4, titulo: 'Libro D', es_bibliomovil: false, ejemplares_disponibles: 0 }
+describe('persistencia.filtrarLibrosLocales — filtros del catálogo sin conexión', () => {
+    // Forma real de la tabla `libros` replicada en IndexedDB: `stock`, no
+    // `ejemplares_disponibles` (ese nombre solo existe en el RPC del servidor).
+    const libros = [
+        { id: 1, titulo: 'Libro A', es_bibliomovil: true, stock: 2 },
+        { id: 2, titulo: 'Libro B', es_bibliomovil: true, stock: 0 },
+        { id: 3, titulo: 'Libro C', es_bibliomovil: false, stock: 1 },
+        { id: 4, titulo: 'Libro D', es_bibliomovil: false, stock: 0 },
+        { id: 5, titulo: 'Árboles del sur', stock: 3 } // sin marcar (NULL en bases anteriores a la 030)
     ];
 
-    beforeEach(() => {
-        // Mockear las partes internas de persistencia que tocan IndexedDB.
-        // Dado que persistencia abre un DB real, sobreescribiremos su método buscarLibrosLocales temporalmente
-        // pero queremos probar la LOGICA interna de buscarLibrosLocales.
-        
-        // La mejor manera en JS sin refactorizar 'abrir' ni 'conAlmacen' (ya que no se exportan) 
-        // es reemplazar la implementación de window.indexedDB (fake-indexeddb se usa en legacy,
-        // pero para aislar en vitest, podemos simplemente emular la lógica o
-        // inyectar la lógica en el test).
-        // Sin embargo, para probar la función original, necesitamos que 'abrir' funcione.
-        
-        // Ya que fake-indexeddb no está levantado por defecto en este archivo vitest,
-        // vamos a probar la lógica de filtrado exacto que implementamos extrayéndola.
+    it('separa las colecciones igual que buscar_libros() en el servidor', () => {
+        expect(filtrarLibrosLocales(libros, '', true, 'todos').map(l => l.id)).toEqual([1, 2]);
+        expect(filtrarLibrosLocales(libros, '', false, 'todos').map(l => l.id)).toEqual([3, 4, 5]);
     });
 
-    afterEach(() => {
-        vi.restoreAllMocks();
+    it('un libro sin marcar cuenta como de sede, no como de ninguna colección', () => {
+        const sede = filtrarLibrosLocales(libros, '', false, 'todos').map(l => l.id);
+        const movil = filtrarLibrosLocales(libros, '', true, 'todos').map(l => l.id);
+        expect(sede).toContain(5);
+        expect(movil).not.toContain(5);
+        // Y ninguna fila se pierde entre las dos vistas.
+        expect([...sede, ...movil].sort()).toEqual([1, 2, 3, 4, 5]);
     });
 
-    it('Filtro lógico de esBibliomovil y filtroStock funciona como se espera', () => {
-        // Extraemos la lógica pura que inyectamos en buscarLibrosLocales para validarla unitariamente
-        function aplicarFiltros(todos, limpia, esBibliomovil, filtroStock) {
-            let filtrados = limpia ? todos.filter(b => 
-                (b.titulo && b.titulo.toLowerCase().includes(limpia)) ||
-                (b.autor && b.autor.toLowerCase().includes(limpia)) ||
-                (b.isbn && b.isbn.includes(limpia))
-            ) : todos;
+    it('sin colección pedida devuelve todo (herramientas internas)', () => {
+        expect(filtrarLibrosLocales(libros, '', null, 'todos').map(l => l.id)).toEqual([1, 2, 3, 4, 5]);
+    });
 
-            if (esBibliomovil === true) {
-                filtrados = filtrados.filter(b => b.es_bibliomovil === true);
-            } else if (esBibliomovil === false) {
-                filtrados = filtrados.filter(b => !b.es_bibliomovil);
-            }
+    it('filtra por disponibilidad usando `stock`, la columna real', () => {
+        expect(filtrarLibrosLocales(libros, '', null, 'disponibles').map(l => l.id)).toEqual([1, 3, 5]);
+        expect(filtrarLibrosLocales(libros, '', null, 'prestados').map(l => l.id)).toEqual([2, 4]);
+    });
 
-            if (filtroStock === 'disponibles') {
-                filtrados = filtrados.filter(b => b.ejemplares_disponibles > 0);
-            } else if (filtroStock === 'prestados') {
-                filtrados = filtrados.filter(b => b.ejemplares_disponibles === 0);
-            }
-            return filtrados;
-        }
+    it('busca ignorando tildes y mayúsculas', () => {
+        expect(filtrarLibrosLocales(libros, 'arboles', null, 'todos').map(l => l.id)).toEqual([5]);
+        expect(filtrarLibrosLocales(libros, 'LIBRO c', null, 'todos').map(l => l.id)).toEqual([3]);
+    });
 
-        // 1. esBibliomovil = true, filtroStock = 'todos' (debe devolver 1 y 2)
-        let res = aplicarFiltros(todosSimulados, '', true, 'todos');
-        expect(res.map(l => l.id)).toEqual([1, 2]);
-
-        // 2. esBibliomovil = null, filtroStock = 'disponibles' (debe devolver 1 y 3)
-        res = aplicarFiltros(todosSimulados, '', null, 'disponibles');
-        expect(res.map(l => l.id)).toEqual([1, 3]);
-
-        // 3. esBibliomovil = true, filtroStock = 'prestados' (debe devolver solo 2)
-        res = aplicarFiltros(todosSimulados, '', true, 'prestados');
-        expect(res.map(l => l.id)).toEqual([2]);
-
-        // 4. esBibliomovil = false, filtroStock = 'todos' (debe devolver 3 y 4)
-        res = aplicarFiltros(todosSimulados, '', false, 'todos');
-        expect(res.map(l => l.id)).toEqual([3, 4]);
+    it('tolera entradas que no son una lista', () => {
+        expect(filtrarLibrosLocales(null)).toEqual([]);
+        expect(filtrarLibrosLocales(undefined, 'x', true)).toEqual([]);
     });
 });

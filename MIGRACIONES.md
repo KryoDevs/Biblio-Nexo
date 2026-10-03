@@ -1,4 +1,4 @@
-# Migraciones de BiblioNexo (001–029)
+# Migraciones de BiblioNexo (001–030)
 
 Este documento describe el estado del repositorio al **3 de octubre de 2026**.
 Las migraciones se encuentran en `supabase/migrations/` y se aplican por número,
@@ -39,6 +39,7 @@ con estos archivos.
 | `027_prestamos_coordenadas.sql` | Agrega de forma idempotente `parada_nombre`, `parada_lat` y `parada_lng` a `public.prestamos` para préstamos realizados en ruta del Bibliomóvil. |
 | `028_reparar_sobrecarga_prestar_libro_y_paradas.sql` | Elimina la sobrecarga obsoleta `public.prestar_libro(bigint, text)` (dejando como única firma la de 5 argumentos con `DEFAULT NULL` consolidada en `010_consolidacion.sql`) y crea el índice parcial `idx_prestamos_parada_nombre`. |
 | `029_rol_bibliomovil.sql` | Restringe `public.usuarios.rol` a `admin`, `librero` o `bibliomovil`. La RPC `asignar_rol` se actualiza en `010_consolidacion.sql`; en bases ya desplegadas hay que reaplicar la 010 y redesplegar `invitar-personal`. |
+| `030_separacion_catalogos_bibliomovil.sql` | Deja `libros.es_bibliomovil` en `not null default false` (normaliza los `NULL` a sede) e indexa `(es_bibliomovil, titulo)`. `buscar_libros()` compara con `coalesce` en la 010. Se puede aplicar a mano con la guía `docs/despliegue/030-separacion-catalogos-sql-editor.md`. |
 
 Las funciones auxiliares de los respaldos y cron requieren además desplegar las
 Edge Functions correspondientes (`supabase/functions/`) y configurar los

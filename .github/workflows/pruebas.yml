@@ -132,6 +132,14 @@ jobs:
       - name: Probar las migraciones (dos escenarios de esquema)
         run: python3 pruebas/probar-migraciones.py
 
+      - name: Probar los bloques SQL de la guía de despliegue manual
+        # La guía docs/despliegue/030-separacion-catalogos-sql-editor.md se pega
+        # a mano en el editor SQL de Supabase, sin CLI y sin revisión de nadie.
+        # Esta prueba lee los bloques DEL DOCUMENTO, reproduce el bug en una
+        # base previa a esta ronda, los aplica y comprueba la verificación del
+        # Paso 5 — para que el documento y las migraciones no se separen.
+        run: python3 pruebas/probar-despliegue-manual.py
+
   # ==========================================================================
   # 4. Base de datos real
   # ==========================================================================

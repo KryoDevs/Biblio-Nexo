@@ -513,7 +513,7 @@ export default {
 
     return `
       <div class="border border-stone-300 dark:border-stone-600 rounded-xl overflow-hidden">
-        <div class="p-4 bg-stone-50 dark:bg-stone-800/50/70 flex items-start gap-3">
+        <div class="p-4 bg-stone-50 dark:bg-stone-800/70 flex items-start gap-3">
           ${this._portadaHtml(libro)}
           <div class="min-w-0 flex-1">
             <p class="font-serif font-semibold text-stone-900 dark:text-stone-100 leading-tight">${escapeHtml(libro.titulo)}</p>

@@ -1168,6 +1168,61 @@ def main():
                     como(uid_librero)
             prueba("estadisticas_paradas() rechaza llamadas sin sesión", estadisticas_paradas_rechaza_anon)
 
+            # --- Separación de catálogos (030) ---
+            # Lo que se comprueba es la regla que sostiene las dos vistas: cada
+            # colección devuelve SOLO sus ejemplares y ningún libro puede
+            # quedar fuera de las dos. Antes de la 030, un libro con la columna
+            # en NULL no aparecía ni filtrando por sede ni por móvil.
+            print("\n  Separación de catálogos (sede / Bibliomóvil):")
+            como(uid_admin)
+
+            def columna_queda_not_null():
+                r = correr(srv, "select is_nullable, coalesce(column_default, '') from information_schema.columns "
+                                "where table_schema = 'public' and table_name = 'libros' "
+                                "and column_name = 'es_bibliomovil';")
+                assert 'NO' in r, f"es_bibliomovil quedó admitiendo NULL después de la 030: {r}"
+                assert 'false' in r, f"el valor por omisión debía ser false: {r}"
+            prueba("030: es_bibliomovil ya no admite NULL y su default es false", columna_queda_not_null)
+
+            def cada_coleccion_solo_lo_suyo():
+                # El libro 1 pasa al Bibliomóvil; el 2 se queda en la sede.
+                correr(srv, "update public.libros set es_bibliomovil = true where id = 1;")
+                correr(srv, "update public.libros set es_bibliomovil = false where id = 2;")
+                revision = correr(srv, """
+                    select
+                      (select case when count(*) = 0 then 'VACIO'
+                                   when bool_and(es_bibliomovil) then 'OK' else 'MEZCLA' end
+                        from public.buscar_libros('', 500, 0, true)) as movil_ok,
+                      (select case when count(*) = 0 then 'VACIO'
+                                   when bool_and(not es_bibliomovil) then 'OK' else 'MEZCLA' end
+                        from public.buscar_libros('', 500, 0, false)) as sede_ok,
+                      (select count(*) from public.buscar_libros('', 500, 0, null)) as con_todos,
+                      (select count(*) from public.libros) as en_tabla;
+                """)
+                assert 'VACIO' not in revision, f"alguna colección quedó vacía: {revision}"
+                assert 'MEZCLA' not in revision, f"una colección devolvió ejemplares de la otra: {revision}"
+                assert 'OK' in revision, f"no se pudo verificar la separación: {revision}"
+                # Y ningún libro queda fuera de las dos: sede + móvil = total.
+                conteo = correr(srv, """
+                    select (select count(*) from public.buscar_libros('', 500, 0, true))
+                         + (select count(*) from public.buscar_libros('', 500, 0, false))
+                         = (select count(*) from public.libros) as cuadra;
+                """)
+                assert 't' in conteo or 'true' in conteo.lower(), (
+                    f"sede + Bibliomóvil no suman el total de libros: {conteo}"
+                )
+                # Un ejemplar no puede estar en las dos colecciones a la vez.
+                solape = correr(srv, """
+                    select case when count(*) = 0 then 'SIN_SOLAPE' else 'SOLAPADO' end
+                    from public.buscar_libros('', 500, 0, true) m
+                    join public.buscar_libros('', 500, 0, false) s on s.id = m.id;
+                """)
+                assert 'SIN_SOLAPE' in solape, f"hay libros en las dos colecciones: {solape}"
+                correr(srv, "update public.libros set es_bibliomovil = false where id = 1;")
+            prueba("buscar_libros() separa las colecciones y ninguna queda fuera", cada_coleccion_solo_lo_suyo)
+
+            como(uid_librero)
+
         finally:
             if srv:
                 srv.cleanup()

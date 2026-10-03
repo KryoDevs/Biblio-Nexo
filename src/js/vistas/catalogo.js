@@ -15,23 +15,53 @@
 
 import { html, crudo } from '../modules/utilidades.js';
 import { db } from '../modules/db.js';
+import { CONFIG } from '../config.js';
 
 
 export default {
+  /** ¿El rol actual tiene la vista Bibliomóvil en su menú? (admin y librero sí). */
+  _puedeVerBibliomovil() {
+    const vistas = CONFIG.VIEWS_BY_ROLE[this.currentUserRole] || [];
+    return vistas.some(v => v.id === 'bibliomovil');
+  },
+
   async renderCatalog() {
     const container = this._container();
     if (!container) return;
 
     const porPagina = this.param('filas_por_pagina');
-    const { libros, total } = await db.obtenerLibros(this.catalogSearch || '', this.bookPage, porPagina, null, this.catalogFilter || 'todos');
-    // Si el usuario ya cambió de vista mientras esperábamos la respuesta, no pintamos nada
-    if (this.currentView !== 'catalog') return;
+
+    // El catálogo está separado en dos colecciones (migración 030):
+    //   · el rol de ruta ve el catálogo del Bibliomóvil (es_bibliomovil = true);
+    //   · el resto del personal ve el catálogo de la biblioteca (false).
+    // Antes se pedían las dos mezcladas, así que el mismo título aparecía en
+    // los dos lados y no se sabía si el ejemplar estaba en la sede o en el
+    // camión.
+    const esColeccionRuta = this.currentUserRole === 'bibliomovil';
+
+    // Cada render tiene su número: si una búsqueda lenta responde después de
+    // que la persona ya cambió de filtro o de página, su resultado no puede
+    // pisar el de la consulta vigente.
+    const solicitud = (this._catalogRenderVersion || 0) + 1;
+    this._catalogRenderVersion = solicitud;
+
+    const { libros, total } = await db.obtenerLibros(
+      this.catalogSearch || '', this.bookPage, porPagina, esColeccionRuta, this.catalogFilter || 'todos'
+    );
+    // Si el usuario ya cambió de vista (o lanzó otra consulta) mientras
+    // esperábamos la respuesta, no pintamos nada.
+    if (solicitud !== this._catalogRenderVersion || this.currentView !== 'catalog') return;
 
     // Si se borró el último elemento de la última página, se retrocede una
     if (libros.length === 0 && this.bookPage > 0) {
       this.bookPage = Math.max(0, Math.ceil(total / porPagina) - 1);
       return this.renderCatalog();
     }
+
+    const tituloCatalogo = esColeccionRuta ? 'Catálogo del Bibliomóvil' : 'Catálogo de la biblioteca';
+    const ayudaCatalogo = esColeccionRuta
+      ? `Ejemplares asignados a la ruta (${total} título${total === 1 ? '' : 's'}). El catálogo de la sede no se muestra aquí.`
+      : `Ejemplares de la sede (${total} título${total === 1 ? '' : 's'}). Los del Bibliomóvil se administran en la sección Bibliomóvil.`;
 
     container.innerHTML = html`
       ${this.currentUserRole !== 'bibliomovil' ? html`
@@ -64,17 +94,37 @@ export default {
             <label for="new-book-qty" class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-300 mb-1 block">Ejemplares</label>
             <input id="new-book-qty" aria-label="Cantidad de ejemplares" type="number" min="1" value="1" placeholder="1" class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago text-sm" />
           </div>
+          <div class="col-span-2 md:col-span-6">
+            <label class="flex items-start gap-3 rounded-xl border border-stone-300 dark:border-stone-600 bg-stone-50 dark:bg-stone-800/60 px-3 py-2.5 cursor-pointer">
+              <input id="new-book-bibliomovil" type="checkbox" class="mt-0.5 h-4 w-4 accent-[#7A431D]" />
+              <span class="text-xs text-stone-700 dark:text-stone-200">
+                <span class="font-bold block">Este ejemplar es del Bibliomóvil</span>
+                Si lo marcas, entra al catálogo de la ruta y deja de aparecer en el catálogo de la biblioteca.
+              </span>
+            </label>
+          </div>
           <button id="add-book-submit-btn" type="submit" class="btn-madera col-span-2 md:col-span-1 text-white font-sans font-medium rounded-xl shadow py-2 text-sm w-full h-[38px] flex items-center justify-center">Agregar</button>
         </form>
       </div>` : ''}
       <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 overflow-x-auto">
         <div class="catalog-card-header flex flex-col gap-3">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100">Catálogo de libros</h3>
-          <div class="relative sm:w-64">
-            <i aria-hidden="true" class="fas fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 dark:text-stone-400 text-xs"></i>
-            <input id="catalog-search-input" aria-label="Buscar en el catálogo por título, autor o ISBN" type="text" placeholder="Buscar por título, autor o ISBN..." value="${this.catalogSearch || ''}"
-              class="w-full pl-8 pr-3 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago" />
+          <div class="min-w-0">
+            <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100">${tituloCatalogo}</h3>
+            <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">${ayudaCatalogo}</p>
+          </div>
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+            ${this._puedeVerBibliomovil() ? html`
+              <button id="ir-a-bibliomovil" type="button"
+                class="px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 text-xs font-bold text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 flex items-center gap-1.5"
+                title="Ver y administrar los ejemplares que circulan en la ruta">
+                <i aria-hidden="true" class="fas fa-truck"></i> Catálogo del Bibliomóvil
+              </button>` : ''}
+            <div class="relative sm:w-64">
+              <i aria-hidden="true" class="fas fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 dark:text-stone-400 text-xs"></i>
+              <input id="catalog-search-input" aria-label="Buscar en el catálogo por título, autor o ISBN" type="text" placeholder="Buscar por título, autor o ISBN..." value="${this.catalogSearch || ''}"
+                class="w-full pl-8 pr-3 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago" />
+            </div>
           </div>
         </div>
         <div class="flex flex-wrap gap-2 mt-1">
@@ -106,7 +156,11 @@ export default {
           autor: document.getElementById('new-book-author').value.trim(),
           genero: document.getElementById('new-book-genre').value.trim(),
           ubicacion: document.getElementById('new-book-location').value.trim(),
-          stock: Number(document.getElementById('new-book-qty').value || 1)
+          stock: Number(document.getElementById('new-book-qty').value || 1),
+          // Colección elegida en el formulario. Desde el catálogo de la sede
+          // se puede dar de alta directo un ejemplar de la ruta sin tener que
+          // crearlo y moverlo después.
+          es_bibliomovil: !!document.getElementById('new-book-bibliomovil')?.checked
         });
         // Fase 1.3 (ampliación): sin conexión, db.js encola el alta en vez
         // de lanzar — el libro ya aparece en el catálogo local (guardado
@@ -137,17 +191,30 @@ export default {
       });
     });
 
+    // Puente entre las dos colecciones: quien está en el catálogo de la sede y
+    // busca un ejemplar de la ruta no tiene que adivinar dónde está.
+    document.getElementById('ir-a-bibliomovil')?.addEventListener('click', () => this.switchView('bibliomovil'));
+
     // Buscador con debounce: espera 350ms sin escribir antes de consultar la BD.
     // Al buscar se vuelve a la primera página, porque el total de resultados cambió.
     const searchInput = document.getElementById('catalog-search-input');
-    searchInput.addEventListener('input', () => {
+    searchInput?.addEventListener('input', () => {
       clearTimeout(this._catalogSearchTimer);
+      // Versión de la búsqueda: cada pulsación la incrementa. Así, si alguien
+      // escribe “gar” y antes de que responda termina de escribir “garcía”,
+      // la respuesta de “gar” no puede pintar resultados viejos encima de los
+      // nuevos (pasaba cuando el servidor tardaba más en contestar la primera
+      // consulta que la segunda: la lista quedaba con los libros de “gar”).
+      const solicitudBusqueda = (this._catalogSearchVersion || 0) + 1;
+      this._catalogSearchVersion = solicitudBusqueda;
       this._catalogSearchTimer = setTimeout(async () => {
         this.catalogSearch = searchInput.value.trim();
         this.bookPage = 0;
-        const { libros: resultados, total: totalNuevo } = await db.obtenerLibros(this.catalogSearch, 0, porPagina, null, this.catalogFilter || 'todos');
+        const { libros: resultados, total: totalNuevo } = await db.obtenerLibros(
+          this.catalogSearch, 0, porPagina, esColeccionRuta, this.catalogFilter || 'todos'
+        );
         const tbody = document.getElementById('catalog-tbody');
-        if (this.currentView !== 'catalog' || !tbody) return;
+        if (solicitudBusqueda !== this._catalogSearchVersion || this.currentView !== 'catalog' || !tbody) return;
         this._booksCache = resultados;
         // _renderBookRows siempre devuelve HtmlSeguro — llamar .toString() es suficiente
         tbody.innerHTML = this._renderBookRows(resultados).toString();
@@ -173,18 +240,39 @@ export default {
 
   // HTML de las filas del catálogo. Separado de renderCatalog para poder
   // refrescar solo el <tbody> cuando se busca, sin recrear todo el formulario.
-  
-  _filtrarLibros(libros) {
-    // Este método sirve al Catálogo y al Bibliomóvil (ver _refrescarVistaDeLibros).
-    const f = (this.currentView === 'bibliomovil' ? this.bibliomovilFilter : this.catalogFilter) || 'todos';
-    if (f === 'disponibles') return libros.filter(b => b.stock > 0);
-    if (f === 'prestados') return libros.filter(b => b.stock === 0);
-    return libros;
-  },
-
+  //
+  // (_filtrarLibros vivía aquí y no lo llamaba nadie: el filtro de stock se
+  // resuelve en el servidor — buscar_libros(p_filtro_stock) y su equivalente
+  // local — desde que el catálogo pasó a paginar en la base. Se eliminó para
+  // que no quede una tercera versión de la misma regla que se desincronice.)
   _renderBookRows(books) {
     if (!books.length) {
-      return html`<div class="px-4 py-6 text-center text-stone-500 dark:text-stone-400">Sin libros que coincidan con la búsqueda.</div>`;
+      // Dos vacíos distintos: «buscaste algo y no hay» no es lo mismo que «esta
+      // colección todavía no tiene ejemplares». Un solo mensaje genérico
+      // dejaba al personal sin saber si el problema era la búsqueda o que el
+      // Bibliomóvil aún no tenía títulos asignados.
+      const buscando = ((this.currentView === 'bibliomovil' ? this.bibliomovilSearch : this.catalogSearch) || '').trim();
+      const esColleccionRuta = this.currentView === 'bibliomovil' || this.currentUserRole === 'bibliomovil';
+      if (buscando) {
+        return html`
+          <div class="px-4 py-10 text-center">
+            <i aria-hidden="true" class="fas fa-magnifying-glass text-2xl text-stone-500 dark:text-stone-400"></i>
+            <p class="mt-2 font-bold text-stone-700 dark:text-stone-200">Sin resultados para «${buscando}»</p>
+            <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">Prueba con otra palabra, o revisa los filtros de disponibilidad.</p>
+          </div>`;
+      }
+      return html`
+        <div class="px-4 py-10 text-center">
+          <i aria-hidden="true" class="fas fa-book-open text-2xl text-stone-500 dark:text-stone-400"></i>
+          <p class="mt-2 font-bold text-stone-700 dark:text-stone-200">
+            ${esColleccionRuta ? 'El Bibliomóvil todavía no tiene títulos asignados' : 'Esta colección todavía no tiene títulos'}
+          </p>
+          <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">
+            ${esColleccionRuta
+              ? 'Desde el Catálogo de la biblioteca, usa el botón «Al Bibliomóvil» en el ejemplar que quieras llevar a la ruta.'
+              : 'Agrega el primer libro con el formulario de arriba.'}
+          </p>
+        </div>`;
     }
     return html`${books.map((b, i) => html`
       <div class="bg-white dark:bg-stone-800 rounded-2xl p-4 shadow-sm border border-stone-200 dark:border-stone-700 flex flex-col md:flex-row gap-4 items-start md:items-center animate-fade-up" style="animation-delay: ${i * 0.05}s">
@@ -195,8 +283,9 @@ export default {
             <h3 class="font-bold text-stone-900 dark:text-stone-100 text-lg truncate">${b.titulo}</h3>
             <p class="text-sm text-stone-500 dark:text-stone-400 truncate">${b.autor}</p>
             <div class="text-xs text-stone-500 dark:text-stone-400 mt-1 mb-2 font-mono">${b.isbn}</div>
-            ${(b.genero || b.ubicacion) ? html`
+            ${(b.genero || b.ubicacion || b.es_bibliomovil) ? html`
               <div class="flex flex-wrap gap-2">
+                ${b.es_bibliomovil ? html`<span class="stamp stamp-movil !rotate-0 !text-[10px] !py-0.5 !px-2" title="Este ejemplar circula en el Bibliomóvil"><i aria-hidden="true" class="fas fa-truck mr-1"></i> Bibliomóvil</span>` : ''}
                 ${b.genero ? html`<span class="stamp stamp-info !rotate-0 !text-[10px] !py-0.5 !px-2"><i aria-hidden="true" class="fas fa-tag mr-1"></i> ${b.genero}</span>` : ''}
                 ${b.ubicacion ? html`<span class="stamp stamp-success !rotate-0 !text-[10px] !py-0.5 !px-2"><i aria-hidden="true" class="fas fa-location-dot mr-1"></i> ${b.ubicacion}</span>` : ''}
               </div>` : ''}
@@ -216,6 +305,14 @@ export default {
               : html`<button class="reserve-book-btn btn-secundario px-4 py-2 rounded-xl text-xs font-bold text-patrimonio-lago border border-stone-300 dark:border-stone-600 hover:bg-stone-50 dark:hover:bg-stone-700 transition" data-id="${b.id}"><i aria-hidden="true" class="fas fa-bookmark mr-1"></i> Reservar</button>`}
             
             ${this.currentUserRole === 'admin' ? html`
+              <button class="toggle-collection-btn px-3 py-2 rounded-xl text-xs font-bold border transition ${b.es_bibliomovil
+                ? 'text-patrimonio-lago border-stone-300 dark:border-stone-600 hover:bg-stone-100 dark:hover:bg-stone-700'
+                : 'text-patrimonio-bosque border-stone-300 dark:border-stone-600 hover:bg-stone-100 dark:hover:bg-stone-700'}"
+                data-id="${b.id}" data-destino="${b.es_bibliomovil ? 'sede' : 'ruta'}"
+                title="${b.es_bibliomovil ? 'Devolver este ejemplar al catálogo de la biblioteca' : 'Asignar este ejemplar al catálogo del Bibliomóvil'}"
+                aria-label="${b.es_bibliomovil ? 'Mover a la biblioteca' : 'Mover al Bibliomóvil'}">
+                <i aria-hidden="true" class="fas ${b.es_bibliomovil ? 'fa-warehouse' : 'fa-truck'} mr-1"></i> ${b.es_bibliomovil ? 'A la sede' : 'Al Bibliomóvil'}
+              </button>
               <button class="edit-book-btn px-3 py-2 rounded-xl text-xs font-bold text-stone-500 hover:text-patrimonio-madera hover:bg-stone-100 dark:hover:bg-stone-700 transition" data-id="${b.id}"><i aria-hidden="true" class="fas fa-pen"></i></button>
               <button class="delete-book-btn px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition" data-id="${b.id}"><i aria-hidden="true" class="fas fa-trash"></i></button>` : ''}
           </div>
@@ -255,6 +352,34 @@ export default {
       btn.addEventListener('click', () => {
         const libro = (this._booksCache || []).find(b => String(b.id) === String(btn.dataset.id));
         if (libro) this.showEditBookModal(libro);
+      });
+    });
+
+    // Mover un ejemplar de una colección a la otra. Es lo que hace usable la
+    // separación de catálogos: un libro comprado para la ruta se asigna aquí,
+    // y uno que vuelve a la sede se devuelve con el mismo botón. Solo admin,
+    // porque es un update sobre libros (política RLS "libros edicion admin").
+    container.querySelectorAll('.toggle-collection-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const libro = (this._booksCache || []).find(b => String(b.id) === String(btn.dataset.id));
+        const aRuta = btn.dataset.destino === 'ruta';
+        const titulo = libro?.titulo || 'este ejemplar';
+        const ok = await this.showConfirm(
+          aRuta
+            ? `¿Asignar «${titulo}» al catálogo del Bibliomóvil? Dejará de aparecer en el catálogo de la biblioteca.`
+            : `¿Devolver «${titulo}» al catálogo de la biblioteca? Dejará de aparecer en el catálogo del Bibliomóvil.`,
+          { title: aRuta ? 'Mover al Bibliomóvil' : 'Devolver a la biblioteca', confirmText: aRuta ? 'Mover' : 'Devolver' }
+        );
+        if (!ok) return;
+        btn.disabled = true;
+        try {
+          await db.cambiarColeccionLibro(btn.dataset.id, aRuta);
+          this.showToast(aRuta ? 'Ejemplar asignado al Bibliomóvil.' : 'Ejemplar devuelto al catálogo de la biblioteca.', 'success');
+          this._refrescarVistaDeLibros();
+        } catch (err) {
+          this.showToast(err.message || 'No se pudo cambiar de colección.', 'error');
+          btn.disabled = false;
+        }
       });
     });
   },
@@ -298,6 +423,17 @@ export default {
             plazo general solo para este libro.
           </p>
         </div>
+        <div>
+          <label for="edit-book-coleccion" class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-300 mb-1 block">Colección</label>
+          <select id="edit-book-coleccion"
+            class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago">
+            <option value="biblioteca" ${libro.es_bibliomovil ? '' : 'selected'}>Biblioteca (sede)</option>
+            <option value="bibliomovil" ${libro.es_bibliomovil ? 'selected' : ''}>Bibliomóvil (ruta)</option>
+          </select>
+          <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-1">
+            Cada colección tiene su propio catálogo: un ejemplar solo puede estar en uno de los dos.
+          </p>
+        </div>
         ${campo('edit-book-cover', 'URL de portada (opcional)', libro.portada_url, 'placeholder="https://..."')}
         <p class="text-[11px] text-stone-500 dark:text-stone-400">Usa este campo para las obras locales y patrimoniales, que no aparecen en catálogos internacionales.</p>
         <div class="flex justify-end gap-3 pt-1">
@@ -327,7 +463,10 @@ export default {
           ubicacion: document.getElementById('edit-book-location').value.trim(),
           portada_url: document.getElementById('edit-book-cover').value.trim(),
           // Vacío = null = usa el plazo general (dias_prestamo).
-          diasPrestamoOverride: plazoTexto === '' ? null : Number(plazoTexto)
+          diasPrestamoOverride: plazoTexto === '' ? null : Number(plazoTexto),
+          // Colección elegida en el modal (migración 030). Si no cambió, el
+          // backend igual recibe el mismo valor: no hay riesgo de pisar nada.
+          esBibliomovil: document.getElementById('edit-book-coleccion').value === 'bibliomovil'
         });
 
         // ...pero el número de ejemplares pasa por ajustar_copias, que recalcula

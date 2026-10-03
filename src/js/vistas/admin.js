@@ -942,7 +942,7 @@ export default {
                 </tr>`)}
             </tbody>
           </table>
-          <div class="px-4 py-3 border-t border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/50/60 flex justify-end">
+          <div class="px-4 py-3 border-t border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/60 flex justify-end">
             <button id="save-params-btn" class="btn-madera text-white px-4 py-2 rounded-xl text-sm font-medium">Guardar parámetros</button>
           </div>
         </div>

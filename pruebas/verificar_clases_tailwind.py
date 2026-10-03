@@ -123,7 +123,50 @@ def clases_usadas_en(texto):
     return usadas
 
 
+# Dos modificadores de opacidad pegados (`dark:bg-stone-800/50/60`). Tailwind
+# no genera nada para esa clase y el elemento se queda SIN el estilo, sin
+# ningún error ni advertencia: el fondo oscuro simplemente no aparece. Se
+# encontraron cuatro así en el código (ui-base.js ×2, admin.js, mostrador.js)
+# el 3 de octubre de 2026, y la comprobación de «clases compiladas» de más
+# abajo no podía verlas: el panel principal se compila con PostCSS, así que su
+# alcance no incluye src/js.
+# Anclado al final del token: así no confunde una fecha escrita en un atributo
+# (`10/03/2026`) ni una proporción válida de Tailwind (`w-3/4`) con el error
+# real, que es la opacidad repetida al final de una utilidad.
+PATRON_OPACIDAD_DOBLE = re.compile(r'/\d{1,3}/\d{1,3}$')
+
+
+def revisar_clases_mal_formadas():
+    """Revisa TODO el código fuente (no solo las páginas estáticas) buscando
+    clases de Tailwind mal formadas. Devuelve una lista de textos de hallazgo."""
+    archivos = sorted(
+        list((RAIZ / 'src').rglob('*.js')) +
+        list((RAIZ / 'src').rglob('*.css')) +
+        sorted(RAIZ.glob('*.html'))
+    )
+    hallazgos = []
+    for archivo in archivos:
+        texto = archivo.read_text(encoding='utf-8')
+        for m in PATRON_CLASS_ATTR.finditer(texto):
+            valor = m.group(2)
+            for token in valor.split():
+                if PATRON_OPACIDAD_DOBLE.search(token):
+                    linea = texto[:m.start()].count('\n') + 1
+                    hallazgos.append(f'{archivo.relative_to(RAIZ)}:{linea}  {token}')
+    return hallazgos
+
+
 def main():
+    mal_formadas = revisar_clases_mal_formadas()
+    if mal_formadas:
+        print(f'{ROJO}{"─" * 66}{FIN}')
+        print(f'{ROJO}{len(mal_formadas)} clase(s) mal formada(s) — dos opacidades pegadas: no se aplican{FIN}\n')
+        for hallazgo in mal_formadas:
+            print(f'  · {hallazgo}')
+        print(f'\n  Corrección: deja un solo modificador de opacidad, por ejemplo'
+              f'\n  `dark:bg-stone-800/60` en vez de `dark:bg-stone-800/50/60`.')
+        return 1
+
     css_dirs = [RAIZ / 'public' / 'vendor' / 'css', RAIZ / 'src' / 'assets' / 'css']
     archivos_css = sorted(
         f for d in css_dirs if d.is_dir() for f in d.glob('*.css')

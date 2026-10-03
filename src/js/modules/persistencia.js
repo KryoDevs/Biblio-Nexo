@@ -74,7 +74,12 @@ function normalizarTextoBusqueda(valor) {
 export function filtrarLibrosLocales(libros, busqueda = '', esBibliomovil = null, filtroStock = 'todos') {
     const consulta = normalizarTextoBusqueda(busqueda).trim();
     return (Array.isArray(libros) ? libros : []).filter(libro => {
-        if (esBibliomovil !== null && esBibliomovil !== undefined && libro.es_bibliomovil !== esBibliomovil) return false;
+        // Misma semántica que buscar_libros() en Postgres: un libro sin marcar
+        // (NULL, bases anteriores a la migración 030) pertenece a la sede, no
+        // a "ninguna de las dos". Comparar con `!==` a secas lo dejaba fuera
+        // del catálogo de la biblioteca mientras se trabajaba sin conexión.
+        if (esBibliomovil !== null && esBibliomovil !== undefined
+            && (libro.es_bibliomovil ?? false) !== esBibliomovil) return false;
 
         const stock = Number(libro.stock ?? 0);
         if (filtroStock === 'disponibles' && !(stock > 0)) return false;
@@ -310,8 +315,10 @@ class PersistentStorage {
         const bd = await abrir();
         const todos = await conAlmacen(bd, 'libros', 'readonly', almacen => pedido(almacen.getAll()));
 
-        // Mismos filtros que buscar_libros() en la base (010/026), incluidos
-        // el campo real de stock, el booleano estricto y la búsqueda sin tildes.
+        // Mismos filtros que buscar_libros() en la base (010/026/030), incluidos
+        // el campo real de stock (no `ejemplares_disponibles`, que solo existe
+        // en la respuesta del RPC), la colección con NULL = sede y la búsqueda
+        // sin tildes.
         const filtrados = filtrarLibrosLocales(todos, busqueda, esBibliomovil, filtroStock);
         filtrados.sort((a, b) => (a.titulo || '').localeCompare(b.titulo || '', 'es-CL'));
         const tamano = Number.isInteger(Number(porPagina)) ? Math.max(1, Number(porPagina)) : 25;
@@ -577,6 +584,10 @@ class PersistentStorage {
                 portada_url: libro.portada_url || null,
                 copias_totales: libro.stock,
                 stock: libro.stock,
+                // Sin esto, un libro creado sin conexión desde el Bibliomóvil
+                // nacía como ejemplar de sede y desaparecía de la vista de
+                // ruta en cuanto se replicaba el catálogo (migración 030).
+                es_bibliomovil: !!libro.es_bibliomovil,
                 actualizado_en: new Date().toISOString(),
                 pendienteSync: true
             }]);
