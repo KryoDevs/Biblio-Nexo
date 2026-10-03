@@ -37,7 +37,10 @@ VERDE, ROJO, AMARILLO, FIN = '\033[32m', '\033[31m', '\033[33m', '\033[0m'
 
 def funciones_en(texto):
     """Nombres de funciones declaradas en un archivo SQL."""
-    return set(re.findall(r'create or replace function public\.(\w+)', texto))
+    return {
+        nombre.lower()
+        for nombre in re.findall(r'create\s+or\s+replace\s+function\s+public\.(\w+)', texto, re.I)
+    }
 
 
 def main():
@@ -58,16 +61,33 @@ def main():
 
     print(f'Consolidación: {len(consolidadas)} funciones declaradas en {CONSOLIDACION}\n')
 
-    # --- 1. Ninguna migración POSTERIOR debe redefinir una función consolidada ---
+    # --- 1. Ninguna migración POSTERIOR debe redefinir ni declarar funciones RPC ---
+    #     Únicas excepciones documentadas: el disparador de lápidas (015) y los
+    #     dos puentes internos de pg_cron hacia vault.decrypted_secrets (018 y 023),
+    #     ninguno expuesto como RPC a la aplicación.
+    EXCEPCIONES_POSTERIORES = {
+        'registrar_eliminacion',
+        'verificar_secreto_cron',
+        'verificar_secreto_cron_reservas',
+    }
     posteriores = [a for a in archivos if a.name > CONSOLIDACION]
     for archivo in posteriores:
-        redefinidas = funciones_en(archivo.read_text(encoding='utf-8')) & consolidadas
+        declaradas = funciones_en(archivo.read_text(encoding='utf-8'))
+        redefinidas = declaradas & consolidadas
         if redefinidas:
             problemas.append(
                 f'{archivo.name} redefine {len(redefinidas)} función(es) que ya están en '
                 f'{CONSOLIDACION}: {", ".join(sorted(redefinidas))}.\n'
                 f'      Corrección: borra esas definiciones del archivo y edita '
                 f'{CONSOLIDACION} en su lugar.'
+            )
+        nuevas_fuera = declaradas - consolidadas - EXCEPCIONES_POSTERIORES
+        if nuevas_fuera:
+            problemas.append(
+                f'{archivo.name} declara {len(nuevas_fuera)} función(es) nueva(s) fuera de '
+                f'{CONSOLIDACION}: {", ".join(sorted(nuevas_fuera))}.\n'
+                f'      Corrección: mueve la definición a {CONSOLIDACION} y regístrala en '
+                f'manifiesto_funciones().'
             )
 
     if posteriores:
@@ -176,12 +196,12 @@ def main():
         # cancelar_reserva, expirar_reservas_vencidas).
         'expirar_reservas_vencidas', 'promover_siguiente_reserva',
     }
-    bloques = re.split(r'(?=create or replace function public\.)', texto_consolidado)
+    bloques = re.split(r'(?=create\s+or\s+replace\s+function\s+public\.)', texto_consolidado, flags=re.I)
     definer_sin_guarda = []
     n_definer = 0
     for bloque in bloques[1:]:
-        nombre = re.search(r'create or replace function public\.(\w+)', bloque).group(1)
-        cabecera = bloque[:bloque.find('$')]
+        nombre = re.search(r'create\s+or\s+replace\s+function\s+public\.(\w+)', bloque, re.I).group(1).lower()
+        cabecera = bloque[:bloque.find('$')].lower()
         if 'security definer' not in cabecera:
             continue
         n_definer += 1
