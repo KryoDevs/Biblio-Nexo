@@ -435,6 +435,13 @@ await prueba('Bibliomóvil renderiza el plan, los accesos de navegación y escap
     const lista = cont.querySelector('#bibliomovil-route-stops');
     assert(lista.textContent.includes('<img src=x onerror=alert(1)>'), 'el nombre local no aparece como texto');
     assert(!lista.querySelector('img'), 'un nombre local se interpretó como HTML ejecutable');
+    assert(lista.querySelector('[data-route-action="notify"]'), 'falta el botón de aviso por WhatsApp en la parada');
+    const tabCatalogo = cont.querySelector('#tab-catalogo');
+    assert(tabCatalogo && !tabCatalogo.classList.contains('hidden'), 'el catálogo del Bibliomóvil quedó oculto por defecto');
+    const btnSoloRuta = cont.querySelector('.biblio-tab-btn[data-target="tab-ruta"]');
+    assert(btnSoloRuta, 'faltan los botones de filtro de sección en Bibliomóvil');
+    btnSoloRuta.dispatchEvent(new dom.window.Event('click'));
+    assert(tabCatalogo.classList.contains('hidden'), 'el botón de Mapa y ruta no ocultó la sección de catálogo');
   } finally {
     ui._montarMapaBibliomovil = inicializarMapa;
     localStorage.removeItem(key);
