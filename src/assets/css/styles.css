@@ -37,10 +37,51 @@
 
 html {
     font-size: calc(16px * var(--escala-fuente));
+    /* El modo claro es explícito para que el navegador no herede la
+       preferencia oscura del sistema operativo por su cuenta: quien decide
+       el tema es la clase "dark" del <html> (ver _aplicarTema en
+       js/modules/ui-base.js), no el sistema. Sin esta línea, en un teléfono
+       configurado en oscuro los controles nativos (casillas, selectores,
+       barras de desplazamiento) se pintaban oscuros dentro de una pantalla
+       clara. */
+    color-scheme: light;
+    /* iOS agranda el texto por su cuenta al girar el teléfono si no se le
+       dice que no lo haga; con esto el tamaño lo manda el sistema de diseño. */
+    -webkit-text-size-adjust: 100%;
 }
 
 body {
     line-height: 1.6;
+}
+
+/* Fondo y color de texto base en modo oscuro. El <body> trae las clases
+   bg-patrimonio-base y text-stone-800 escritas en index.html: son del modo
+   claro y esta regla (fuera de capas, como el resto de este archivo) las
+   reemplaza cuando el tema es oscuro. Sin ella, cualquier texto que no
+   declare su propio color quedaba stone-800 —casi negro— sobre un fondo
+   oscuro: invisible. */
+html.dark body {
+    background-color: #0c0a09;
+    color: #e7e5e4;
+}
+
+/* ==========================================
+   Alto real de la pantalla
+   ==========================================
+   En un teléfono, 100vh mide la ventana más alta posible (con la barra de
+   direcciones escondida), así que un contenedor de 100vh queda siempre unos
+   60-100px más alto que lo que se ve: el pie del formulario se cortaba, o
+   aparecía una franja de scroll de más. 100dvh sigue el alto visible en cada
+   momento. Se declara primero el valor viejo para navegadores antiguos: si no
+   entienden dvh, se quedan con vh en vez de con "auto". */
+.pantalla-completa {
+    height: 100vh;
+    height: 100dvh;
+}
+
+.pantalla-minima {
+    min-height: 100vh;
+    min-height: 100dvh;
 }
 
 /* Animaciones */
@@ -136,6 +177,17 @@ tbody tr:hover {
     background-color: #FBF9F2;
 }
 
+html.dark td {
+    border-bottom-color: #44403c; /* stone-700 */
+}
+
+/* El hover de fila era papel cálido (#FBF9F2) también en modo oscuro: al
+   pasar el mouse (o el dedo, en tablet) la fila se aclaraba y el texto
+   claro que llevaba encima desaparecía. */
+html.dark tbody tr:hover {
+    background-color: rgba(41, 37, 36, 0.65); /* stone-800 */
+}
+
 /* ==========================================
    Sistema visual — Ficha de Catálogo
    Inspirado en las fichas de catálogo de biblioteca de archivo:
@@ -166,6 +218,14 @@ tbody tr:hover {
     background-color: #FAF8F1; /* stone-50 cálido */
     border-bottom: 1px solid #d6d3c7; /* stone-300 */
     padding: 1rem;
+}
+
+/* La misma cabecera en modo oscuro. Estaba escrita a mano en papel cálido y
+   se aplicaba igual con el tema oscuro: quedaba una franja casi blanca con
+   los títulos en claro encima, ilegible. */
+.dark .catalog-card-header {
+    background-color: #1c1917; /* stone-900 */
+    border-bottom-color: #44403c; /* stone-700 */
 }
 
 /* Riel activo del menú lateral — se "enciende" con el color madera al estar activa */
@@ -227,6 +287,19 @@ tbody tr:hover {
    depender solo del color (lleva su propio ícono y texto). */
 .stamp-movil { color: var(--patrimonio-madera); }
 
+/* Sellos en modo oscuro.
+   Los cuatro colores de arriba son tintas oscuras pensadas para papel
+   blanco. Sobre una tarjeta stone-900 no llegaban ni a 3:1 — el lago
+   (#1B3B48) y el bosque (#2C4A3E) directamente desaparecían, y el sello se
+   dibuja con "border: 2px solid currentColor", así que también se perdía el
+   borde. En oscuro se usa la misma familia de color, un par de tonos más
+   clara, tal como se hizo con el contorno de foco del menú lateral.
+   Los valores están comprobados en pruebas/probar-contraste.mjs. */
+.dark .stamp-danger { color: #FDA4AF; }  /* rose-300 */
+.dark .stamp-info { color: #7DD3FC; }    /* sky-300: el lago, aclarado */
+.dark .stamp-success { color: #6EE7B7; } /* emerald-300: el bosque, aclarado */
+.dark .stamp-movil { color: #E7B98D; }   /* madera clara */
+
 /* Sello sobre fondo oscuro (sidebar) — variante clara sin relleno */
 .stamp-onDark {
     display: inline-flex;
@@ -252,27 +325,65 @@ tbody tr:hover {
     display: inline-block;
 }
 
+/* El cargador es un borde claro con un tramo azul. En modo oscuro el borde
+   claro brillaba como un aro blanco y el tramo azul casi no se distinguía:
+   se invierte la idea, base oscura y tramo claro. */
+.dark .spinner {
+    border-color: #44403c; /* stone-700 */
+    border-top-color: #e7e5e4; /* stone-200 */
+}
+
 @keyframes spin {
     0% { transform: rotate(0deg); }
     100% { transform: rotate(360deg); }
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* ============================================================================
+   Adaptabilidad a teléfonos y tablets
+   ============================================================================
+   Tres decisiones que se sostienen entre sí:
+
+   1. El corte para el menú lateral es 1024px (lg), no 768px. A 768px exactos
+      —el ancho de un iPad en vertical, la tablet más común— el menú quedaba
+      fuera de la pantalla (position: fixed + translateX(-100%)) mientras el
+      botón para abrirlo ya estaba oculto (md:hidden en la franja de título):
+      en esa tablet no había ninguna forma de cambiar de sección. El botón y
+      el corte ahora viven en el mismo umbral.
+   2. En teléfono y tablet el menú es un cajón que se abre desde el borde y se
+      cierra al elegir una sección, con Escape o tocando fuera. No se permite
+      tabular hacia adentro cuando está cerrado (visibility), porque si no el
+      foco del teclado se iba a botones invisibles.
+   3. Las zonas del recorte de pantalla (muesca arriba, barra de gestos abajo)
+      se respetan con env(safe-area-inset-*). El <meta viewport> de index.html
+      declara viewport-fit=cover, que es lo que hace que esos valores existan.
+   ============================================================================ */
+
+@media (max-width: 1023.98px) {
     #sidebar {
         position: fixed;
         left: 0;
         top: 0;
-        width: 82%;
-        max-width: 300px;
+        width: 86%;
+        max-width: 320px;
         height: 100%;
-        z-index: 50;
+        height: 100dvh;
+        z-index: 60;
         transform: translateX(-100%);
-        transition: transform 0.3s ease;
+        visibility: hidden;
+        transition: transform 0.3s ease, visibility 0.3s ease;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        overscroll-behavior: contain;
     }
 
     #sidebar.active {
         transform: translateX(0);
+        visibility: visible;
+    }
+
+    /* Con el cajón abierto, la página de atrás no debe desplazarse */
+    body.menu-abierto {
+        overflow: hidden;
     }
 
     table {
@@ -282,7 +393,261 @@ tbody tr:hover {
     th, td {
         padding: 0.75rem 0.5rem;
     }
+
+    /* Los campos de formulario se agrandan a 16px en pantallas táctiles.
+       Por debajo de 16px, iOS hace zoom automático al enfocar un campo y deja
+       la pantalla descuadrada justo cuando la persona va a escribir; es el
+       problema móvil más común de los formularios y no se ve en el escritorio. */
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+    select,
+    textarea {
+        font-size: 1rem;
+    }
 }
+
+/* ============================================================================
+   Área táctil
+   ============================================================================
+   WCAG 2.5.8 (AA) pide 24x24px como mínimo; las guías de diseño móvil piden
+   44x44px, que es lo que ocupa un dedo sin apretar. En pantalla táctil los
+   botones de la aplicación se agrandan hasta 40px de alto y los que solo
+   llevan un ícono (clase .boton-icono) pasan a ser cuadrados de 44px. En
+   escritorio no cambia nada: el mouse no necesita esa superficie.
+   ============================================================================ */
+
+.boton-icono {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.25rem;
+    min-height: 2.25rem;
+}
+
+@media (pointer: coarse) {
+    #views-container button,
+    .franja-titulo button,
+    #sidebar .nav-btn,
+    .barra-inferior button {
+        min-height: 2.5rem;
+    }
+
+    .boton-icono {
+        min-width: 2.75rem;
+        min-height: 2.75rem;
+    }
+
+    /* En pantalla táctil no hay hover: lo que era un efecto decorativo al
+       pasar el mouse (levantar la tarjeta) se mantiene, pero el foco visible
+       importa más que la animación. Nada que desactivar aquí: se deja escrito
+       para quien busque dónde se ajusta el comportamiento táctil. */
+}
+
+/* ============================================================================
+   Tablas adaptables
+   ============================================================================
+   Las tablas de administración tienen entre 4 y 6 columnas: en un teléfono de
+   360px eso son 700px de ancho real, con la mitad de los datos fuera de la
+   pantalla y una barra de desplazamiento horizontal que nadie descubre.
+
+   En pantallas angostas cada fila se dibuja como una ficha: el encabezado
+   desaparece y cada celda muestra su etiqueta —el texto del <th> que le
+   corresponde, copiado en data-etiqueta— a la izquierda y el dato a la
+   derecha. Es el MISMO HTML, sin filas duplicadas ni lógica nueva, así que el
+   orden, la paginación y los filtros siguen funcionando igual. Desde 768px
+   (md) la tabla vuelve a ser una tabla.
+   ============================================================================ */
+
+@media (max-width: 767.98px) {
+    .tabla-adaptable,
+    .tabla-adaptable tbody {
+        display: block;
+    }
+
+    .tabla-adaptable thead {
+        display: none;
+    }
+
+    .tabla-adaptable tbody tr {
+        display: block;
+        margin-bottom: 0.75rem;
+        padding: 0.6rem 0.85rem;
+        border: 1px solid #e7e2d3;
+        border-radius: 0.9rem;
+        background-color: #ffffff;
+    }
+
+    .tabla-adaptable tbody tr:hover {
+        background-color: #ffffff;
+    }
+
+    .tabla-adaptable td {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.3rem 0;
+        border-bottom: 0;
+        text-align: left;
+        overflow-wrap: anywhere;
+    }
+
+    .tabla-adaptable td::before {
+        content: attr(data-etiqueta);
+        flex: 0 0 auto;
+        padding-top: 0.1rem;
+        font-size: 0.6875rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #78716c; /* stone-500 */
+    }
+
+    /* Las celdas de acciones no llevan etiqueta: se alinean a la derecha */
+    .tabla-adaptable td[data-etiqueta=""] {
+        justify-content: flex-end;
+    }
+
+    .tabla-adaptable td[data-etiqueta=""]::before {
+        content: none;
+    }
+
+    /* Una celda que ocupa toda la fila (los mensajes de "sin datos") */
+    .tabla-adaptable td[colspan] {
+        display: block;
+        text-align: center;
+    }
+
+    .tabla-adaptable td[colspan]::before {
+        content: none;
+    }
+
+    .dark .tabla-adaptable tbody tr {
+        border-color: #44403c; /* stone-700 */
+        background-color: #1c1917; /* stone-900 */
+    }
+
+    .dark .tabla-adaptable tbody tr:hover {
+        background-color: #1c1917;
+    }
+
+    .dark .tabla-adaptable td::before {
+        color: #a8a29e; /* stone-400 */
+    }
+}
+
+/* ============================================================================
+   Barra de accesos rápidos (solo teléfono y tablet)
+   ============================================================================
+   En un teléfono, el menú lateral obliga a dos toques por cada cambio de
+   sección (abrir el cajón, elegir). Las cuatro tareas del día —mesón,
+   catálogo, préstamos y lectores— quedan a un toque en una barra al pie, con
+   el mismo origen de datos que el menú (CONFIG.VIEWS_BY_ROLE): si un rol no
+   tiene una sección, no aparece. "Más" abre el cajón completo.
+   ============================================================================ */
+
+.barra-inferior {
+    display: none;
+}
+
+@media (max-width: 1023.98px) {
+    .barra-inferior {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 45;
+        display: flex;
+        align-items: stretch;
+        padding-bottom: env(safe-area-inset-bottom);
+        background-color: rgba(255, 255, 255, 0.97);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-top: 1px solid #e7e2d3;
+        box-shadow: 0 -8px 20px -14px rgba(27, 59, 72, 0.35);
+    }
+
+    .dark .barra-inferior {
+        background-color: rgba(12, 10, 9, 0.96);
+        border-top-color: #44403c;
+    }
+
+    .barra-inferior__item {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.15rem;
+        padding: 0.45rem 0.25rem;
+        min-height: 3.25rem;
+        font-size: 0.625rem;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        color: #57534e; /* stone-600 */
+        text-align: center;
+    }
+
+    .barra-inferior__item i {
+        font-size: 1.05rem;
+        line-height: 1;
+    }
+
+    .barra-inferior__item[aria-current="page"] {
+        color: var(--patrimonio-madera);
+        background-color: rgba(122, 67, 29, 0.08);
+        border-top: 2px solid var(--patrimonio-madera);
+        padding-top: calc(0.45rem - 2px);
+    }
+
+    .dark .barra-inferior__item {
+        color: #d6d3d1; /* stone-300 */
+    }
+
+    .dark .barra-inferior__item[aria-current="page"] {
+        color: #F6B26B;
+        background-color: rgba(246, 178, 107, 0.12);
+        border-top-color: #F6B26B;
+    }
+
+    /* El contenido y los avisos no pueden quedar tapados por la barra */
+    #views-container {
+        padding-bottom: calc(4.75rem + env(safe-area-inset-bottom));
+        overscroll-behavior: contain;
+    }
+
+    #toast-container {
+        left: 1rem;
+        right: 1rem;
+        bottom: calc(5.25rem + env(safe-area-inset-bottom));
+        align-items: flex-end;
+    }
+}
+
+/* ============================================================================
+   Diálogos que caben en la pantalla
+   ============================================================================
+   Todos los modales del sistema son una capa fija con la caja centrada. La
+   caja no tenía tope de alto: en un teléfono en horizontal (340px de alto) o
+   con el teclado abierto, el modal crecía fuera de la ventana y los botones
+   de abajo —Guardar, Cancelar— quedaban fuera del alcance, sin scroll. Con
+   este tope la caja se queda dentro de la ventana visible y su contenido se
+   desplaza por dentro. Los modales declaran role="dialog" y aria-modal en
+   _prepararModal (js/modules/ui-modales.js), así que la regla los alcanza a
+   todos sin tocar cada uno.
+   ============================================================================ */
+
+[role="dialog"][aria-modal="true"] {
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+
+[role="dialog"][aria-modal="true"] > :first-child {
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+}
+
 
 /* ==========================================
    Accesibilidad — Decreto N° 1/2015 (norma técnica de sitios del Estado)
@@ -433,8 +798,20 @@ textarea:focus-visible,
 }
 
 .dark .glass-panel {
-    background: rgba(15, 23, 42, 0.75); /* Oscuro y sutilmente azulado (stone/slate) */
+    /* stone-900 con transparencia, no el azulado que traía (la identidad de
+       «Patrimonio de Futrono» solo admite la familia stone). Un poco más
+       opaco que en claro: la escena de atrás se aclara de día y el texto
+       claro del panel necesita un fondo tranquilo para leerse. */
+    background: rgba(28, 25, 23, 0.86);
     border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* La escena del lago es un cielo de mediodía aunque el tema sea oscuro: el
+   panel oscuro flotando sobre un cielo claro se veía lavado. Se atenúa la
+   escena (solo la escena: el panel es un hermano, no un hijo) para que el
+   conjunto se lea como una ventana de noche. */
+.dark #login-scene {
+    filter: brightness(0.68) saturate(0.85);
 }
 
 /* Contraste de placeholders: legible sobre el panel de vidrio en cualquier momento del día */
@@ -451,9 +828,16 @@ textarea:focus-visible,
 .btn-madera {
     position: relative;
     background-color: var(--patrimonio-madera);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.15' numOctaves='2' seed='7'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.13' numOctaves='2' seed='7'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
     background-blend-mode: overlay;
-    background-size: 120px 120px;
+    /* La veta se estira al tamaño del botón, sin repetir. Antes era un mosaico
+       de 120x120px y se notaban las costuras: el ruido de feTurbulence no
+       cierra en los bordes, así que cada unión dejaba una línea vertical recta
+       en medio del botón (se veía sobre todo en los botones anchos, como el
+       «Agregar» del catálogo). Estirada, la mancha se lee como la veta larga
+       de una tabla y no queda ninguna unión que mirar. */
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
     transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
 }
 .btn-madera:hover {
@@ -482,9 +866,26 @@ textarea:focus-visible,
    ========================================== */
 
 #sidebar {
-    position: relative;
     background-color: var(--patrimonio-lago); /* respaldo si el degradado no aplica */
     box-shadow: inset -3px 0 0 var(--patrimonio-madera);
+}
+
+/* En escritorio el menú lateral es una columna más del cascarón; en teléfono y
+   tablet el mismo menú es un cajón fijo (bloque «Cascarón adaptado», arriba).
+   Las dos formas viven en consultas de medios que NO pueden coincidir a la vez
+   —una es max-width: 1023.98px y esta es min-width: 1024px— a propósito: antes
+   esto era una sola regla base sin consulta, y como quedaba más abajo en el
+   archivo le ganaba a la del cajón por puro orden de cascada (misma
+   especificidad). El cajón seguía ocupando su lugar dentro de la fila flexible
+   y, en un teléfono, el área de trabajo quedaba reducida a los ~50px que
+   sobraban al costado: la aplicación entera se veía recortada. Con las dos
+   consultas separadas, el orden del archivo deja de importar. */
+@media (min-width: 1024px) {
+    #sidebar {
+        /* Punto de referencia de la silueta de cordillera (::after, absoluta)
+           y de los hijos del menú (#sidebar > *). */
+        position: relative;
+    }
 }
 
 #sidebar.momento-amanecer { background-image: linear-gradient(180deg, #24485A 0%, #1B3B48 45%, #14303C 100%); }
@@ -674,6 +1075,18 @@ textarea:focus-visible,
 .pagina-legal footer.pie { margin-top: 48px; padding-top: 20px; border-top: 1px solid #d6d3d1; font-size: 12px; color: #78716c; }
 .pagina-legal a { color: var(--patrimonio-lago); }
 .pagina-legal a:hover { color: var(--patrimonio-madera); }
+
+/* En el teléfono el documento legal pierde los márgenes de escritorio: los
+   24px de costado se comen el 13% del ancho de un teléfono de 360px y el
+   margen inferior de 96px alarga el final del texto sin motivo. Los títulos
+   bajan un punto para que quepan enteros y la tabla (que es una ficha por
+   fila, ver .tabla-adaptable arriba) no cambie de forma. */
+@media (max-width: 640px) {
+    .pagina-legal .contenedor { padding: 28px 16px 64px; }
+    .pagina-legal h1 { font-size: 24px; }
+    .pagina-legal h2 { font-size: 18px; }
+    .pagina-legal header.encabezado { margin-bottom: 20px; }
+}
 
 /* ============================================================================
    Rediseño General - Fase 1 (Soft UI y Cascarón)
@@ -993,4 +1406,200 @@ html.dark {
 }
 @media (prefers-reduced-motion: reduce) {
     .bibliomovil-marker-wrap--pendiente .bibliomovil-marker { animation: none; }
+}
+
+/* ============================================================================
+   Modo nocturno — correcciones puntuales
+   ============================================================================
+   El modo oscuro se activa con la clase "dark" en <html> (ver _aplicarTema en
+   js/modules/ui-base.js). La mayor parte de la interfaz lleva su variante
+   dark: en las clases de Tailwind, pero una parte del sistema visual está
+   escrita en este archivo con colores fijos de papel — y esos no cambiaban
+   con el tema. Cada regla de abajo corrige un caso concreto.
+   ============================================================================ */
+
+/* Anillo de foco. El contorno es color lago (#1B3B48), pensado para papel
+   claro: sobre el fondo oscuro quedaba a 1.1:1 de contraste, es decir,
+   invisible — quien navega con teclado en el turno de noche no podía saber
+   dónde estaba parado. Es el mismo ámbar que ya se usaba sobre el menú
+   lateral. */
+html.dark a:focus-visible,
+html.dark button:focus-visible,
+html.dark input:focus-visible,
+html.dark select:focus-visible,
+html.dark textarea:focus-visible,
+html.dark [tabindex]:focus-visible {
+    outline-color: #F6B26B;
+}
+
+/* Marca de agua del área de trabajo: dos manchas de color muy suaves, una de
+   madera y otra de lago. Sobre fondo oscuro se cambiaban por una neblina
+   gris; se ajustan a tonos cálidos, apenas visibles. */
+.dark .view-canvas {
+    background-image:
+        radial-gradient(1200px 420px at 0% -10%, rgba(122, 67, 29, 0.16), transparent 55%),
+        radial-gradient(900px 380px at 100% 0%, rgba(125, 211, 252, 0.05), transparent 50%);
+}
+
+/* Tarjetas que se levantan al pasar el mouse: el borde iluminado usaba un
+   gris claro de papel. */
+.dark .elevate-hover:hover {
+    border-color: color-mix(in srgb, var(--patrimonio-madera) 55%, #44403c);
+    box-shadow: 0 16px 32px -18px rgba(0, 0, 0, 0.7);
+}
+
+/* Esqueletos de carga (mientras llegan los datos de la base). El brillo que
+   los recorre es blanco y los bloques, stone-200: dos manchas de luz blanca
+   sobre el fondo oscuro, justo lo contrario de lo que busca el modo oscuro. */
+.dark .skeleton-shimmer .bg-stone-200 {
+    background-color: #44403c; /* stone-700 */
+}
+
+.dark .skeleton-shimmer .bg-stone-100 {
+    background-color: #292524; /* stone-800 */
+}
+
+.dark .skeleton-shimmer .bg-stone-200,
+.dark .skeleton-shimmer .bg-stone-100 {
+    background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.07), transparent);
+}
+
+/* Mapa del Bibliomóvil. El marco del mapa y los mosaicos de OpenStreetMap son
+   claros por naturaleza: en modo oscuro quedaba un rectángulo blanco
+   encendido entre dos secciones oscuras, y el cuadro de texto de las paradas
+   no se leía. Los mosaicos se invierten (invert + hue-rotate es la técnica
+   habitual para oscurecer mapas sin cambiar de proveedor) y los controles y
+   globos de Leaflet se pintan con la paleta oscura del sistema. */
+.dark .bibliomovil-map {
+    border-color: #44403c;
+    background: #1c1917;
+}
+
+.dark .bibliomovil-map .leaflet-container,
+.dark .bibliomovil-map-placeholder {
+    background: #1c1917;
+    color: #d6d3d1;
+}
+
+.dark .bibliomovil-map .leaflet-tile {
+    filter: invert(1) hue-rotate(180deg) brightness(0.95) contrast(0.9);
+    /* Sin esto, al cambiar de tema quedan mosaicos ya pintados con el filtro
+       anterior. Es un detalle conocido de Leaflet. */
+    transition: filter 0.3s ease;
+}
+
+.dark .bibliomovil-map .leaflet-bar a,
+.dark .bibliomovil-map .leaflet-bar a:hover {
+    background-color: #292524;
+    border-color: #44403c;
+    color: #e7e5e4;
+}
+
+.dark .bibliomovil-map .leaflet-popup-content-wrapper,
+.dark .bibliomovil-map .leaflet-popup-tip {
+    background-color: #292524;
+    color: #e7e5e4;
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.8);
+}
+
+/* El pie de OpenStreetMap es obligatorio (atribución) y por defecto es una
+   franja blanca con letra gris: sobre el mapa oscuro deslumbraba. */
+.dark .bibliomovil-map .leaflet-container .leaflet-control-attribution {
+    background-color: rgba(28, 25, 23, 0.85);
+    color: #a8a29e;
+}
+
+.dark .bibliomovil-map .leaflet-container .leaflet-control-attribution a {
+    color: #7DD3FC;
+}
+
+/* Botones de acción de la lista de paradas */
+.dark .bibliomovil-stop-action:hover:not(:disabled) {
+    background-color: #292524;
+}
+
+.dark .bibliomovil-stop-action--remove:hover:not(:disabled) {
+    background-color: rgba(159, 18, 57, 0.25);
+}
+
+/* ============================================================================
+   Preferencias del sistema
+   ============================================================================ */
+
+/* Quien pidió menos animaciones en su teléfono (accesibilidad) no debería
+   recibir ni las transiciones del cajón lateral ni el desplazamiento suave.
+   La regla general ya existe arriba; acá se cubren los elementos que se
+   agregaron después. */
+@media (prefers-reduced-motion: reduce) {
+    #sidebar,
+    .barra-inferior,
+    #toast-container > * {
+        transition: none !important;
+    }
+}
+
+/* Los tres acentos de marca (madera, bosque, lago) son tintas oscuras
+   elegidas para el papel claro. Sobre las superficies del modo nocturno
+   quedaban entre 1,5:1 y 2,2:1: los íconos desaparecían y la segunda mitad de
+   la marca («Nexo», en color madera) era lo único que se perdía del logotipo.
+   En vez de repetir la variante oscura en cada uso —son más de veinte, y el
+   que se olvide se ve mal sin que nadie lo note— se aclara el mismo matiz
+   para todo el documento. Es el mismo mecanismo que usan los sellos de
+   arriba: el color cambia, la identidad no. Los valores están comprobados en
+   pruebas/probar-contraste.mjs. */
+.dark .text-patrimonio-madera { color: #E7B98D; }   /* madera clara */
+
+/* El menú lateral es oscuro en los DOS temas (lago #1B3B48), así que el
+   color madera de la marca quedaba a 1.5:1 ahí también de día: la segunda
+   mitad de «BiblioNexo» prácticamente no se leía. Se usa el mismo tono claro
+   del modo nocturno, sin cambiar el matiz de la marca. */
+#sidebar .text-patrimonio-madera { color: #E7B98D; }
+.dark .text-patrimonio-bosque { color: #6EE7B7; }   /* emerald-300 */
+.dark .text-patrimonio-lago { color: #7DD3FC; }     /* sky-300 */
+
+/* La misma aclaración para los estados de hover de los enlaces de madera
+   (por ejemplo, «Editar» en el catálogo). La clase compilada de Tailwind se
+   escribe escapada: hover:text-patrimonio-madera. */
+.dark .hover\:text-patrimonio-madera:hover { color: #E7B98D; }
+
+/* El velo que oscurece el fondo cuando el cajón está abierto. De día se ve
+   (lago al 40% sobre papel claro), pero en modo oscuro el papel de atrás es
+   stone-950 (#0c0a09) —casi negro— y un velo oscuro sobre negro no se
+   distingue: el cajón parecía flotar sin nada detrás y costaba ver que la
+   pantalla de atrás está desactivada. En modo oscuro el velo se hace más
+   opaco y se apoya en el borde del cajón. */
+.dark #sidebar-overlay {
+    background-color: rgba(12, 10, 9, 0.66);
+}
+
+/* El panel de notificaciones cuelga de la campana, que está pegada al borde
+   derecho de la franja de título. En un teléfono no queda lugar a su derecha:
+   medido en un marco de 358px, el panel (320px de ancho) se abría entre -46 y
+   258, o sea 46px fuera de la pantalla por la izquierda, con el título
+   «Notificaciones» cortado. En pantalla angosta el panel deja de colgar de la
+   campana y se ancha al ancho disponible. El `position: fixed` sin `top` toma
+   su lugar natural debajo de la campana; los costados, en cambio, se miden
+   contra la pantalla. La regla va con el id a propósito: le gana a la clase
+   `absolute` y al `w-80` de Tailwind sin depender del orden del archivo. */
+@media (max-width: 640px) {
+    /* El `backdrop-filter` de la franja la vuelve el bloque contenedor de los
+       elementos `fixed` que lleva adentro, y además crea un contexto de capas:
+       el panel quedaba pintado DETRÁS del contenido (la franja va antes en el
+       documento y su altura no lo contiene). Poner la franja en una capa
+       propia la deja encima de la vista, con el panel. El 10 es a propósito:
+       queda por debajo del velo del cajón (z-40) y del propio cajón (z-60),
+       así que con el menú abierto la franja se sigue atenuando como antes y no
+       se cuela encima del velo. */
+    .franja-titulo {
+        position: relative;
+        z-index: 10;
+    }
+
+    #notificaciones-panel {
+        position: fixed;
+        left: 0.75rem;
+        right: 0.75rem;
+        width: auto;
+        max-width: none;
+    }
 }

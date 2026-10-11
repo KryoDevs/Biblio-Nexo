@@ -35,7 +35,7 @@ export default {
         ${boton('cumplimiento', 'Cumplimiento', 'fa-scale-balanced')}
         ${boton('diagnostico', 'Diagnóstico', 'fa-heart-pulse')}
       </div>
-      <div id="admin-panel"><div class="flex justify-center py-16"><i aria-hidden="true" class="fas fa-circle-notch fa-spin text-3xl text-patrimonio-lago"></i></div></div>
+      <div id="admin-panel"><div class="flex justify-center py-16"><i aria-hidden="true" class="fas fa-circle-notch fa-spin text-3xl text-patrimonio-lago dark:text-sky-300"></i></div></div>
     `;
 
     container.querySelectorAll('.admin-tab-btn').forEach(btn => {
@@ -89,7 +89,7 @@ export default {
           <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100">${filas.length} libro${filas.length === 1 ? '' : 's'} con inventario descuadrado</h3>
           <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Los ejemplares disponibles más los prestados no coinciden con el total. Corregir recalcula las disponibles a partir de los préstamos reales.</p>
         </div>
-        <table class="w-full text-sm">
+        <table class="tabla-adaptable w-full text-sm">
           <thead class="bg-stone-50 dark:bg-stone-800/50 text-stone-500 dark:text-stone-400 uppercase text-[10px] font-black">
             <tr>
               <th class="text-left px-4 py-3">Libro</th>
@@ -103,15 +103,15 @@ export default {
           <tbody>
             ${filas.map(f => html`
               <tr class="border-t border-stone-200 dark:border-stone-700">
-                <td class="px-4 py-3">
+                <td data-etiqueta="Libro" class="px-4 py-3">
                   <div class="font-bold text-stone-800 dark:text-stone-200">${f.titulo}</div>
                   <div class="text-[11px] font-mono text-stone-500 dark:text-stone-400">${f.isbn || 'sin ISBN'}</div>
                 </td>
-                <td class="px-4 py-3 text-center tabular-nums">${f.copias_totales}</td>
-                <td class="px-4 py-3 text-center tabular-nums ${f.stock < 0 ? 'text-rose-700 font-bold' : ''}">${f.stock}</td>
-                <td class="px-4 py-3 text-center tabular-nums">${f.prestados}</td>
-                <td class="px-4 py-3 text-center"><span class="stamp stamp-danger !rotate-0">${f.diferencia > 0 ? '+' : ''}${f.diferencia}</span></td>
-                <td class="px-4 py-3 text-right">
+                <td data-etiqueta="Total" class="px-4 py-3 text-center tabular-nums">${f.copias_totales}</td>
+                <td data-etiqueta="Disponibles" class="px-4 py-3 text-center tabular-nums ${f.stock < 0 ? 'text-rose-700 dark:text-rose-300 font-bold' : ''}">${f.stock}</td>
+                <td data-etiqueta="Prestados" class="px-4 py-3 text-center tabular-nums">${f.prestados}</td>
+                <td data-etiqueta="Diferencia" class="px-4 py-3 text-center"><span class="stamp stamp-danger !rotate-0">${f.diferencia > 0 ? '+' : ''}${f.diferencia}</span></td>
+                <td data-etiqueta="" class="px-4 py-3 text-right">
                   <button class="fix-inv-btn btn-secundario bg-patrimonio-madera text-white px-3 py-1.5 rounded-lg text-xs font-bold" data-id="${f.libro_id}">Corregir</button>
                 </td>
               </tr>`)}
@@ -167,7 +167,7 @@ export default {
             retiren antes del plazo. "En fila" todavía no tiene un ejemplar propio: espera a que se devuelva uno.
           </p>
         </div>
-        <table class="w-full text-sm">
+        <table class="tabla-adaptable w-full text-sm">
           <thead class="bg-stone-50 dark:bg-stone-800/50 text-stone-500 dark:text-stone-400 uppercase text-[10px] font-black">
             <tr>
               <th class="text-left px-4 py-3">Libro</th>
@@ -179,15 +179,15 @@ export default {
           <tbody>
             ${filas.map(f => html`
               <tr class="border-t border-stone-200 dark:border-stone-700">
-                <td class="px-4 py-3">
+                <td data-etiqueta="Libro" class="px-4 py-3">
                   <div class="font-bold text-stone-800 dark:text-stone-200">${f.libro_titulo || 'Sin título'}</div>
                   <div class="text-[11px] font-mono text-stone-500 dark:text-stone-400">${f.libro_isbn || 'sin ISBN'}</div>
                 </td>
-                <td class="px-4 py-3">
+                <td data-etiqueta="Lector" class="px-4 py-3">
                   <div class="text-stone-800 dark:text-stone-200">${f.lector_nombre}</div>
                   <div class="text-[11px] font-mono text-stone-500 dark:text-stone-400">${f.lector_rut}</div>
                 </td>
-                <td class="px-4 py-3 text-center">
+                <td data-etiqueta="Situación" class="px-4 py-3 text-center">
                   ${f.estado === 'apartada' ? html`
                     <span class="stamp stamp-success !rotate-0">Apartado</span>
                     <div class="text-[11px] text-stone-500 dark:text-stone-400 mt-1">Retirar antes del ${this._fechaHoraLegible(f.vence_apartado_en)}</div>`
@@ -195,10 +195,10 @@ export default {
                     <span class="stamp stamp-info !rotate-0">En fila</span>
                     <div class="text-[11px] text-stone-500 dark:text-stone-400 mt-1">Posición ${f.posicion_en_fila}</div>`}
                 </td>
-                <td class="px-4 py-3 text-right whitespace-nowrap space-x-2">
+                <td data-etiqueta="" class="px-4 py-3 text-right whitespace-nowrap space-x-2">
                   ${f.estado === 'apartada' ? html`
                     <button class="retirar-reserva-btn btn-secundario bg-patrimonio-bosque text-white px-3 py-1.5 rounded-lg text-xs font-bold" data-id="${f.reserva_id}">Retirar</button>` : ''}
-                  <button class="cancelar-reserva-btn text-rose-700 font-bold" data-id="${f.reserva_id}">Cancelar</button>
+                  <button class="cancelar-reserva-btn text-rose-700 font-bold dark:text-rose-300" data-id="${f.reserva_id}">Cancelar</button>
                 </td>
               </tr>`)}
           </tbody>
@@ -260,7 +260,7 @@ export default {
         </div>
         ${filas.length === 0
           ? html`<p class="px-4 py-8 text-center text-sm text-stone-500 dark:text-stone-400">Ningún lector tiene bloqueo administrativo.</p>`
-          : html`<table class="w-full text-sm">
+          : html`<table class="tabla-adaptable w-full text-sm">
               <thead class="bg-stone-50 dark:bg-stone-800/50 text-stone-500 dark:text-stone-400 uppercase text-[10px] font-black">
                 <tr>
                   <th class="text-left px-4 py-3">Lector</th>
@@ -272,13 +272,13 @@ export default {
               <tbody>
                 ${filas.map(l => html`
                   <tr class="border-t border-stone-200 dark:border-stone-700">
-                    <td class="px-4 py-3">
+                    <td data-etiqueta="Lector" class="px-4 py-3">
                       <div class="font-bold text-stone-800 dark:text-stone-200">${l.nombre}</div>
                       <div class="text-[11px] font-mono text-stone-500 dark:text-stone-400">${l.rut}</div>
                     </td>
-                    <td class="px-4 py-3 text-stone-600 dark:text-stone-300">${l.motivo_bloqueo || '—'}</td>
-                    <td class="px-4 py-3 text-stone-500 dark:text-stone-400 text-xs">${l.bloqueado_en ? this._fechaLegible(l.bloqueado_en.split('T')[0]) : '—'}</td>
-                    <td class="px-4 py-3 text-right">
+                    <td data-etiqueta="Motivo" class="px-4 py-3 text-stone-600 dark:text-stone-300">${l.motivo_bloqueo || '—'}</td>
+                    <td data-etiqueta="Desde" class="px-4 py-3 text-stone-500 dark:text-stone-400 text-xs">${l.bloqueado_en ? this._fechaLegible(l.bloqueado_en.split('T')[0]) : '—'}</td>
+                    <td data-etiqueta="" class="px-4 py-3 text-right">
                       <button class="unblock-btn btn-secundario bg-patrimonio-bosque text-white px-3 py-1.5 rounded-lg text-xs font-bold" data-id="${l.id}">Desbloquear</button>
                     </td>
                   </tr>`)}
@@ -359,7 +359,7 @@ export default {
           <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100">Personal con acceso</h3>
           <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Invita cuentas nuevas más abajo y asigna el rol de cada una aquí. El nombre y el cargo los completa cada persona en su propio perfil.</p>
         </div>
-        <table class="w-full text-sm">
+        <table class="tabla-adaptable w-full text-sm">
           <thead class="bg-stone-50 dark:bg-stone-800/50 text-stone-500 dark:text-stone-400 uppercase text-[10px] font-black">
             <tr>
               <th class="text-left px-4 py-3">Persona</th>
@@ -372,18 +372,18 @@ export default {
           <tbody>
             ${filas.map(u => html`
               <tr class="border-t border-stone-200 dark:border-stone-700">
-                <td class="px-4 py-3">
+                <td data-etiqueta="Persona" class="px-4 py-3">
                   <div class="font-bold text-stone-800 dark:text-stone-200">${u.nombre || 'Sin nombre en su perfil'}</div>
                   <div class="text-xs text-stone-500 dark:text-stone-400">${u.email}</div>
                   ${u.cargo ? html`<div class="text-[11px] text-stone-500 dark:text-stone-400 italic">${u.cargo}</div>` : ''}
                 </td>
-                <td class="px-4 py-3">
+                <td data-etiqueta="Rol" class="px-4 py-3">
                   <span class="stamp ${infoRol(u.rol).stamp} !rotate-0">
                     <i aria-hidden="true" class="fas ${infoRol(u.rol).icon}"></i> ${infoRol(u.rol).title}
                   </span>
                 </td>
-                <td class="px-4 py-3 text-stone-500 dark:text-stone-400 text-xs">${u.ultimo_acceso ? this._fechaLegible(u.ultimo_acceso.split('T')[0]) : 'Nunca'}</td>
-                <td class="px-4 py-3 text-right">
+                <td data-etiqueta="Último acceso" class="px-4 py-3 text-stone-500 dark:text-stone-400 text-xs">${u.ultimo_acceso ? this._fechaLegible(u.ultimo_acceso.split('T')[0]) : 'Nunca'}</td>
+                <td data-etiqueta="" class="px-4 py-3 text-right">
                   <label class="sr-only" for="role-select-${u.usuario_id}">Cambiar rol de ${u.nombre || u.email}</label>
                   <select id="role-select-${u.usuario_id}" class="role-select role-btn w-full max-w-[11rem] px-2 py-1.5 rounded-lg border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 text-xs font-bold"
                     data-id="${u.usuario_id}" data-current="${u.rol}">
@@ -392,8 +392,8 @@ export default {
                     <option value="admin" ${u.rol === 'admin' ? 'selected' : ''}>Administrador</option>
                   </select>
                 </td>
-                <td class="px-4 py-3 text-right">
-                  <button class="delete-personal-btn text-rose-700 hover:text-rose-800 p-1.5" title="Eliminar cuenta"
+                <td data-etiqueta="" class="px-4 py-3 text-right">
+                  <button class="delete-personal-btn text-rose-700 hover:text-rose-800 p-1.5 dark:text-rose-300" title="Eliminar cuenta"
                     data-id="${u.usuario_id}" data-email="${u.email}">
                     <i aria-hidden="true" class="fas fa-trash"></i>
                   </button>
@@ -531,7 +531,7 @@ export default {
             desde Mesón, con el botón «Escanear desde el celular». Los últimos 200, del más nuevo al más antiguo.
           </p>
         </div>
-        <table class="w-full text-sm">
+        <table class="tabla-adaptable w-full text-sm">
           <thead class="bg-stone-50 dark:bg-stone-800/50 text-stone-500 dark:text-stone-400 uppercase text-[10px] font-black">
             <tr>
               <th class="text-left px-4 py-3">Generado por</th>
@@ -544,24 +544,24 @@ export default {
           <tbody>
             ${filas.map(e => html`
               <tr class="border-t border-stone-200 dark:border-stone-700">
-                <td class="px-4 py-3">
+                <td data-etiqueta="Generado por" class="px-4 py-3">
                   <div class="text-xs text-stone-500 dark:text-stone-400">${e.creado_por_email || 'Cuenta eliminada'}</div>
                   <div class="text-[11px] text-stone-500 dark:text-stone-400">${this._fechaHoraLegible(e.creado_en)}</div>
                 </td>
-                <td class="px-4 py-3 text-stone-600 dark:text-stone-300 text-xs">${this._fechaHoraLegible(e.expira_en)}</td>
-                <td class="px-4 py-3">
+                <td data-etiqueta="Vence" class="px-4 py-3 text-stone-600 dark:text-stone-300 text-xs">${this._fechaHoraLegible(e.expira_en)}</td>
+                <td data-etiqueta="Estado" class="px-4 py-3">
                   ${e.vigente
                     ? '<span class="stamp stamp-success !rotate-0"><i aria-hidden="true" class="fas fa-check"></i> Vigente</span>'
                     : e.revocado
                       ? '<span class="stamp stamp-danger !rotate-0"><i aria-hidden="true" class="fas fa-ban"></i> Revocado</span>'
-                      : '<span class="stamp !rotate-0 bg-stone-200 text-stone-600 dark:text-stone-300"><i aria-hidden="true" class="fas fa-clock"></i> Vencido</span>'}
+                      : '<span class="stamp !rotate-0 bg-stone-200 text-stone-600 dark:text-stone-300 dark:bg-stone-700"><i aria-hidden="true" class="fas fa-clock"></i> Vencido</span>'}
                 </td>
-                <td class="px-4 py-3 text-stone-600 dark:text-stone-300 text-xs">
+                <td data-etiqueta="Usos" class="px-4 py-3 text-stone-600 dark:text-stone-300 text-xs">
                   ${e.usos}${e.ultimo_uso_en ? html`<div class="text-[11px] text-stone-500 dark:text-stone-400">último: ${this._fechaHoraLegible(e.ultimo_uso_en)}</div>` : ''}
                 </td>
-                <td class="px-4 py-3 text-right">
+                <td data-etiqueta="" class="px-4 py-3 text-right">
                   ${e.vigente ? html`
-                    <button class="revocar-enlace-btn text-rose-700 hover:text-rose-800 p-1.5" title="Revocar enlace"
+                    <button class="revocar-enlace-btn text-rose-700 hover:text-rose-800 p-1.5 dark:text-rose-300" title="Revocar enlace"
                       data-id="${e.id}">
                       <i aria-hidden="true" class="fas fa-ban"></i>
                     </button>` : ''}
@@ -621,7 +621,7 @@ export default {
             historial de préstamos, reenganchado.
           </p>
         </div>
-        <table class="w-full text-sm">
+        <table class="tabla-adaptable w-full text-sm">
           <thead class="bg-stone-50 dark:bg-stone-800/50 text-stone-500 dark:text-stone-400 uppercase text-[10px] font-black">
             <tr>
               <th class="text-left px-4 py-3">Libro</th>
@@ -633,17 +633,17 @@ export default {
           <tbody>
             ${filas.map(f => html`
               <tr class="border-t border-stone-200 dark:border-stone-700">
-                <td class="px-4 py-3">
+                <td data-etiqueta="Libro" class="px-4 py-3">
                   <div class="font-bold text-stone-800 dark:text-stone-200">${f.titulo || 'Sin título'}</div>
                   <div class="text-xs text-stone-500 dark:text-stone-400">${f.autor || ''}</div>
                   <div class="text-[11px] font-mono text-stone-500 dark:text-stone-400">${f.isbn || 'sin ISBN'}</div>
                 </td>
-                <td class="px-4 py-3 text-center tabular-nums">${f.copias_totales ?? '—'}</td>
-                <td class="px-4 py-3 text-stone-500 dark:text-stone-400 text-xs">
+                <td data-etiqueta="Ejemplares" class="px-4 py-3 text-center tabular-nums">${f.copias_totales ?? '—'}</td>
+                <td data-etiqueta="Eliminado" class="px-4 py-3 text-stone-500 dark:text-stone-400 text-xs">
                   ${this._fechaHoraLegible(f.eliminado_en)}
                   ${f.eliminado_por ? html`<div class="text-[11px] text-stone-500 dark:text-stone-400">${f.eliminado_por}</div>` : ''}
                 </td>
-                <td class="px-4 py-3 text-right">
+                <td data-etiqueta="" class="px-4 py-3 text-right">
                   <button class="restore-book-btn btn-secundario bg-patrimonio-bosque text-white px-3 py-1.5 rounded-lg text-xs font-bold" data-id="${f.libro_id}">Restaurar</button>
                 </td>
               </tr>`)}
@@ -695,7 +695,7 @@ export default {
         </div>
         ${filas.length === 0
           ? html`<p class="px-4 py-8 text-center text-sm text-stone-500 dark:text-stone-400">Todavía no hay movimientos registrados.</p>`
-          : html`<table class="w-full text-sm">
+          : html`<table class="tabla-adaptable w-full text-sm">
               <thead class="bg-stone-50 dark:bg-stone-800/50 text-stone-500 dark:text-stone-400 uppercase text-[10px] font-black">
                 <tr>
                   <th class="text-left px-4 py-3">Cuándo</th>
@@ -707,12 +707,12 @@ export default {
               <tbody>
                 ${filas.map(f => html`
                   <tr class="border-t border-stone-200 dark:border-stone-700">
-                    <td class="px-4 py-3 text-stone-500 dark:text-stone-400 text-xs whitespace-nowrap">
+                    <td data-etiqueta="Cuándo" class="px-4 py-3 text-stone-500 dark:text-stone-400 text-xs whitespace-nowrap">
                       ${new Date(f.created_at).toLocaleString('es-CL', { timeZone: 'America/Santiago', dateStyle: 'short', timeStyle: 'short' })}
                     </td>
-                    <td class="px-4 py-3 text-stone-700 text-xs">${f.usuario_email || 'sistema'}</td>
-                    <td class="px-4 py-3">${accion(f.accion)}</td>
-                    <td class="px-4 py-3 text-stone-500 dark:text-stone-400 text-xs">${f.tabla} <span class="text-stone-300">#${f.registro_id || '?'}</span></td>
+                    <td data-etiqueta="Quién" class="px-4 py-3 text-stone-700 text-xs dark:text-stone-200">${f.usuario_email || 'sistema'}</td>
+                    <td data-etiqueta="Qué hizo" class="px-4 py-3">${accion(f.accion)}</td>
+                    <td data-etiqueta="Dónde" class="px-4 py-3 text-stone-500 dark:text-stone-400 text-xs">${f.tabla} <span class="text-stone-300">#${f.registro_id || '?'}</span></td>
                   </tr>`)}
               </tbody>
             </table>`}
@@ -756,13 +756,13 @@ export default {
               recién se aplicó, la primera corrida real llega en la próxima ventana programada.
             </p>` : html`
             <div class="px-4 py-3 border-b border-stone-200 dark:border-stone-700 ${ultimoRespaldo.ok ? 'bg-patrimonio-bosque/5' : 'bg-rose-50'}">
-              <p class="text-sm font-bold ${ultimoRespaldo.ok ? 'text-patrimonio-bosque' : 'text-rose-800'}">
+              <p class="text-sm font-bold ${ultimoRespaldo.ok ? 'text-patrimonio-bosque' : 'text-rose-800 dark:text-rose-300'}">
                 <i aria-hidden="true" class="fas ${ultimoRespaldo.ok ? 'fa-circle-check' : 'fa-triangle-exclamation'} mr-1.5"></i>
                 Último respaldo: ${ultimoRespaldo.ok ? 'correcto' : 'falló'}, ${this._fechaLegible(ultimoRespaldo.ejecutado_en.split('T')[0])}
               </p>
-              ${!ultimoRespaldo.ok && ultimoRespaldo.mensaje ? html`<p class="text-xs text-rose-700 mt-1">${ultimoRespaldo.mensaje}</p>` : ''}
+              ${!ultimoRespaldo.ok && ultimoRespaldo.mensaje ? html`<p class="text-xs text-rose-700 mt-1 dark:text-rose-300">${ultimoRespaldo.mensaje}</p>` : ''}
             </div>
-            <table class="w-full text-sm">
+            <table class="tabla-adaptable w-full text-sm">
               <thead class="bg-stone-50 dark:bg-stone-800/50 text-stone-500 dark:text-stone-400 uppercase text-[10px] font-black">
                 <tr>
                   <th class="text-left px-4 py-3">Fecha</th>
@@ -773,11 +773,11 @@ export default {
               <tbody>
                 ${respaldos.map(r => html`
                   <tr class="border-t border-stone-200 dark:border-stone-700">
-                    <td class="px-4 py-3 text-stone-600 dark:text-stone-300 text-xs">${new Date(r.ejecutado_en).toLocaleString('es-CL')}</td>
-                    <td class="px-4 py-3 text-center">${r.ok
+                    <td data-etiqueta="Fecha" class="px-4 py-3 text-stone-600 dark:text-stone-300 text-xs">${new Date(r.ejecutado_en).toLocaleString('es-CL')}</td>
+                    <td data-etiqueta="Estado" class="px-4 py-3 text-center">${r.ok
                       ? crudo('<i aria-hidden="true" class="fas fa-circle-check text-patrimonio-bosque"></i>')
-                      : crudo('<i aria-hidden="true" class="fas fa-circle-xmark text-rose-700"></i>')}</td>
-                    <td class="px-4 py-3 text-right text-stone-500 dark:text-stone-400 text-xs tabular-nums">${r.bytes ? `${(r.bytes / 1024).toFixed(1)} KB` : '—'}</td>
+                      : crudo('<i aria-hidden="true" class="fas fa-circle-xmark text-rose-700 dark:text-rose-300"></i>')}</td>
+                    <td data-etiqueta="Tamaño" class="px-4 py-3 text-right text-stone-500 dark:text-stone-400 text-xs tabular-nums">${r.bytes ? `${(r.bytes / 1024).toFixed(1)} KB` : '—'}</td>
                   </tr>`)}
               </tbody>
             </table>`}
@@ -790,10 +790,10 @@ export default {
             <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">Sin RLS, cualquiera con la clave pública puede leer y escribir desde la consola del navegador. Ocultar botones no protege nada.</p>
           </div>
           ${problemas.length ? html`
-            <div class="bg-rose-50 border-b border-rose-200 px-4 py-3">
-              <p class="text-sm font-bold text-rose-800"><i aria-hidden="true" class="fas fa-triangle-exclamation mr-1.5"></i>${problemas.length} tabla${problemas.length === 1 ? '' : 's'} sin protección adecuada</p>
+            <div class="bg-rose-50 border-b border-rose-200 px-4 py-3 dark:bg-rose-950/40 dark:border-rose-900/60">
+              <p class="text-sm font-bold text-rose-800 dark:text-rose-300"><i aria-hidden="true" class="fas fa-triangle-exclamation mr-1.5"></i>${problemas.length} tabla${problemas.length === 1 ? '' : 's'} sin protección adecuada</p>
             </div>` : ''}
-          <table class="w-full text-sm">
+          <table class="tabla-adaptable w-full text-sm">
             <thead class="bg-stone-50 dark:bg-stone-800/50 text-stone-500 dark:text-stone-400 uppercase text-[10px] font-black">
               <tr>
                 <th class="text-left px-4 py-3">Tabla</th>
@@ -805,12 +805,12 @@ export default {
             <tbody>
               ${rls.map(r => html`
                 <tr class="border-t border-stone-200 dark:border-stone-700">
-                  <td class="px-4 py-3 font-mono text-stone-700">${r.tabla}</td>
-                  <td class="px-4 py-3 text-center">${r.rls_activo
+                  <td data-etiqueta="Tabla" class="px-4 py-3 font-mono text-stone-700 dark:text-stone-200">${r.tabla}</td>
+                  <td data-etiqueta="RLS" class="px-4 py-3 text-center">${r.rls_activo
                     ? crudo('<i aria-hidden="true" class="fas fa-circle-check text-patrimonio-bosque"></i>')
-                    : crudo('<i aria-hidden="true" class="fas fa-circle-xmark text-rose-700"></i>')}</td>
-                  <td class="px-4 py-3 text-center tabular-nums">${r.politicas}</td>
-                  <td class="px-4 py-3 text-xs ${r.diagnostico === 'Correcto' ? 'text-stone-500 dark:text-stone-400' : 'text-rose-700 font-bold'}">${r.diagnostico}</td>
+                    : crudo('<i aria-hidden="true" class="fas fa-circle-xmark text-rose-700 dark:text-rose-300"></i>')}</td>
+                  <td data-etiqueta="Políticas" class="px-4 py-3 text-center tabular-nums">${r.politicas}</td>
+                  <td data-etiqueta="Diagnóstico" class="px-4 py-3 text-xs ${r.diagnostico === 'Correcto' ? 'text-stone-500 dark:text-stone-400' : 'text-rose-700 font-bold'}">${r.diagnostico}</td>
                 </tr>`)}
             </tbody>
           </table>
@@ -818,7 +818,7 @@ export default {
 
         <!-- Circulación: comprueba que el personal pueda de verdad trabajar -->
         ${circulacion === null ? html`
-          <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-amber-300 p-5">
+          <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-amber-300 dark:border-amber-800 p-5">
             <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100 mb-1">Funciones de circulación</h3>
             <p class="text-sm text-stone-600 dark:text-stone-300">
               Falta ejecutar la migración <code class="bg-stone-100 dark:bg-stone-700 px-1.5 py-0.5 rounded text-xs font-mono">008_perfiles_y_permisos_librero.sql</code>.
@@ -835,10 +835,10 @@ export default {
               </p>
             </div>
             ${rotas.length ? html`
-              <div class="bg-rose-50 border-b border-rose-200 px-4 py-3">
-                <p class="text-sm font-bold text-rose-800"><i aria-hidden="true" class="fas fa-triangle-exclamation mr-1.5"></i>${rotas.length} función${rotas.length === 1 ? '' : 'es'} en riesgo: el rol librero no podrá operar</p>
+              <div class="bg-rose-50 border-b border-rose-200 px-4 py-3 dark:bg-rose-950/40 dark:border-rose-900/60">
+                <p class="text-sm font-bold text-rose-800 dark:text-rose-300"><i aria-hidden="true" class="fas fa-triangle-exclamation mr-1.5"></i>${rotas.length} función${rotas.length === 1 ? '' : 'es'} en riesgo: el rol librero no podrá operar</p>
               </div>` : ''}
-            <table class="w-full text-sm">
+            <table class="tabla-adaptable w-full text-sm">
               <thead class="bg-stone-50 dark:bg-stone-800/50 text-stone-500 dark:text-stone-400 uppercase text-[10px] font-black">
                 <tr>
                   <th class="text-left px-4 py-3">Función</th>
@@ -849,11 +849,11 @@ export default {
               <tbody>
                 ${circulacion.map(f => html`
                   <tr class="border-t border-stone-200 dark:border-stone-700">
-                    <td class="px-4 py-3 font-mono text-stone-700">${f.funcion}</td>
-                    <td class="px-4 py-3 text-center">${f.es_definer
+                    <td data-etiqueta="Función" class="px-4 py-3 font-mono text-stone-700 dark:text-stone-200">${f.funcion}</td>
+                    <td data-etiqueta="Definer" class="px-4 py-3 text-center">${f.es_definer
                       ? crudo('<i aria-hidden="true" class="fas fa-circle-check text-patrimonio-bosque"></i>')
-                      : crudo('<i aria-hidden="true" class="fas fa-circle-xmark text-rose-700"></i>')}</td>
-                    <td class="px-4 py-3 text-xs ${f.es_definer ? 'text-stone-500 dark:text-stone-400' : 'text-rose-700 font-bold'}">${f.diagnostico}</td>
+                      : crudo('<i aria-hidden="true" class="fas fa-circle-xmark text-rose-700 dark:text-rose-300"></i>')}</td>
+                    <td data-etiqueta="Diagnóstico" class="px-4 py-3 text-xs ${f.es_definer ? 'text-stone-500 dark:text-stone-400' : 'text-rose-700 font-bold'}">${f.diagnostico}</td>
                   </tr>`)}
               </tbody>
             </table>
@@ -872,7 +872,7 @@ export default {
               <input id="arco-rut" placeholder="12345678-5" class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 text-sm font-mono focus:outline-none focus:border-patrimonio-lago" />
             </div>
             <div class="flex flex-wrap gap-2">
-              <button id="arco-export-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-4 py-2 rounded-xl text-sm font-medium">
+              <button id="arco-export-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-4 py-2 rounded-xl text-sm font-medium dark:text-stone-200">
                 <i aria-hidden="true" class="fas fa-download mr-1.5"></i> Entregar sus datos
               </button>
               <button id="arco-delete-btn" class="btn-secundario bg-rose-700 hover:bg-rose-800 text-white px-4 py-2 rounded-xl text-sm font-medium">
@@ -894,7 +894,7 @@ export default {
             No se pueden conservar datos identificables más tiempo del necesario para la finalidad declarada.
             Esta acción anonimiza a los lectores sin actividad en el plazo configurado.
           </p>
-          <button id="purge-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-4 py-2 rounded-xl text-sm font-medium">
+          <button id="purge-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-4 py-2 rounded-xl text-sm font-medium dark:text-stone-200">
             <i aria-hidden="true" class="fas fa-broom mr-1.5"></i> Ejecutar purga por antigüedad
           </button>
         </div>
@@ -932,7 +932,7 @@ export default {
               ${parametros.map(p => html`
                 <tr class="border-t border-stone-200 dark:border-stone-700">
                   <td class="px-4 py-3">
-                    <div class="font-mono text-xs text-stone-700">${p.clave}</div>
+                    <div class="font-mono text-xs text-stone-700 dark:text-stone-200">${p.clave}</div>
                     <div class="text-[11px] text-stone-500 dark:text-stone-400">${p.descripcion || ''}</div>
                   </td>
                   <td class="px-4 py-3 w-32">
@@ -1093,23 +1093,23 @@ export default {
       <div class="space-y-4">
 
         ${definiciones === null ? html`
-          <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-amber-300 p-5">
+          <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-amber-300 dark:border-amber-800 p-5">
             <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100 mb-1">Definiciones de funciones</h3>
             <p class="text-sm text-stone-600 dark:text-stone-300">
               Falta ejecutar la migración <code class="bg-stone-100 dark:bg-stone-700 px-1.5 py-0.5 rounded text-xs font-mono">010_consolidacion.sql</code>.
               Sin ella no se puede comprobar si alguna función quedó fuera de norma.
             </p>
           </div>` : derivas.length ? html`
-          <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-rose-300 overflow-hidden">
-            <div class="bg-rose-50 border-b border-rose-200 px-4 py-3">
-              <p class="text-sm font-bold text-rose-800">
+          <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-rose-300 dark:border-rose-900 overflow-hidden">
+            <div class="bg-rose-50 border-b border-rose-200 px-4 py-3 dark:bg-rose-950/40 dark:border-rose-900/60">
+              <p class="text-sm font-bold text-rose-800 dark:text-rose-300">
                 <i aria-hidden="true" class="fas fa-triangle-exclamation mr-1.5"></i>${derivas.length} función${derivas.length === 1 ? '' : 'es'} fuera de norma
               </p>
-              <p class="text-xs text-rose-700 mt-1">
+              <p class="text-xs text-rose-700 mt-1 dark:text-rose-300">
                 Alguien redefinió una función fuera de la migración 010. Vuelve a ejecutarla para repararlo.
               </p>
             </div>
-            <div class="divide-y divide-stone-200">
+            <div class="divide-y divide-stone-200 dark:divide-stone-700">
               ${derivas.map(d => html`
                 <div class="px-4 py-3">
                   <p class="text-sm font-bold text-stone-800 dark:text-stone-200 font-mono">${d.nombre}
@@ -1128,8 +1128,8 @@ export default {
           </div>`}
 
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          ${tarjeta('Sin revisar', resumen.sin_revisar ?? 0, (resumen.sin_revisar ?? 0) > 0 ? 'text-rose-700' : 'text-stone-900 dark:text-stone-100')}
-          ${tarjeta('Últimas 24 horas', resumen.ultimas_24h ?? 0, (resumen.ultimas_24h ?? 0) > 0 ? 'text-amber-700' : 'text-stone-900 dark:text-stone-100')}
+          ${tarjeta('Sin revisar', resumen.sin_revisar ?? 0, (resumen.sin_revisar ?? 0) > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-stone-900 dark:text-stone-100')}
+          ${tarjeta('Últimas 24 horas', resumen.ultimas_24h ?? 0, (resumen.ultimas_24h ?? 0) > 0 ? 'text-amber-700 dark:text-amber-300' : 'text-stone-900 dark:text-stone-100')}
           ${tarjeta('Total registrado', resumen.total ?? 0)}
           <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5">
             <p class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100 leading-tight">${fechaHora(resumen.mas_reciente)}</p>
@@ -1156,15 +1156,15 @@ export default {
                 </p>
               </div>
               <div class="flex gap-2 shrink-0">
-                <button id="marcar-todos-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-3 py-1.5 rounded-lg text-xs font-bold">
+                <button id="marcar-todos-btn" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-3 py-1.5 rounded-lg text-xs font-bold dark:text-stone-200">
                   <i aria-hidden="true" class="fas fa-check-double mr-1"></i> Marcar revisados
                 </button>
-                <button id="purgar-errores-btn" class="btn-secundario border border-rose-200 bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold">
+                <button id="purgar-errores-btn" class="btn-secundario border border-rose-200 bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold dark:text-rose-300 dark:bg-rose-950/40 dark:border-rose-900/60">
                   <i aria-hidden="true" class="fas fa-broom mr-1"></i> Purgar antiguos
                 </button>
               </div>
             </div>
-            <div class="divide-y divide-stone-200 max-h-[32rem] overflow-y-auto">
+            <div class="divide-y divide-stone-200 max-h-[32rem] overflow-y-auto dark:divide-stone-700">
               ${errores.map(e => html`
                 <div class="px-4 py-3 ${e.visto ? 'opacity-60' : ''}">
                   <div class="flex items-start justify-between gap-3 flex-wrap">
@@ -1184,7 +1184,7 @@ export default {
                       </p>
                       ${e.detalle ? html`
                         <details class="mt-1.5">
-                          <summary class="text-[11px] text-patrimonio-lago cursor-pointer font-bold">Ver detalle técnico</summary>
+                          <summary class="text-[11px] text-patrimonio-lago cursor-pointer font-bold dark:text-sky-300">Ver detalle técnico</summary>
                           <pre class="mt-1 bg-stone-50 dark:bg-stone-800/50 border border-stone-200 dark:border-stone-700 rounded-lg p-2 text-[10px] font-mono overflow-x-auto whitespace-pre-wrap text-stone-600 dark:text-stone-300">${e.detalle}</pre>
                         </details>` : ''}
                     </div>

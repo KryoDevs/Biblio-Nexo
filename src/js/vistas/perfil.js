@@ -302,9 +302,9 @@ export default {
                   <p class="text-xs text-stone-500 dark:text-stone-400">Útil en la ruta cuando se trabaja de noche.</p>
                 </div>
                 <button id="perfil-tema-btn" type="button" role="switch" aria-checked="false" aria-label="Activar o desactivar el modo oscuro"
-                  class="w-12 h-7 rounded-full border border-stone-300 dark:border-stone-600 bg-stone-200 dark:bg-patrimonio-lago relative transition-colors shrink-0">
+                  class="w-12 h-7 rounded-full border border-stone-300 dark:border-stone-600 bg-stone-200 dark:bg-stone-700 relative transition-colors shrink-0">
                   <span id="perfil-tema-bola" class="absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow-sm transition-transform">
-                    <i aria-hidden="true" id="perfil-tema-icono" class="fas fa-moon text-[10px] text-stone-500 w-full h-full flex items-center justify-center"></i>
+                    <i aria-hidden="true" id="perfil-tema-icono" class="fas fa-moon text-[10px] text-stone-500 w-full h-full flex items-center justify-center dark:text-stone-400"></i>
                   </span>
                 </button>
               </div>
@@ -487,8 +487,13 @@ export default {
       const oscuro = document.documentElement.classList.contains('dark');
       if (botonTema) {
         botonTema.setAttribute('aria-checked', String(oscuro));
+        // Las dos clases del carril van de a pares, una por tema: si solo se
+        // cambiara la del tema claro, en modo oscuro el interruptor quedaría
+        // encendido (lago) aunque estuviera apagado.
         botonTema.classList.toggle('bg-patrimonio-lago', oscuro);
+        botonTema.classList.toggle('dark:bg-patrimonio-lago', oscuro);
         botonTema.classList.toggle('bg-stone-200', !oscuro);
+        botonTema.classList.toggle('dark:bg-stone-700', !oscuro);
       }
       // La bolita conserva `left-0.5` siempre y se mueve con translate: quitar
       // y poner `left` hacía que en modo oscuro quedara en una posición

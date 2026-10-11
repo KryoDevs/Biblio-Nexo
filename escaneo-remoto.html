@@ -2,7 +2,11 @@
 <html lang="es-CL">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- viewport-fit=cover + interactive-widget=resizes-content: esta página se abre
+         SIEMPRE desde un teléfono (el enlace de escaneo remoto del Bibliomóvil), así que
+         necesita lo mismo que index.html: respetar la muesca y encoger la ventana
+         cuando aparece el teclado, para que el botón «Agregar» no quede debajo. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <title>Escaneo remoto — BiblioNexo</title>
 
     <!--
@@ -54,7 +58,7 @@
     <link rel="stylesheet" href="/vendor/css/fontawesome.min.css">
     <link rel="stylesheet" href="/src/assets/css/styles.css">
 </head>
-<body class="bg-patrimonio-lago font-sans text-stone-800 min-h-screen flex items-center justify-center p-4">
+<body class="bg-patrimonio-lago font-sans text-stone-800 pantalla-minima flex items-center justify-center p-4">
 
     <noscript>
         <div class="bg-patrimonio-card border border-stone-300 rounded-2xl max-w-sm w-full p-6 text-center">

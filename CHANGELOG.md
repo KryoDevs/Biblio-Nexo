@@ -5,6 +5,96 @@ El proyecto utiliza [Conventional Commits](https://www.conventionalcommits.org/e
 
 ---
 
+## [1.4.0] — 2026-10-11
+
+### Añadido (`feat`)
+- **Adaptabilidad a teléfonos y tablets**: el menú lateral pasa a cajón hasta 1024px (el mismo
+  umbral del botón que lo abre — antes, en un iPad en vertical no había forma de navegar), con
+  cierre al elegir sección, con `Escape`, con botón propio y sin desplazar la página de atrás.
+- **Barra de accesos rápidos** en teléfono y tablet (`CONFIG.VISTAS_RAPIDAS` ∩ `VIEWS_BY_ROLE`,
+  máximo cuatro + «Más»): las tareas del día a un toque.
+- **Tablas adaptables**: hasta 768px cada fila se lee como ficha con la etiqueta de su columna
+  (`data-etiqueta`), sin duplicar HTML ni lógica. 12 tablas convertidas.
+- **Alto y recorte de pantalla**: helpers en `100dvh`, `viewport-fit=cover`,
+  `interactive-widget=resizes-content` y `env(safe-area-inset-*)` en cajón, barra inferior,
+  avisos y área de trabajo.
+- **Área táctil**: `.boton-icono` de 44px en pantalla táctil, 40px de alto mínimo en los botones
+  de las vistas y campos de 16px por debajo de 1024px (iOS no hace zoom al enfocar).
+- **Modo oscuro completo**: base `#0c0a09`, foco del teclado en ámbar sobre fondo oscuro, sellos
+  y esqueletos, mapa del Bibliomóvil con mosaicos invertidos y controles de Leaflet, acentos de
+  marca aclarados en un solo bloque del CSS (incluido el menú lateral, oscuro en los dos temas) y
+  `theme-color` que sigue al tema elegido.
+- **`public/tema-inicial.js`**: script clásico en el `<head>` que aplica el tema antes del primer
+  pintado — se acabó el destello blanco al cargar con el modo oscuro guardado.
+
+### Corregido (`fix`)
+- **`h-screen` en el cargador de arranque, el mensaje de error crítico y las pantallas de
+  ingreso**: `100vh` es más alto que la pantalla visible de un teléfono, así que el pie de los
+  formularios y el botón de reintentar quedaban debajo de la barra del navegador.
+- **Páginas del correo sin tema**: `renderNuevaPassword` y `renderCompletarInvitacion` no
+  aplicaban la preferencia guardada (se entra por el enlace, sin pasar por el ingreso).
+- **Ocho colores que viajaban como variable** (`${color}` ternarios en Administración, Préstamos,
+  Catálogo, Dashboard y Reportes) quedaban en `rose-700`/`amber-700` sobre tarjeta oscura
+  (2,5:1–3,2:1). Ahora llevan su pareja oscura y hay un escáner que los vigila.
+- **Interruptor del modo oscuro en Mi perfil**: el carril tenía dos clases oscuras a la vez
+  (`dark:bg-patrimonio-lago` y `dark:bg-stone-700`), así que podía verse encendido estando
+  apagado; ahora cada estado tiene su pareja por tema.
+- **Panel de vidrio del ingreso**: usaba un azulado fuera de la paleta; pasa a la familia stone.
+- **Aviso de éxito**: texto blanco sobre esmeralda 500 daba 2,56:1; ahora es el 700 (5,5:1).
+- **Diálogos**: tope de alto con scroll interno para que los botones no queden fuera de la
+  ventana con el teclado abierto o el teléfono en horizontal.
+- **Páginas fuera del panel**: el 404 usa `dvh`; el escaneo remoto (que siempre se abre desde un
+  teléfono) declara el viewport con teclado y muesca; la política de privacidad convierte su
+  tabla de datos personales en fichas y reduce el margen en pantalla angosta.
+
+### Corregido en la segunda pasada (revisión con navegador real)
+
+La primera parte de la ronda se revisó leyendo el código y con las suites. Después se abrió el
+banco de vista previa en un Chromium de verdad, a 360, 390, 768 y 1024px, y aparecieron cuatro
+cosas que ninguna suite podía ver. Tres de ellas afectaban a **teléfonos reales**:
+
+- **El menú lateral seguía ocupando lugar dentro de la fila, en teléfono y tablet**: la regla base
+  de escritorio (`#sidebar { position: relative }`) estaba más abajo en el archivo que el bloque
+  del cajón y, con la misma especificidad, le ganaba por puro orden de cascada. Medido en un marco
+  de 358px: el cajón quedaba en `position: relative` con una transformación de -308px y el área de
+  trabajo se reducía a **50px** de ancho; la aplicación entera se veía recortada. Las dos formas
+  del menú viven ahora en consultas de medios que no pueden coincidir (`max-width: 1023.98px` y
+  `min-width: 1024px`), así que el orden del archivo dejó de importar, y la suite lo vigila.
+- **El panel de notificaciones se abría fuera de la pantalla**: cuelga de la campana, que está
+  pegada al borde derecho, y con sus 320px de ancho natural se alineaba por la derecha y desbordaba
+  por la izquierda. Medido: entre -46 y 258 en una pantalla de 358px, con el título
+  «Notificaciones» cortado. En pantalla angosta pasa a ocupar el ancho disponible, y la franja de
+  título recibe una capa propia para que el panel no quede pintado detrás del contenido (el
+  `backdrop-filter` de la franja la volvía el bloque contenedor del `fixed`).
+- **La tarjeta de un libro se desbordaba 47px a lo ancho**: el título largo empujaba la fila de
+  datos más allá de la tarjeta, así que en el teléfono la mitad derecha (autor, ISBN, sellos) se
+  perdía con el nombre del libro serrado por el borde. La fila lleva `w-full` y el contenedor de
+  datos `min-w-0` — que ya estaba, pero no alcanzaba sin el `w-full` de la fila.
+- **La veta de madera de los botones mostraba costuras**: el mosaico de 120px no cierra en los
+  bordes (el ruido de `feTurbulence` no es sin fin), así que cada unión dejaba una línea vertical
+  recta en medio del botón, visible sobre todo en los botones anchos. Ahora la mancha se estira al
+  tamaño del botón.
+- **El velo del cajón no se veía en modo oscuro**: un velo oscuro sobre el papel casi negro del
+  modo nocturno no se distingue. En modo oscuro sube de opacidad.
+- **El botón «Preparar datos sin conexión» y «Prestar»** usaban un `#5E3214` escrito a mano, que no
+  es el tono de hover de la paleta (`#633414`); ahora usan `.btn-madera`, que además les da la veta
+  y la microinteracción del resto de los botones de madera.
+
+### Pruebas
+- Nueva suite `pruebas/probar-adaptabilidad.mjs` (88 comprobaciones, sin navegador), enganchada a
+  `npm run test:legacy` y al trabajo de interfaz de la CI. Además de los contratos de la primera
+  pasada, vigila los cuatro arreglos de la segunda: que el cajón sea fijo dentro de su consulta de
+  medios y que no quede ninguna regla `#sidebar` con `position` fuera de una (el choque de cascada
+  que recortaba el área de trabajo), que la franja y el panel de notificaciones se acomoden en
+  pantalla angosta, que la fila de la tarjeta de libro ocupe el ancho de su tarjeta y que la veta
+  de los botones no se repita.
+- `probar-contraste.mjs`: pares del tema oscuro y de los avisos, y los avisos entran al escaneo de
+  regresiones (incluida la corrección del propio escáner, que leía `bg-[#10b981]` como expresión
+  regular).
+- `generar-vista-previa.mjs`: diez pantallas con el cascarón real, cada una en un marco del ancho
+  elegido (360, 390, 768, 1024 o completo), con modo oscuro y cajón abierto.
+- Detalle completo en `docs/auditoria/06-adaptabilidad-movil-y-modo-oscuro-2026-10-11.md`.
+
 ## [1.3.0] — 2026-10-03
 
 ### Añadido (`feat`)

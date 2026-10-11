@@ -371,12 +371,70 @@ python3 pruebas/verificar_llamadas_rpc.py
 
 ---
 
-## Vista previa de la interfaz (revisión de diseño, 3 de octubre de 2026)
+## Adaptabilidad a teléfonos, tablets y modo nocturno (11 de octubre de 2026)
 
-`pruebas/generar-vista-previa.mjs` monta las vistas Catálogo (sede), Bibliomóvil, Catálogo del
-Bibliomóvil y Mi perfil con datos de ejemplo —sin sesión de Supabase— y las deja en
-`dist/preview/index.html`, con el CSS que ya compiló el build. Sirve para revisar aspecto, jerarquía y
-modo oscuro sin credenciales ni base de datos.
+### `probar-adaptabilidad.mjs` — que la interfaz siga sirviendo en un teléfono
+
+Lee los archivos fuente (no necesita navegador, así que corre en segundos) y
+vigila lo que se rompe solo al agregar una vista o una clase nueva:
+
+- **Ventana**: `viewport-fit=cover`, `interactive-widget=resizes-content`, alto
+  en `dvh`, ningún `h-screen` en vistas ni pantallas, y que `index.html` aplique
+  el tema antes del primer pintado con `public/tema-inicial.js`.
+- **Menú angosto**: el cajón y el botón que lo abre en el mismo umbral (1024px),
+  foco fuera del cajón cerrado, `Escape`, bloqueo del desplazamiento de fondo,
+  panel de notificaciones dentro de la pantalla y barra de accesos rápidos
+  coherente con `CONFIG.VIEWS_BY_ROLE`.
+- **Área táctil**: `.boton-icono` de 44px en pantalla táctil, 40px de alto mínimo
+  en los botones de las vistas y campos de 16px en pantalla angosta.
+- **Tablas**: toda tabla con encabezado es adaptable y cada celda lleva su
+  `data-etiqueta` (la tabla de parámetros de Administración queda exenta: es una
+  lista de nombre y valor, y el motivo está escrito en el script).
+- **Diálogos**: `role="dialog"` + `aria-modal` y tope de alto con scroll interno.
+- **Modo nocturno**: fondo y color base, `color-scheme`, anillo de foco, 20 reglas
+  oscuras con nombre propio, dos escáneres de regresión (clases literales y
+  colores que viajan como variable) y la prohibición de escribir los acentos de
+  marca como variante oscura de Tailwind.
+- **Páginas fuera del panel**: 404, escaneo remoto y política de privacidad.
+- **Lo que se rompió una vez y no debe volver** (hallazgos de la revisión con
+  navegador real, ver el informe 06): el menú lateral tiene que ser fijo dentro
+  de su consulta de medios y no puede quedar ninguna regla `#sidebar` con
+  `position` fuera de una —cuando la hubo, le ganaba al cajón por orden de
+  cascada y el área de trabajo quedaba en 50px—; el panel de notificaciones y la
+  franja de título se acomodan en pantalla angosta; la fila de la tarjeta de
+  libro ocupa el ancho de su tarjeta; y la veta de los botones de madera no se
+  repite (el mosaico dejaba costuras visibles).
+
+Para leer los bloques `@media` de verdad —y no una ventana fija de caracteres,
+que deja de encontrar la regla en cuanto el bloque lleva un comentario largo— el
+script usa el ayudante `cuerposMedia()`, que recorre las llaves.
+
+```bash
+node pruebas/probar-adaptabilidad.mjs
+```
+
+Termina con código 0 si todo está en orden y 1 si hay algo que corregir.
+
+### `probar-contraste.mjs`, ampliada al tema oscuro
+
+Además de los pares del modo claro, verifica los del modo oscuro (texto sobre
+`stone-900`, sellos, acentos de marca aclarados, foco del teclado) y los tres
+avisos. El listado de colores descartados ahora incluye `bg-[#10b981]`: con texto
+blanco encima quedaba en 2,6:1, así que el aviso de éxito usa esmeralda 700.
+
+### Vista previa de la interfaz, ahora con el cascarón real y por ancho de equipo
+
+`pruebas/generar-vista-previa.mjs` monta **diez pantallas con el cascarón
+completo** (menú lateral, franja de título y barra de accesos rápidos) con datos
+de ejemplo —sin sesión de Supabase— y las deja en `dist/preview/index.html`, con
+el CSS que ya compiló el build.
+
+Cada pantalla se dibuja dentro de un marco del ancho elegido: teléfono de 360px,
+teléfono grande de 390px, tablet en vertical de 768px, tablet en horizontal de
+1024px o ancho completo, con botones para alternar el modo oscuro y abrir el
+cajón. Es la única forma de ver la adaptación de verdad: las media queries
+responden al ancho de la **ventana**, y un contenedor angosto dentro de una
+página ancha no las activa.
 
 ```bash
 npm run build
@@ -385,6 +443,9 @@ npx serve dist        # abrir /preview/
 ```
 
 No forma parte de la aplicación ni de la suite: `dist/` está en `.gitignore` y la página no se publica.
+El script cierra el proceso a mano (`process.exit`) porque el cascarón real deja
+temporizadores andando (control de inactividad, vigilancia de portadas,
+sincronización en segundo plano) y, sin eso, Node nunca terminaría.
 
 ---
 
@@ -417,7 +478,7 @@ No forma parte de la aplicación ni de la suite: `dist/` está en `.gitignore` y
 | Trabajo | Qué hace |
 |---|---|
 | `consolidacion` | Lee los archivos SQL, segundos. Incluye `verificar_consolidacion.py` y, desde esta ronda, `verificar_llamadas_rpc.py` |
-| `interfaz` | DOM simulado con jsdom: `probar-interfaz.mjs`, y desde esta ronda `probar-vistas.mjs` y `probar-escaneo-remoto.mjs` — más IndexedDB en memoria con fake-indexeddb (`probar-persistencia.mjs`, Fase 1.2; `probar-sync-queue.mjs`, Fase 1.3; `probar-estado-conexion.mjs`, Fase 1.4) |
+| `interfaz` | DOM simulado con jsdom: `probar-interfaz.mjs`, y desde esta ronda `probar-vistas.mjs` y `probar-escaneo-remoto.mjs` — más IndexedDB en memoria con fake-indexeddb (`probar-persistencia.mjs`, Fase 1.2; `probar-sync-queue.mjs`, Fase 1.3; `probar-estado-conexion.mjs`, Fase 1.4). Desde el 11 de octubre de 2026 también corre `probar-adaptabilidad.mjs` (teléfonos, tablets y modo nocturno) y `probar-contraste.mjs` |
 | `migraciones` | Desde esta ronda: `probar-migraciones.py` contra PostgreSQL embebido (`pgserver`), sin servicio aparte |
 | `base-de-datos` | PostgreSQL 17 real (antes 16) |
 | `reconstruccion` | Rehace la base con el CLI de Supabase desde cero, contra PostgreSQL 17 (antes 16) |

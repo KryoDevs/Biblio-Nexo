@@ -91,22 +91,25 @@
     destino.textContent = '';
 
     var fondo = document.createElement('div');
-    fondo.className = 'h-screen w-full bg-patrimonio-lago flex items-center justify-center p-6';
+    // .pantalla-minima usa 100dvh: en un teléfono, 100vh es más alto que la
+    // pantalla visible (la barra de direcciones) y el mensaje quedaba cortado
+    // abajo, justo donde está el botón de reintentar.
+    fondo.className = 'pantalla-minima w-full bg-patrimonio-lago flex items-center justify-center p-6';
 
     var tarjeta = document.createElement('div');
-    tarjeta.className = 'bg-patrimonio-card border border-stone-300 rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4';
+    tarjeta.className = 'bg-patrimonio-card dark:bg-stone-900 border border-stone-300 dark:border-stone-600 rounded-2xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4';
     tarjeta.setAttribute('role', 'alert');
 
     var icono = document.createElement('i');
     icono.setAttribute('aria-hidden', 'true');
-    icono.className = 'fas fa-triangle-exclamation text-3xl text-rose-700';
+    icono.className = 'fas fa-triangle-exclamation text-3xl text-rose-700 dark:text-rose-300';
 
     var titulo = document.createElement('h3');
-    titulo.className = 'font-serif text-lg font-bold text-stone-900';
+    titulo.className = 'font-serif text-lg font-bold text-stone-900 dark:text-stone-100';
     titulo.textContent = 'No se pudo conectar';
 
     var texto = document.createElement('p');
-    texto.className = 'text-stone-600 text-sm';
+    texto.className = 'text-stone-600 dark:text-stone-300 text-sm';
     texto.textContent = mensaje;
 
     var boton = document.createElement('button');

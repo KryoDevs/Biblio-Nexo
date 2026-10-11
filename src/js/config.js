@@ -73,6 +73,20 @@ export const CONFIG = {
     ]
   },
 
+  // Accesos rápidos de la barra inferior, que solo se ve en teléfono y tablet
+  // (ver _renderBarraInferior en js/modules/ui-router.js). Son las tareas del
+  // día —mesón, catálogo, préstamos, lectores—, no las de administración.
+  //
+  // Es una lista de identificadores de VIEWS_BY_ROLE: se cruzan al dibujar, así
+  // que un rol que no tenga esa sección simplemente no la ve. Si se escribe un
+  // identificador que no existe, se ignora.
+  VISTAS_RAPIDAS: {
+    admin: ['scanner', 'catalog', 'loans', 'users'],
+    librero: ['scanner', 'catalog', 'loans', 'users'],
+    // Quien sale a ruta entra por el mapa, y desde ahí al mesón.
+    bibliomovil: ['bibliomovil', 'scanner', 'catalog', 'loans']
+  },
+
   // Textos de bienvenida y accesos rápidos que cambian según el rol,
   // usados en el Dashboard para que no se sienta genérico.
   ROLE_LABELS: {

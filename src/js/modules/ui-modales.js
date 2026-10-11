@@ -14,7 +14,10 @@ export default {
         if (!container) return;
 
         const toast = document.createElement('div');
-        const bgColor = type === 'success' ? 'bg-[#10b981]' : type === 'error' ? 'bg-[#e11d48]' : 'bg-[#1B3B48]';
+        // Verde esmeralda 700, no 500: el aviso lleva texto blanco encima y
+        // sobre el 500 quedaba en 2,6:1 —por debajo del mínimo AA—, además de
+        // deslumbrar en modo oscuro. Con el 700 queda en 5,5:1 en los dos temas.
+        const bgColor = type === 'success' ? 'bg-[#047857]' : type === 'error' ? 'bg-[#e11d48]' : 'bg-[#1B3B48]';
         const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle';
 
         toast.className = `${bgColor} toast-enter text-white px-5 py-4 rounded-2xl shadow-lg border border-white/10 font-bold flex items-center gap-3 transform transition-all duration-300 translate-y-10 scale-95 opacity-0 z-50 text-sm pointer-events-auto`;
@@ -191,7 +194,7 @@ export default {
             <i aria-hidden="true" class="fas fa-copy"></i> Copiar
           </button>
         </div>
-        ${(telefono.length < 11 || !email) ? `<p class="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">Este lector no tiene ${!email ? 'correo' : ''}${(!email && telefono.length < 11) ? ' ni ' : ''}${telefono.length < 11 ? 'teléfono' : ''} registrado. Complétalo en la vista Lectores para poder avisarle.</p>` : ''}
+        ${(telefono.length < 11 || !email) ? `<p class="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2 dark:border-amber-900/60">Este lector no tiene ${!email ? 'correo' : ''}${(!email && telefono.length < 11) ? ' ni ' : ''}${telefono.length < 11 ? 'teléfono' : ''} registrado. Complétalo en la vista Lectores para poder avisarle.</p>` : ''}
 
         <div class="flex justify-end pt-1">
           <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cerrar</button>
@@ -273,7 +276,7 @@ export default {
             <i aria-hidden="true" class="fas fa-copy"></i> Copiar
           </button>
         </div>
-        ${(telefono.length < 11 || !email) ? `<p class="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">Este lector no tiene ${!email ? 'correo' : ''}${(!email && telefono.length < 11) ? ' ni ' : ''}${telefono.length < 11 ? 'teléfono' : ''} registrado. Complétalo en la vista Lectores para poder avisarle.</p>` : ''}
+        ${(telefono.length < 11 || !email) ? `<p class="text-[11px] text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2 dark:border-amber-900/60">Este lector no tiene ${!email ? 'correo' : ''}${(!email && telefono.length < 11) ? ' ni ' : ''}${telefono.length < 11 ? 'teléfono' : ''} registrado. Complétalo en la vista Lectores para poder avisarle.</p>` : ''}
 
         <div class="flex justify-end pt-1">
           <button data-action="close" class="px-4 py-2 rounded-xl text-sm font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800">Cerrar</button>
