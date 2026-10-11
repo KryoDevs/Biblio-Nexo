@@ -41,19 +41,27 @@ export default {
     if (!container) return;
 
     container.innerHTML = `
-      <div class="flex flex-col md:flex-row gap-6 w-full h-full max-w-7xl mx-auto items-start">
-        <!-- Panel Izquierdo: El Escáner y Búsqueda -->
-        <div class="flex-1 w-full flex flex-col gap-6 sticky top-0">
-           <div class="bg-patrimonio-card dark:bg-stone-900 rounded-3xl shadow-soft-xl border border-stone-200 dark:border-stone-700 p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
+      <div class="flex flex-col md:flex-row gap-4 md:gap-6 w-full h-full max-w-7xl mx-auto items-start">
+        <!-- Panel Izquierdo: El Escáner y Búsqueda.
+             El "sticky" solo desde md: en un teléfono las dos secciones se
+             apilan, y un panel pegado arriba se quedaba encima de los
+             resultados mientras se hacía scroll para leer la ficha del libro. -->
+        <div class="flex-1 w-full flex flex-col gap-6 md:sticky md:top-0">
+           <div class="bg-patrimonio-card dark:bg-stone-900 rounded-3xl shadow-soft-xl border border-stone-200 dark:border-stone-700 p-5 sm:p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
                <div class="absolute -top-24 -right-24 w-64 h-64 bg-patrimonio-lago/5 rounded-full blur-3xl pointer-events-none"></div>
 
-               <h3 class="font-serif font-bold text-3xl text-stone-900 dark:text-stone-100 mb-2">Mesón de Circulación</h3>
-               <p class="text-sm text-stone-500 dark:text-stone-400 mb-8 max-w-sm">Escanee un libro o ingrese el código manualmente para registrar préstamos y devoluciones.</p>
+               <h3 class="font-serif font-bold text-2xl sm:text-3xl text-stone-900 dark:text-stone-100 mb-2">Mesón de Circulación</h3>
+               <p class="text-sm text-stone-500 dark:text-stone-400 mb-6 sm:mb-8 max-w-sm">Escanee un libro o ingrese el código manualmente para registrar préstamos y devoluciones.</p>
                
                <div class="w-full max-w-md flex flex-col gap-4">
                   <div class="relative">
-                    <i aria-hidden="true" class="fas fa-barcode absolute left-5 top-1/2 -translate-y-1/2 text-xl text-stone-500"></i>
-                    <input id="manual-scan-input" aria-label="Escribir el código del libro" placeholder="Ingrese el ISBN..." class="w-full pl-12 pr-4 py-4 bg-white dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700 rounded-2xl text-lg font-bold text-stone-800 dark:text-stone-200 placeholder-stone-400 focus:border-patrimonio-lago focus:ring-4 focus:ring-patrimonio-lago/10 transition-all shadow-sm outline-none" autocomplete="off" />
+                    <i aria-hidden="true" class="fas fa-barcode absolute left-5 top-1/2 -translate-y-1/2 text-xl text-stone-500 dark:text-stone-400"></i>
+                    <!-- inputmode="numeric" y enterkeyhint="search": en el teléfono
+                         aparece el teclado numérico y la tecla de búsqueda, en vez
+                         del teclado completo con la tecla de enter escondida. Los
+                         lectores de código de barras escriben y mandan Enter: el
+                         manejador de keydown de abajo los sigue atendiendo igual. -->
+                    <input id="manual-scan-input" aria-label="Escribir el código del libro" placeholder="Ingrese el ISBN..." inputmode="numeric" enterkeyhint="search" autocapitalize="off" autocorrect="off" spellcheck="false" class="w-full pl-12 pr-4 py-4 bg-white dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700 rounded-2xl text-lg font-bold text-stone-800 dark:text-stone-200 placeholder-stone-400 focus:border-patrimonio-lago focus:ring-4 focus:ring-patrimonio-lago/10 transition-all shadow-sm outline-none" autocomplete="off" />
                   </div>
                   
                   <button id="manual-scan-btn" class="w-full bg-patrimonio-lago hover:bg-[#14303c] text-white font-bold rounded-2xl shadow-lg shadow-patrimonio-lago/20 px-6 py-4 text-base transition-all active:scale-95 flex items-center justify-center gap-2">
@@ -65,8 +73,8 @@ export default {
                   <label class="flex items-center gap-3 cursor-pointer group" title="Si está activo, al escanear un libro prestado se devuelve inmediatamente.">
                     <div class="relative">
                       <input type="checkbox" id="fast-return-toggle" class="sr-only toggle-switch-input">
-                      <div class="block bg-stone-200 w-12 h-7 rounded-full transition-colors duration-300 ease-in-out toggle-switch-bg group-hover:bg-stone-300">
-                         <div class="absolute left-1 top-1 bg-white dark:bg-stone-800 w-5 h-5 rounded-full transition-transform duration-300 ease-in-out shadow-sm toggle-switch-knob flex items-center justify-center">
+                      <div class="block bg-stone-200 w-12 h-7 rounded-full transition-colors duration-300 ease-in-out toggle-switch-bg group-hover:bg-stone-300 dark:bg-stone-700">
+                         <div class="absolute left-1 top-1 bg-white w-5 h-5 rounded-full transition-transform duration-300 ease-in-out shadow-sm toggle-switch-knob flex items-center justify-center">
                          </div>
                       </div>
                     </div>
@@ -78,16 +86,16 @@ export default {
 
                   <button id="qr-remoto-btn" type="button" class="bg-white dark:bg-stone-800 border-2 border-stone-200 dark:border-stone-700 text-stone-700 dark:text-stone-200 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-stone-50 dark:hover:bg-stone-700 transition-all active:scale-95 shadow-sm">
                      <i aria-hidden="true" class="fas fa-mobile-screen-button text-patrimonio-lago dark:text-stone-300"></i>
-                     <span class="hidden sm:inline">Usar celular</span>
+                     <span>Usar celular</span>
                   </button>
                </div>
            </div>
         </div>
 
         <!-- Panel Derecho: Resultados (scan-result) -->
-        <div class="flex-[1.5] w-full bg-patrimonio-card dark:bg-stone-900 rounded-3xl shadow-soft-xl border border-stone-200 dark:border-stone-700 overflow-hidden flex flex-col relative min-h-[500px]">
-           <div id="scan-result" class="flex-1 flex flex-col p-6 overflow-y-auto">
-              <div class="m-auto text-center py-12 text-stone-500">
+        <div class="flex-[1.5] w-full bg-patrimonio-card dark:bg-stone-900 rounded-3xl shadow-soft-xl border border-stone-200 dark:border-stone-700 overflow-hidden flex flex-col relative min-h-[320px] lg:min-h-[500px]">
+           <div id="scan-result" class="flex-1 flex flex-col p-4 sm:p-6 overflow-y-auto">
+              <div class="m-auto text-center py-12 text-stone-500 dark:text-stone-400">
                 <div class="w-24 h-24 mx-auto bg-stone-50 dark:bg-stone-800/50 rounded-full flex items-center justify-center mb-4 border border-stone-100 shadow-inner">
                   <i aria-hidden="true" class="fas fa-book-open text-4xl text-stone-300"></i>
                 </div>
@@ -107,7 +115,7 @@ export default {
       // esta misma ficha o solo avisar con un toast — ver showQrRemotoModal.
       this._ultimoCodigoEscaneado = code;
 
-      resultEl.innerHTML = '<div class="flex items-center gap-2 text-sm text-stone-500 dark:text-stone-400"><i aria-hidden="true" class="fas fa-spinner fa-spin text-patrimonio-lago"></i> Consultando…</div>';
+      resultEl.innerHTML = '<div class="flex items-center gap-2 text-sm text-stone-500 dark:text-stone-400"><i aria-hidden="true" class="fas fa-spinner fa-spin text-patrimonio-lago dark:text-sky-300"></i> Consultando…</div>';
 
       try {
         const resultado = await db.consultarLibro(code);
@@ -123,10 +131,10 @@ export default {
                       await db.devolverPrestamo(prestamoActivo.id);
                       this.showToast('Devolución rápida exitosa.', 'success');
                       resultEl.innerHTML = `<div class="m-auto text-center py-12 text-stone-500 dark:text-stone-400">
-                          <div class="w-24 h-24 mx-auto bg-emerald-50 rounded-full flex items-center justify-center mb-4 border border-emerald-100 shadow-inner">
+                          <div class="w-24 h-24 mx-auto bg-emerald-50 rounded-full flex items-center justify-center mb-4 border border-emerald-100 shadow-inner dark:bg-emerald-950/40">
                              <i aria-hidden="true" class="fas fa-check text-4xl text-emerald-500"></i>
                           </div>
-                          <p class="text-xl font-bold text-emerald-700">¡Libro devuelto!</p>
+                          <p class="text-xl font-bold text-emerald-700 dark:text-emerald-400">¡Libro devuelto!</p>
                           <p class="text-sm mt-1">Puede escanear el siguiente.</p>
                       </div>`;
                       return;
@@ -142,7 +150,7 @@ export default {
         resultEl.innerHTML = this._fichaCirculacion(resultado, reservas);
         this._bindFichaCirculacion(resultEl, resultado, code);
       } catch (err) {
-        resultEl.innerHTML = `<p class="text-rose-700 font-bold text-sm">${escapeHtml(err.message || 'Error al consultar la base de datos.')}</p>`;
+        resultEl.innerHTML = `<p class="text-rose-700 font-bold text-sm dark:text-rose-300">${escapeHtml(err.message || 'Error al consultar la base de datos.')}</p>`;
       }
     };
     this._mostrarResultadoEscaneo = showResult;
@@ -293,11 +301,11 @@ export default {
         </select>
         <div id="qr-remoto-cuerpo">
           <div class="flex items-center justify-center py-2 min-h-[180px]">
-            <i aria-hidden="true" class="fas fa-spinner fa-spin text-2xl text-patrimonio-lago"></i>
+            <i aria-hidden="true" class="fas fa-spinner fa-spin text-2xl text-patrimonio-lago dark:text-sky-300"></i>
             <span class="sr-only">Generando el enlace…</span>
           </div>
         </div>
-        <button data-action="cerrar" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-4 py-2 rounded-xl text-sm font-bold w-full">Cerrar</button>
+        <button data-action="cerrar" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-4 py-2 rounded-xl text-sm font-bold w-full dark:text-stone-200">Cerrar</button>
       </div>`;
     document.body.appendChild(overlay);
 
@@ -359,7 +367,7 @@ export default {
       const cuerpo = document.getElementById('qr-remoto-cuerpo');
       if (!cuerpo) return;
       cuerpo.innerHTML = `<div class="flex items-center justify-center py-2 min-h-[180px]">
-        <i aria-hidden="true" class="fas fa-spinner fa-spin text-2xl text-patrimonio-lago"></i>
+        <i aria-hidden="true" class="fas fa-spinner fa-spin text-2xl text-patrimonio-lago dark:text-sky-300"></i>
         <span class="sr-only">Generando el enlace…</span></div>`;
 
       // Si ya había un enlace vigente (por ejemplo, se cambió la duración),
@@ -376,7 +384,7 @@ export default {
         enlaceActual = await db.crearEnlaceEscaneo(horas);
         if (!enlaceActual) throw new Error('El sistema no devolvió el enlace.');
       } catch (err) {
-        cuerpo.innerHTML = `<p class="text-xs text-rose-700 py-6">${escapeHtml(err.message || 'No se pudo generar el enlace.')}</p>`;
+        cuerpo.innerHTML = `<p class="text-xs text-rose-700 py-6 dark:text-rose-300">${escapeHtml(err.message || 'No se pudo generar el enlace.')}</p>`;
         return;
       }
       suscribirCanal(enlaceActual.token);
@@ -384,12 +392,12 @@ export default {
       const url = `${window.location.origin}${window.location.pathname.replace(/index\.html$/, '')}escaneo-remoto.html?token=${encodeURIComponent(enlaceActual.token)}`;
       cuerpo.innerHTML = `
         <div id="qr-remoto-imagen" class="flex items-center justify-center py-2 min-h-[180px]">
-          <i aria-hidden="true" class="fas fa-spinner fa-spin text-2xl text-patrimonio-lago"></i>
+          <i aria-hidden="true" class="fas fa-spinner fa-spin text-2xl text-patrimonio-lago dark:text-sky-300"></i>
           <span class="sr-only">Dibujando el código QR…</span>
         </div>
         <p class="text-[11px] font-mono text-stone-500 dark:text-stone-400 break-all">${escapeHtml(url)}</p>
         <p class="text-[11px] text-stone-500 dark:text-stone-400">Vence el ${escapeHtml(this._fechaHoraLegible(enlaceActual.expira_en))}.</p>
-        <button data-action="revocar" class="text-rose-700 hover:text-rose-800 text-xs font-bold underline mt-1">
+        <button data-action="revocar" class="text-rose-700 hover:text-rose-800 text-xs font-bold underline mt-1 dark:text-rose-300">
           <i aria-hidden="true" class="fas fa-ban mr-1"></i>Revocar este enlace ahora
         </button>`;
 
@@ -399,7 +407,7 @@ export default {
         if (contenedor) contenedor.innerHTML = svg;
       } catch (e) {
         const contenedor = document.getElementById('qr-remoto-imagen');
-        if (contenedor) contenedor.innerHTML = '<p class="text-xs text-rose-700">No se pudo generar el código QR. Puede copiar la dirección de más abajo.</p>';
+        if (contenedor) contenedor.innerHTML = '<p class="text-xs text-rose-700 dark:text-rose-300">No se pudo generar el código QR. Puede copiar la dirección de más abajo.</p>';
       }
 
       cuerpo.querySelector('[data-action="revocar"]')?.addEventListener('click', async btn_e => {
@@ -456,7 +464,7 @@ export default {
             <button data-entregar-reserva="${escapeHtml(String(r.id))}" class="btn-secundario bg-patrimonio-bosque text-white px-3 py-1.5 rounded-lg text-xs font-bold">
               <i aria-hidden="true" class="fas fa-hand-holding-hand mr-1"></i> Entregar libro
             </button>
-            <button data-avisar-reserva="${escapeHtml(String(r.id))}" data-rut="${escapeHtml(r.lector_rut)}" data-vence="${escapeHtml(r.vence_apartado_en)}" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-3 py-1.5 rounded-lg text-xs font-bold">
+            <button data-avisar-reserva="${escapeHtml(String(r.id))}" data-rut="${escapeHtml(r.lector_rut)}" data-vence="${escapeHtml(r.vence_apartado_en)}" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-3 py-1.5 rounded-lg text-xs font-bold dark:text-stone-200">
               <i aria-hidden="true" class="fab fa-whatsapp mr-1 text-green-600"></i> Avisar lector
             </button>
           </div>
@@ -485,7 +493,7 @@ export default {
             </div>
             <div class="text-right shrink-0">
               <p class="text-[10px] font-black uppercase tracking-widest text-stone-500 dark:text-stone-400 mb-0.5">Devolución</p>
-              <p class="text-sm ${estado.clave === 'vencido' ? 'text-rose-700 font-bold' : estado.clave === 'porVencer' ? 'text-amber-700 font-bold' : 'text-stone-700'}">
+              <p class="text-sm ${estado.clave === 'vencido' ? 'text-rose-700 dark:text-rose-300 font-bold' : estado.clave === 'porVencer' ? 'text-amber-700 dark:text-amber-300 font-bold' : 'text-stone-700 dark:text-stone-200'}">
                 ${this._fechaLegible(p.fecha_devolucion_esperada)}
               </p>
               <p class="text-[11px] ${estado.clave === 'vencido' ? 'text-rose-700' : estado.clave === 'porVencer' ? 'text-amber-700' : 'text-stone-500 dark:text-stone-400'}">${escapeHtml(estado.etiqueta)}</p>
@@ -500,11 +508,11 @@ export default {
                 <i aria-hidden="true" class="fas fa-bell mr-1"></i> Avisar
               </button>` : ''}
             ${estado.clave !== 'vencido' && (p.renovaciones ?? 0) < this.param('max_renovaciones') ? `
-              <button data-renovar="${escapeHtml(String(p.id))}" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-3 py-1.5 rounded-lg text-xs font-bold">
+              <button data-renovar="${escapeHtml(String(p.id))}" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 px-3 py-1.5 rounded-lg text-xs font-bold dark:text-stone-200">
                 <i aria-hidden="true" class="fas fa-clock-rotate-left mr-1"></i> Renovar
               </button>` : ''}
             ${impedido ? `
-              <button data-ver-lector="${escapeHtml(lector.rut || '')}" class="btn-secundario border border-rose-200 bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold">
+              <button data-ver-lector="${escapeHtml(lector.rut || '')}" class="btn-secundario border border-rose-200 bg-rose-50 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold dark:text-rose-300 dark:bg-rose-950/40 dark:border-rose-900/60">
                 <i aria-hidden="true" class="fas fa-user-large mr-1"></i> Ver situación
               </button>` : ''}
           </div>

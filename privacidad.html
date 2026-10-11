@@ -80,15 +80,23 @@
 
     <h2>3. ¿Qué datos recopilamos?</h2>
     <div class="caja">
-      <table>
-        <tr><th>Dato</th><th>Para qué</th><th>¿Obligatorio?</th></tr>
-        <tr><td>Nombre completo</td><td>Identificar a quién se entrega el ejemplar</td><td>Sí</td></tr>
-        <tr><td>RUT</td><td>Evitar duplicados y confundir a dos personas homónimas</td><td>Sí</td></tr>
-        <tr><td>Correo electrónico</td><td>Avisos de vencimiento</td><td>Sí</td></tr>
-        <tr><td>Teléfono</td><td>Avisos de vencimiento por WhatsApp</td><td>Sí</td></tr>
-        <tr><td>Fecha y versión del consentimiento</td><td>Poder acreditar qué autorizaste y cuándo</td><td>Sí</td></tr>
-        <tr><td>Datos del apoderado (si eres menor de edad)</td><td>Autorización de tu representante legal</td><td>Solo si aplica</td></tr>
-        <tr><td>Historial de préstamos</td><td>Controlar devoluciones y estadísticas de gestión de la biblioteca</td><td>Se genera al usar el sistema</td></tr>
+      <!-- Tabla adaptable: en un teléfono cada fila se lee como ficha, con el
+           nombre de la columna al lado (misma regla que el resto del sistema,
+           ver .tabla-adaptable en src/assets/css/styles.css). Esta página se abre
+           desde el teléfono al aceptar el consentimiento. -->
+      <table class="tabla-adaptable">
+        <thead>
+          <tr><th>Dato</th><th>Para qué</th><th>¿Obligatorio?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td data-etiqueta="Dato">Nombre completo</td><td data-etiqueta="Para qué">Identificar a quién se entrega el ejemplar</td><td data-etiqueta="¿Obligatorio?">Sí</td></tr>
+          <tr><td data-etiqueta="Dato">RUT</td><td data-etiqueta="Para qué">Evitar duplicados y confundir a dos personas homónimas</td><td data-etiqueta="¿Obligatorio?">Sí</td></tr>
+          <tr><td data-etiqueta="Dato">Correo electrónico</td><td data-etiqueta="Para qué">Avisos de vencimiento</td><td data-etiqueta="¿Obligatorio?">Sí</td></tr>
+          <tr><td data-etiqueta="Dato">Teléfono</td><td data-etiqueta="Para qué">Avisos de vencimiento por WhatsApp</td><td data-etiqueta="¿Obligatorio?">Sí</td></tr>
+          <tr><td data-etiqueta="Dato">Fecha y versión del consentimiento</td><td data-etiqueta="Para qué">Poder acreditar qué autorizaste y cuándo</td><td data-etiqueta="¿Obligatorio?">Sí</td></tr>
+          <tr><td data-etiqueta="Dato">Datos del apoderado (si eres menor de edad)</td><td data-etiqueta="Para qué">Autorización de tu representante legal</td><td data-etiqueta="¿Obligatorio?">Solo si aplica</td></tr>
+          <tr><td data-etiqueta="Dato">Historial de préstamos</td><td data-etiqueta="Para qué">Controlar devoluciones y estadísticas de gestión de la biblioteca</td><td data-etiqueta="¿Obligatorio?">Se genera al usar el sistema</td></tr>
+        </tbody>
       </table>
     </div>
     <p>

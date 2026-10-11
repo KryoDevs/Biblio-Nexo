@@ -182,7 +182,7 @@ export default {
 
             <div class="space-y-4 min-w-0">
               <div class="rounded-xl border border-stone-200 dark:border-stone-700 p-4">
-                <h3 class="font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2"><i aria-hidden="true" class="fas fa-flag text-patrimonio-lago"></i> Punto de partida</h3>
+                <h3 class="font-bold text-stone-900 dark:text-stone-100 flex items-center gap-2"><i aria-hidden="true" class="fas fa-flag text-patrimonio-lago dark:text-sky-300"></i> Punto de partida</h3>
                 <label for="bibliomovil-origin-name" class="block text-xs font-bold text-stone-600 dark:text-stone-300 mt-3 mb-1">Nombre del origen (opcional)</label>
                 <input id="bibliomovil-origin-name" maxlength="100" type="text" value="${this._bibliomovilPlan.origen?.nombre || ''}" placeholder="Biblioteca Municipal o ubicación actual" class="w-full px-3 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-lg bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100">
                 <div class="flex flex-wrap gap-2 mt-3">

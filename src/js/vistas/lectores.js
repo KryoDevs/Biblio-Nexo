@@ -22,16 +22,19 @@ export default {
     }
     return html`${users.map(u => html`
       <tr class="border-t border-stone-200 dark:border-stone-700">
-        <td class="px-4 py-3 font-bold text-stone-800 dark:text-stone-200">${u.nombre}</td>
-        <td class="px-4 py-3 text-stone-600 dark:text-stone-300 font-mono">${u.rut}</td>
-        <td class="px-4 py-3 text-stone-600 dark:text-stone-300">
+        <td data-etiqueta="Nombre" class="px-4 py-3 font-bold text-stone-800 dark:text-stone-200">${u.nombre}</td>
+        <td data-etiqueta="RUT" class="px-4 py-3 text-stone-600 dark:text-stone-300 font-mono">${u.rut}</td>
+        <td data-etiqueta="Contacto" class="px-4 py-3 text-stone-600 dark:text-stone-300">
           <div>${u.email || '—'}</div>
           <div class="text-xs text-stone-500 dark:text-stone-400">${u.telefono || '—'}</div>
         </td>
-        <td class="px-4 py-3 text-right whitespace-nowrap space-x-2">
+        <!-- data-etiqueta vacía: en la ficha de teléfono esta celda no lleva
+             rótulo, solo los botones, alineados a la derecha (ver
+             .tabla-adaptable en css/styles.css). -->
+        <td data-etiqueta="" class="px-4 py-3 text-right whitespace-nowrap space-x-2">
           <button class="edit-user-btn text-stone-500 dark:text-stone-400 hover:text-patrimonio-madera font-bold" data-id="${u.id}">Editar</button>
           ${this.currentUserRole === 'admin'
-            ? html`<button class="delete-user-btn text-rose-700 font-bold" data-id="${u.id}">Eliminar</button>`
+            ? html`<button class="delete-user-btn text-rose-700 font-bold dark:text-rose-300" data-id="${u.id}">Eliminar</button>`
             : ''}
         </td>
       </tr>
@@ -126,7 +129,7 @@ export default {
               class="w-full pl-8 pr-3 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago" />
           </div>
         </div>
-        <table class="w-full text-sm text-left">
+        <table class="tabla-adaptable w-full text-sm text-left">
           <thead class="text-xs font-bold uppercase text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-stone-800/60 border-b border-stone-200 dark:border-stone-700">
             <tr>
               <th scope="col" class="px-4 py-3">Nombre</th>

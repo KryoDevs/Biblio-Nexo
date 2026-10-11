@@ -90,7 +90,7 @@ export default {
             <label for="new-book-location" class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-300 mb-1 block">Ubicación</label>
             <input id="new-book-location" aria-label="Ubicación en la biblioteca" placeholder="Estante 3" class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago text-sm" />
           </div>
-          <div>
+          <div class="col-span-2 md:col-span-1">
             <label for="new-book-qty" class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-300 mb-1 block">Ejemplares</label>
             <input id="new-book-qty" aria-label="Cantidad de ejemplares" type="number" min="1" value="1" placeholder="1" class="w-full px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago text-sm" />
           </div>
@@ -294,15 +294,15 @@ export default {
 
         <div class="flex flex-col md:items-end gap-3 shrink-0">
           <div class="text-center md:text-right">
-            <span class="text-[10px] font-bold uppercase tracking-widest text-stone-500 block mb-0.5">Disponibles</span>
-            <span class="${b.stock === 0 ? 'text-rose-600' : b.stock <= 1 ? 'text-amber-700' : 'text-emerald-600'} font-black text-xl">${b.stock}</span>
+            <span class="text-[10px] font-bold uppercase tracking-widest text-stone-500 block mb-0.5 dark:text-stone-400">Disponibles</span>
+            <span class="${b.stock === 0 ? 'text-rose-600 dark:text-rose-300' : b.stock <= 1 ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-600 dark:text-emerald-400'} font-black text-xl">${b.stock}</span>
             <span class="text-stone-500 dark:text-stone-400 text-sm">/ ${b.copias_totales ?? b.stock}</span>
           </div>
           
           <div class="flex flex-wrap gap-2 justify-end">
             ${b.stock > 0
               ? html`<button class="loan-book-btn bg-patrimonio-madera text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-[#5E3214] transition-all hover:scale-105 active:scale-95" data-id="${b.id}"><i aria-hidden="true" class="fas fa-hand-holding-hand mr-1"></i> Prestar</button>`
-              : html`<button class="reserve-book-btn btn-secundario px-4 py-2 rounded-xl text-xs font-bold text-patrimonio-lago border border-stone-300 dark:border-stone-600 hover:bg-stone-50 dark:hover:bg-stone-700 transition" data-id="${b.id}"><i aria-hidden="true" class="fas fa-bookmark mr-1"></i> Reservar</button>`}
+              : html`<button class="reserve-book-btn btn-secundario px-4 py-2 rounded-xl text-xs font-bold text-patrimonio-lago border border-stone-300 dark:border-stone-600 hover:bg-stone-50 dark:hover:bg-stone-700 transition dark:text-sky-300" data-id="${b.id}"><i aria-hidden="true" class="fas fa-bookmark mr-1"></i> Reservar</button>`}
             
             ${this.currentUserRole === 'admin' ? html`
               <button class="toggle-collection-btn px-3 py-2 rounded-xl text-xs font-bold border transition ${b.es_bibliomovil
@@ -313,8 +313,8 @@ export default {
                 aria-label="${b.es_bibliomovil ? 'Mover a la biblioteca' : 'Mover al Bibliomóvil'}">
                 <i aria-hidden="true" class="fas ${b.es_bibliomovil ? 'fa-warehouse' : 'fa-truck'} mr-1"></i> ${b.es_bibliomovil ? 'A la sede' : 'Al Bibliomóvil'}
               </button>
-              <button class="edit-book-btn px-3 py-2 rounded-xl text-xs font-bold text-stone-500 hover:text-patrimonio-madera hover:bg-stone-100 dark:hover:bg-stone-700 transition" data-id="${b.id}"><i aria-hidden="true" class="fas fa-pen"></i></button>
-              <button class="delete-book-btn px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition" data-id="${b.id}"><i aria-hidden="true" class="fas fa-trash"></i></button>` : ''}
+              <button class="edit-book-btn px-3 py-2 rounded-xl text-xs font-bold text-stone-500 hover:text-patrimonio-madera hover:bg-stone-100 dark:hover:bg-stone-700 transition dark:text-stone-400" data-id="${b.id}"><i aria-hidden="true" class="fas fa-pen"></i></button>
+              <button class="delete-book-btn px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition dark:text-rose-300" data-id="${b.id}"><i aria-hidden="true" class="fas fa-trash"></i></button>` : ''}
           </div>
         </div>
 

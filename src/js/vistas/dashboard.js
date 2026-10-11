@@ -33,7 +33,7 @@ export default {
       { label: 'Préstamos activos', value: stats.prestamos, icon: 'fa-right-left', color: 'text-patrimonio-lago' },
       { label: 'Libros registrados', value: stats.libros, icon: 'fa-book', color: 'text-patrimonio-madera' },
       { label: 'Lectores registrados', value: stats.lectores, icon: 'fa-users', color: 'text-patrimonio-bosque' },
-      { label: 'Préstamos vencidos', value: stats.noDevueltos, icon: 'fa-triangle-exclamation', color: 'text-rose-700' }
+      { label: 'Préstamos vencidos', value: stats.noDevueltos, icon: 'fa-triangle-exclamation', color: 'text-rose-700 dark:text-rose-300' }
     ];
 
     // Accesos rápidos: cada rol ve las acciones que realmente usa en su turno
@@ -67,7 +67,7 @@ export default {
             manda del lado del servidor. Las acciones de administración van a fallar hasta que lo corrijas.
             Ejecuta esto en el editor SQL de Supabase, con tu correo:
           </p>
-          <pre class="mt-2 bg-white dark:bg-stone-800/70 border border-amber-200 dark:border-amber-800 rounded-lg p-2 text-[11px] font-mono overflow-x-auto text-stone-800 dark:text-stone-200">insert into public.usuarios (id, email, rol)
+          <pre class="mt-2 bg-white dark:bg-stone-800/70 border border-amber-200 dark:border-amber-800 rounded-lg p-2 text-[11px] font-mono overflow-x-auto text-stone-800 dark:text-stone-200 dark:border-amber-900/60">insert into public.usuarios (id, email, rol)
 select id, email, 'admin' from auth.users where email = '${this.currentUserEmail}'
 on conflict (id) do update set rol = 'admin';</pre>
         </div>` : ''}
@@ -95,7 +95,7 @@ on conflict (id) do update set rol = 'admin';</pre>
         </div>` : ''}
 
       ${reservasPorVencer.length > 0 ? html`
-        <div class="mb-5 bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 rounded-xl px-4 py-3" role="alert">
+        <div class="mb-5 bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 rounded-xl px-4 py-3 dark:border-sky-800" role="alert">
           <p class="text-sm font-bold text-sky-900 dark:text-sky-200 mb-1">
             <i aria-hidden="true" class="fas fa-clock mr-1.5"></i>Reservas a punto de vencer
           </p>

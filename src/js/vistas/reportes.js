@@ -79,7 +79,7 @@ export default {
       { label: 'Préstamos realizados', valor: reporte.totalPrestamos, icono: 'fa-right-left', color: 'text-patrimonio-lago' },
       { label: 'Devoluciones', valor: reporte.totalDevoluciones, icono: 'fa-rotate-left', color: 'text-patrimonio-bosque' },
       { label: 'Lectores nuevos', valor: reporte.totalNuevosLectores, icono: 'fa-user-plus', color: 'text-patrimonio-madera' },
-      { label: 'Devueltos con atraso', valor: reporte.devolucionesAtrasadas, icono: 'fa-triangle-exclamation', color: 'text-rose-700' }
+      { label: 'Devueltos con atraso', valor: reporte.devolucionesAtrasadas, icono: 'fa-triangle-exclamation', color: 'text-rose-700 dark:text-rose-300' }
     ];
 
     const ranking = (titulo, items, vacio) => html`
@@ -185,7 +185,7 @@ export default {
               <canvas id="reporte-chart"></canvas>
               <div id="reporte-chart-centro" class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none text-center"></div>
             </div>
-            <div id="reporte-legend" class="divide-y divide-stone-100"></div>
+            <div id="reporte-legend" class="divide-y divide-stone-100 dark:divide-stone-800"></div>
           </div>
           ${ranking('Libros más prestados', reporte.topLibros, 'Sin préstamos en este período.')}
           ${ranking('Lectores más activos', reporte.topLectores, 'Sin actividad en este período.')}

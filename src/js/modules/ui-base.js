@@ -282,7 +282,7 @@ class UIManager {
     let span = input.parentNode.querySelector('.input-error');
     if (!span) {
       span = document.createElement('span');
-      span.className = 'input-error text-xs text-rose-700 mt-1 block font-bold';
+      span.class='input-error text-xs text-rose-700 mt-1 block font-bold dark:text-rose-300';
       input.parentNode.appendChild(span);
     }
     return span;
@@ -474,14 +474,14 @@ class UIManager {
     return `
       <div class="border border-stone-300 dark:border-stone-600 rounded-xl p-3 bg-stone-50 dark:bg-stone-800/60 space-y-2">
         <p class="text-[10px] font-black uppercase tracking-widest text-stone-500 dark:text-stone-400">Tratamiento de datos personales</p>
-        <p class="text-[11px] text-stone-600 dark:text-stone-300 leading-relaxed">${escapeHtml(c.texto)} <a href="/privacidad.html" target="_blank" rel="noopener" class="text-patrimonio-lago hover:underline">Ver la política completa.</a></p>
+        <p class="text-[11px] text-stone-600 dark:text-stone-300 leading-relaxed">${escapeHtml(c.texto)} <a href="/privacidad.html" target="_blank" rel="noopener" class="text-patrimonio-lago dark:text-sky-300 hover:underline">Ver la política completa.</a></p>
         <label class="flex items-start gap-2 cursor-pointer pt-1">
           <input type="checkbox" id="${prefijo}-user-consent" class="mt-0.5 accent-[#7A431D]" />
-          <span class="text-[11px] text-stone-700">El lector fue informado y autoriza el uso de sus datos para este fin.</span>
+          <span class="text-[11px] text-stone-700 dark:text-stone-200">El lector fue informado y autoriza el uso de sus datos para este fin.</span>
         </label>
         <label class="flex items-start gap-2 cursor-pointer">
           <input type="checkbox" id="${prefijo}-user-minor" class="mt-0.5 accent-[#7A431D]" />
-          <span class="text-[11px] text-stone-700">Es menor de 18 años (requiere autorización del apoderado).</span>
+          <span class="text-[11px] text-stone-700 dark:text-stone-200">Es menor de 18 años (requiere autorización del apoderado).</span>
         </label>
         <div id="${prefijo}-guardian-fields" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
           <input id="${prefijo}-guardian-name" aria-label="Nombre del apoderado" placeholder="Nombre del apoderado"
@@ -598,7 +598,7 @@ class UIManager {
       aviso.className = 'fixed bottom-5 left-5 z-[10001] max-w-xs bg-patrimonio-card dark:bg-stone-900 border-2 border-amber-400 rounded-xl shadow-2xl p-4';
       aviso.innerHTML = `
         <p class="text-sm font-bold text-stone-900 dark:text-stone-100 mb-1">
-          <i aria-hidden="true" class="fas fa-clock text-amber-700 mr-1.5"></i>Sesión por cerrarse
+          <i aria-hidden="true" class="fas fa-clock text-amber-700 mr-1.5 dark:text-amber-300"></i>Sesión por cerrarse
         </p>
         <p class="text-xs text-stone-600 dark:text-stone-300">Por seguridad, la sesión se cerrará en un minuto por inactividad.</p>
         <button id="seguir-activo-btn" class="btn-madera mt-3 w-full text-white rounded-lg py-2 text-xs font-bold">
@@ -730,7 +730,7 @@ class UIManager {
         count += 1;
         notifsHTML += `
           <button type="button" data-go-view="loans" class="w-full text-left p-4 flex items-start gap-3 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition cursor-pointer">
-            <div class="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 flex items-center justify-center shrink-0">
+            <div class="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 flex items-center justify-center shrink-0 dark:text-rose-300">
               <i aria-hidden="true" class="fas fa-exclamation-triangle text-xs"></i>
             </div>
             <div class="min-w-0">
@@ -746,7 +746,7 @@ class UIManager {
         count += 1;
         notifsHTML += `
           <button type="button" data-go-view="loans" class="w-full text-left p-4 flex items-start gap-3 hover:bg-stone-50 dark:hover:bg-stone-800/50 transition cursor-pointer">
-            <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 flex items-center justify-center shrink-0">
+            <div class="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 flex items-center justify-center shrink-0 dark:text-amber-300">
               <i aria-hidden="true" class="fas fa-clock text-xs"></i>
             </div>
             <div class="min-w-0">
@@ -772,7 +772,7 @@ class UIManager {
         }
       } else {
         if (badgeBell) badgeBell.classList.add('hidden');
-        if (panel) panel.innerHTML = `<div class="p-6 text-center text-stone-500 text-sm"><i aria-hidden="true" class="fas fa-check-circle text-2xl text-emerald-500 mb-2 block"></i> Todo está al día.</div>`;
+        if (panel) panel.innerHTML = `<div class="p-6 text-center text-stone-500 text-sm dark:text-stone-400"><i aria-hidden="true" class="fas fa-check-circle text-2xl text-emerald-500 mb-2 block"></i> Todo está al día.</div>`;
       }
     } catch (e) {
       if (badge) badge.classList.add('hidden');
@@ -795,7 +795,7 @@ class UIManager {
   renderNuevaPassword() {
     const momento = this._momentoDelDia();
     document.body.innerHTML = `
-      <div class="h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
+      <div class="pantalla-minima w-full flex items-center justify-center p-4 sm:p-6 relative">
         <div id="login-scene" class="momento-${momento}" aria-hidden="true">
           <div class="astro"></div>
           <svg aria-hidden="true" focusable="false" class="absolute inset-x-0 bottom-0 w-full h-[45%]" viewBox="0 0 400 200" preserveAspectRatio="none">
@@ -805,7 +805,7 @@ class UIManager {
           </svg>
         </div>
 
-        <div class="glass-panel login-panel relative z-10 w-full max-w-md rounded-2xl shadow-2xl p-8">
+        <div class="glass-panel login-panel relative z-10 my-auto w-full max-w-md rounded-2xl shadow-2xl p-6 sm:p-8">
           <h1 class="font-serif font-semibold text-xl text-stone-900 dark:text-stone-100 mb-1">Crea tu contraseña nueva</h1>
           <p class="text-xs text-stone-600 dark:text-stone-300 mb-5">Debe tener al menos 12 caracteres e incluir una mayúscula y un número.</p>
 
@@ -828,6 +828,11 @@ class UIManager {
       </div>
       <div id="toast-container" role="status" aria-live="polite" aria-atomic="false" class="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
     `;
+
+    // El tema también en esta pantalla: se llega desde el enlace del correo,
+    // sin pasar por el ingreso, y quien dejó el modo oscuro guardado veía el
+    // formulario en claro hasta que abriera cualquier otra pantalla.
+    this._initDarkMode();
 
     document.getElementById('new-password-form').addEventListener('submit', async e => {
       e.preventDefault();
@@ -878,7 +883,7 @@ class UIManager {
   renderCompletarInvitacion() {
     const momento = this._momentoDelDia();
     document.body.innerHTML = `
-      <div class="h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
+      <div class="pantalla-minima w-full flex items-center justify-center p-4 sm:p-6 relative">
         <div id="login-scene" class="momento-${momento}" aria-hidden="true">
           <div class="astro"></div>
           <svg aria-hidden="true" focusable="false" class="absolute inset-x-0 bottom-0 w-full h-[45%]" viewBox="0 0 400 200" preserveAspectRatio="none">
@@ -888,7 +893,7 @@ class UIManager {
           </svg>
         </div>
 
-        <div class="glass-panel login-panel relative z-10 w-full max-w-md rounded-2xl shadow-2xl p-8">
+        <div class="glass-panel login-panel relative z-10 my-auto w-full max-w-md rounded-2xl shadow-2xl p-6 sm:p-8">
           <div class="flex items-center gap-2 mb-1">
             <i aria-hidden="true" class="fas fa-book text-patrimonio-madera"></i>
             <h1 class="font-serif font-semibold text-xl text-stone-900 dark:text-stone-100">Bienvenido/a a Biblio<span class="text-patrimonio-madera">Nexo</span></h1>
@@ -926,6 +931,10 @@ class UIManager {
       </div>
       <div id="toast-container" role="status" aria-live="polite" aria-atomic="false" class="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
     `;
+
+    // Mismo caso que la pantalla de contraseña nueva: se entra por el enlace
+    // del correo, no por el ingreso, así que el tema se aplica acá.
+    this._initDarkMode();
 
     document.getElementById('completar-invitacion-form').addEventListener('submit', async e => {
       e.preventDefault();
@@ -984,7 +993,7 @@ class UIManager {
     const momento = this._momentoDelDia();
 
     document.body.innerHTML = `
-      <div id="login-screen" class="h-screen w-full flex items-center justify-center p-4 relative overflow-hidden transition-colors duration-500">
+      <div id="login-screen" class="pantalla-minima w-full flex items-center justify-center p-4 sm:p-6 relative transition-colors duration-500">
 
         <!-- Escena viva del Lago Ranco: cielo, sol/luna y cordillera cambian con la hora real -->
         <div id="login-scene" class="momento-${momento}" aria-hidden="true">
@@ -1004,12 +1013,12 @@ class UIManager {
         </div>
 
         <!-- Botón modo oscuro flotante -->
-        <button class="dark-mode-toggle absolute top-4 right-4 z-50 w-10 h-10 flex items-center justify-center rounded-full bg-white/20 dark:bg-black/30 backdrop-blur-md text-stone-800 dark:text-stone-100 border border-white/30 dark:border-white/10 hover:bg-white/30 dark:hover:bg-black/50 transition-all shadow-sm" title="Alternar modo oscuro">
+        <button class="dark-mode-toggle boton-icono absolute top-4 right-4 z-50 w-10 h-10 items-center justify-center rounded-full bg-white/20 dark:bg-black/30 backdrop-blur-md text-stone-800 dark:text-stone-100 border border-white/30 dark:border-white/10 hover:bg-white/30 dark:hover:bg-black/50 transition-all shadow-sm" title="Alternar modo oscuro" aria-label="Alternar modo oscuro" aria-pressed="false">
           <i aria-hidden="true" class="dark-mode-icon fas fa-moon transition-transform duration-300"></i>
         </button>
 
         <!-- Tarjeta de vidrio esmerilado: flota sobre el paisaje en vez de cortarlo -->
-        <div class="glass-panel login-panel relative z-10 w-full max-w-md rounded-[2rem] shadow-2xl p-8 md:p-9 transition-colors duration-500">
+        <div class="glass-panel login-panel relative z-10 my-auto w-full max-w-md rounded-3xl sm:rounded-[2rem] shadow-2xl p-6 sm:p-8 md:p-9 transition-colors duration-500">
           <div class="flex items-center gap-2 mb-1">
             <i aria-hidden="true" class="fas fa-book text-patrimonio-madera text-xl"></i>
             <h1 class="font-serif font-semibold text-2xl leading-tight text-stone-900 dark:text-stone-100">Biblio<span class="text-patrimonio-madera">Nexo</span></h1>
@@ -1031,7 +1040,7 @@ class UIManager {
             <div>
               <div class="flex justify-between items-center mb-1">
                 <label for="password-input" class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-400 block">Contraseña</label>
-                <button type="button" id="forgot-password-btn" class="text-[11px] font-bold text-patrimonio-lago dark:text-patrimonio-lago hover:underline transition-colors">¿Olvidaste tu contraseña?</button>
+                <button type="button" id="forgot-password-btn" class="text-[11px] font-bold text-patrimonio-lago hover:underline transition-colors dark:text-sky-300">¿Olvidaste tu contraseña?</button>
               </div>
               <input id="password-input" type="password" placeholder="••••••••" autocomplete="current-password"
                 class="w-full px-4 py-3 border border-stone-300/50 dark:border-stone-600/50 rounded-xl bg-white/70 dark:bg-stone-950/50 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:border-patrimonio-lago focus:ring-2 focus:ring-patrimonio-lago/30 transition-all placeholder:text-stone-500 dark:placeholder:text-stone-400 backdrop-blur-sm" />
@@ -1114,6 +1123,10 @@ class UIManager {
       // Update all toggles on the page
       document.querySelectorAll('.dark-mode-toggle').forEach(btn => {
         const icon = btn.querySelector('.dark-mode-icon');
+        // El estado del interruptor tiene que llegar también a quien no ve el
+        // ícono: sin aria-pressed, un lector de pantalla anunciaba siempre el
+        // mismo botón sin decir si el modo oscuro quedó activo o no.
+        btn.setAttribute('aria-pressed', dark ? 'true' : 'false');
         if (icon) {
           // Animación simple girando el ícono
           icon.style.transform = 'rotate(180deg)';
@@ -1124,6 +1137,10 @@ class UIManager {
           }, 150);
         }
       });
+
+      // La franja del navegador del teléfono sigue al tema elegido, no al del
+      // sistema operativo (ver _sincronizarColorDeBarra en ui-router.js).
+      this._sincronizarColorDeBarra?.();
     };
 
     applyTheme(isDark);
@@ -1208,7 +1225,7 @@ class UIManager {
       host.innerHTML = `
         <div class="h-full flex flex-col items-center justify-center gap-2 text-center">
           <p class="text-sm text-stone-500 dark:text-stone-400">No se pudo cargar el gráfico.</p>
-          <button class="retry-chart-btn text-xs font-bold text-patrimonio-lago hover:underline">
+          <button class="retry-chart-btn text-xs font-bold text-patrimonio-lago hover:underline dark:text-sky-300">
             <i aria-hidden="true" class="fas fa-rotate-right mr-1"></i> Reintentar
           </button>
         </div>`;

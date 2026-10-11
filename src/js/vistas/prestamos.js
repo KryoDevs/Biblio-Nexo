@@ -61,8 +61,8 @@ export default {
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <div class="flex flex-wrap gap-2">
           ${chip('todos', 'Todos', conteos.todos, 'text-stone-500 dark:text-stone-400')}
-          ${chip('vencidos', 'Atrasados', conteos.vencidos, 'text-rose-700')}
-          ${chip('porVencer', 'Por vencer', conteos.porVencer, 'text-amber-700')}
+          ${chip('vencidos', 'Atrasados', conteos.vencidos, 'text-rose-700 dark:text-rose-300')}
+          ${chip('porVencer', 'Por vencer', conteos.porVencer, 'text-amber-700 dark:text-amber-300')}
         </div>
         <button id="notify-all-btn" ${pendientes === 0 ? 'disabled' : ''}
           class="btn-madera text-white font-medium rounded-xl shadow px-4 py-2.5 text-sm disabled:opacity-40 disabled:cursor-not-allowed">
@@ -87,14 +87,14 @@ export default {
               const puedeRenovar = estado.clave !== 'vencido'
                 && Number(l.renovaciones || 0) < this.param('max_renovaciones');
               const sinContacto = !l.lectores?.email && this.formatPhone(l.lectores?.telefono).length < 11;
-              const colorFecha = estado.clave === 'vencido' ? 'text-rose-700 font-bold'
-                : estado.clave === 'porVencer' ? 'text-amber-700 font-bold' : 'text-stone-600 dark:text-stone-300';
+              const colorFecha = estado.clave === 'vencido' ? 'text-rose-700 dark:text-rose-300 font-bold'
+                : estado.clave === 'porVencer' ? 'text-amber-700 dark:text-amber-300 font-bold' : 'text-stone-600 dark:text-stone-300';
               return html`
               <div class="bg-white dark:bg-stone-900 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between border border-stone-200 dark:border-stone-700 shadow-sm hover:shadow-md transition gap-4 animate-fade-up" style="animation-delay: ${i * 0.05}s">
                   <div class="flex flex-col sm:flex-row gap-4 sm:items-center flex-1">
                     <div class="flex-1">
                       <div class="font-bold text-lg text-stone-800 dark:text-stone-200 leading-tight mb-1">${l.libros?.titulo}</div>
-                      <div class="text-sm text-stone-500 dark:text-stone-400 font-medium"><i aria-hidden="true" class="fas fa-user mr-1.5 text-stone-500"></i>${l.lectores?.nombre} <span class="text-xs font-mono ml-1 text-stone-500">(${l.lectores?.rut || 'Sin RUT'})</span></div>
+                      <div class="text-sm text-stone-500 dark:text-stone-400 font-medium"><i aria-hidden="true" class="fas fa-user mr-1.5 text-stone-500 dark:text-stone-400"></i>${l.lectores?.nombre} <span class="text-xs font-mono ml-1 text-stone-500 dark:text-stone-400">(${l.lectores?.rut || 'Sin RUT'})</span></div>
                     </div>
                     <div class="flex flex-col sm:items-end gap-1 shrink-0">
                       <div class="text-sm font-bold ${colorFecha}">${this._fechaLegible(l.fecha_devolucion_esperada)}</div>
@@ -103,11 +103,11 @@ export default {
                   </div>
                   <div class="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-stone-100 dark:border-stone-800 pt-3 sm:pt-0 sm:pl-4 shrink-0">
                     ${sinContacto
-                      ? html`<button class="btn-secundario w-8 h-8 flex items-center justify-center rounded bg-stone-100 dark:bg-stone-800 text-stone-500 cursor-not-allowed" disabled title="Lector sin correo ni teléfono"><i aria-hidden="true" class="fas fa-bell-slash"></i></button>`
-                      : html`<button class="notify-loan-btn btn-secundario w-8 h-8 flex items-center justify-center rounded bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition" data-id="${l.id}" title="Avisar al lector"><i aria-hidden="true" class="fas fa-bell"></i></button>`
+                      ? html`<button class="btn-secundario w-8 h-8 flex items-center justify-center rounded bg-stone-100 dark:bg-stone-800 text-stone-500 cursor-not-allowed dark:text-stone-400" disabled title="Lector sin correo ni teléfono"><i aria-hidden="true" class="fas fa-bell-slash"></i></button>`
+                      : html`<button class="notify-loan-btn btn-secundario w-8 h-8 flex items-center justify-center rounded bg-amber-50 dark:bg-amber-900/30 text-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-900/50 transition" data-id="${l.id}" title="Avisar al lector"><i aria-hidden="true" class="fas fa-bell"></i></button>`
                     }
                     ${puedeRenovar
-                      ? html`<button class="renew-loan-btn btn-secundario w-8 h-8 flex items-center justify-center rounded bg-patrimonio-lago/10 text-patrimonio-lago dark:text-patrimonio-lago hover:bg-patrimonio-lago/20 transition" data-id="${l.id}" title="Renovar préstamo"><i aria-hidden="true" class="fas fa-rotate-right"></i></button>`
+                      ? html`<button class="renew-loan-btn btn-secundario w-8 h-8 flex items-center justify-center rounded bg-patrimonio-lago/10 text-patrimonio-lago hover:bg-patrimonio-lago/20 transition dark:text-sky-300" data-id="${l.id}" title="Renovar préstamo"><i aria-hidden="true" class="fas fa-rotate-right"></i></button>`
                       : ''}
                     <button class="return-loan-btn text-xs bg-patrimonio-madera text-white px-4 py-1.5 rounded-lg hover:bg-[#a67c52] transition font-bold" data-id="${l.id}">Devuelto</button>
                   </div>
@@ -201,7 +201,7 @@ export default {
           <h3 class="font-serif text-lg font-bold text-stone-900 dark:text-stone-100">Avisos pendientes</h3>
           <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">${prestamos.length} ${prestamos.length === 1 ? 'lector' : 'lectores'} con devoluciones atrasadas o próximas. Envía los avisos uno por uno.</p>
         </div>
-        <div class="overflow-y-auto px-6 divide-y divide-stone-200 border-t border-stone-200 dark:border-stone-700">
+        <div class="overflow-y-auto px-6 divide-y divide-stone-200 border-t border-stone-200 dark:border-stone-700 dark:divide-stone-700">
           ${prestamos.map(l => {
             const estado = this._estadoPrestamo(l.fecha_devolucion_esperada);
             return html`
@@ -209,7 +209,7 @@ export default {
               <div class="min-w-0">
                 <p class="font-bold text-stone-800 dark:text-stone-200 text-sm truncate">${l.lectores?.nombre}</p>
                 <p class="text-xs text-stone-500 dark:text-stone-400 truncate">${l.libros?.titulo}</p>
-                <p class="text-[11px] font-bold ${estado.clave === 'vencido' ? 'text-rose-700' : 'text-amber-700'}">${estado.etiqueta}</p>
+                <p class="text-[11px] font-bold ${estado.clave === 'vencido' ? 'text-rose-700 dark:text-rose-300' : 'text-amber-700 dark:text-amber-300'}">${estado.etiqueta}</p>
               </div>
               <button data-notify-id="${l.id}" class="btn-secundario shrink-0 bg-patrimonio-madera text-white px-3 py-1.5 rounded-lg text-xs font-bold">
                 <i aria-hidden="true" class="fas fa-bell mr-1"></i> Avisar
@@ -274,7 +274,7 @@ export default {
         selectedRut = rut;
         input.value = rut; // Mostrar solo el RUT en el input
         resultsContainer.innerHTML = `
-          <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-emerald-800 text-sm">
+          <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-emerald-800 text-sm dark:bg-emerald-950/40 dark:border-emerald-900/60 dark:text-emerald-200">
             <i aria-hidden="true" class="fas fa-check-circle mr-1.5"></i> ${escapeHtml(nombre)}
           </div>`;
         confirmBtn.disabled = false;
@@ -316,7 +316,7 @@ export default {
               resultsContainer.innerHTML = '<p class="text-xs text-stone-500 dark:text-stone-400 p-2">Ningún lector coincide. Escriba el RUT completo para registrarlo como nuevo.</p>';
             } else {
               resultsContainer.innerHTML = res.lectores.map(l => `
-                <button type="button" data-rut="${l.rut}" data-nombre="${escapeHtml(l.nombre)}" class="w-full text-left px-3 py-2 rounded-lg border border-transparent hover:bg-stone-50 dark:bg-stone-800/50 hover:border-stone-200 dark:border-stone-700 focus:bg-stone-50 dark:bg-stone-800/50 focus:border-stone-200 dark:border-stone-700 focus:outline-none transition-colors">
+                <button type="button" data-rut="${l.rut}" data-nombre="${escapeHtml(l.nombre)}" class="w-full text-left px-3 py-2 rounded-lg border border-transparent hover:bg-stone-50 dark:bg-stone-800/50 hover:border-stone-200 dark:border-stone-700 focus:bg-stone-50 dark:bg-stone-800/50 focus:border-stone-200 dark:border-stone-700 focus:outline-none transition-colors dark:hover:bg-stone-800">
                   <p class="text-sm font-medium text-stone-800 dark:text-stone-200">${escapeHtml(l.nombre)}</p>
                   <p class="text-[11px] font-mono text-stone-500 dark:text-stone-400">${l.rut}</p>
                 </button>
@@ -381,7 +381,7 @@ export default {
       // Lector nuevo
       cuerpo = html`
         <div class="bg-patrimonio-lago/5 border border-patrimonio-lago/20 rounded-xl p-4 text-center">
-          <i aria-hidden="true" class="fas fa-user-plus text-2xl text-patrimonio-lago mb-2"></i>
+          <i aria-hidden="true" class="fas fa-user-plus text-2xl text-patrimonio-lago mb-2 dark:text-sky-300"></i>
           <p class="font-bold text-stone-800 dark:text-stone-200">Lector nuevo</p>
           <p class="text-sm text-stone-600 dark:text-stone-300 mt-1">El RUT <span class="font-mono font-bold">${rut}</span> no está registrado.</p>
           <p class="text-xs text-stone-500 dark:text-stone-400 mt-2">Regístralo para poder prestarle libros.</p>
@@ -392,7 +392,7 @@ export default {
     } else if (!estado.puede_prestar) {
       // Impedido
       cuerpo = html`
-        <div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-4">
+        <div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-4 dark:border-rose-900/60">
           <p class="font-bold text-rose-800 dark:text-rose-200 mb-1"><i aria-hidden="true" class="fas fa-ban mr-1.5"></i>No se puede prestar</p>
           <p class="text-sm text-rose-700 dark:text-rose-300">${estado.motivo_rechazo || 'El lector está impedido de pedir libros.'}</p>
         </div>
@@ -403,7 +403,7 @@ export default {
     } else {
       // Todo en orden
       cuerpo = html`
-        <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
+        <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 dark:border-emerald-900/60">
           <p class="font-bold text-emerald-800 dark:text-emerald-200"><i aria-hidden="true" class="fas fa-circle-check mr-1.5"></i>${estado.nombre}</p>
           <p class="text-sm text-emerald-700 dark:text-emerald-300 mt-0.5">Puede llevar este libro.</p>
         </div>
@@ -467,13 +467,13 @@ export default {
   _resumenLector(estado) {
     const dato = (etiqueta, valor, color = 'text-stone-900 dark:text-stone-100') => html`
       <div class="text-center">
-        <p class="font-serif font-bold text-2xl ${color}">${valor}</p>
-        <p class="text-[10px] uppercase tracking-widest text-stone-500 dark:text-stone-400 mt-0.5">${etiqueta}</p>
+        <p class="font-serif font-bold text-xl sm:text-2xl ${color}">${valor}</p>
+        <p class="text-[10px] uppercase tracking-wide sm:tracking-widest text-stone-500 dark:text-stone-400 mt-0.5">${etiqueta}</p>
       </div>`;
     return html`
-      <div class="grid grid-cols-3 gap-2 border border-stone-200 dark:border-stone-700 rounded-xl py-3">
+      <div class="grid grid-cols-3 gap-1 sm:gap-2 border border-stone-200 dark:border-stone-700 rounded-xl py-3">
         ${dato('Activos', estado.prestamos_activos ?? 0)}
-        ${dato('Atrasados', estado.prestamos_atrasados ?? 0, (estado.prestamos_atrasados ?? 0) > 0 ? 'text-rose-700' : 'text-stone-900 dark:text-stone-100')}
+        ${dato('Atrasados', estado.prestamos_atrasados ?? 0, (estado.prestamos_atrasados ?? 0) > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-stone-900 dark:text-stone-100')}
         ${dato('Máximo', this.param('max_prestamos_por_lector'))}
       </div>
       ${estado.email || estado.telefono ? html`
@@ -601,7 +601,7 @@ export default {
     if (!estado.existe) {
       cuerpo = html`
         <div class="bg-patrimonio-lago/5 border border-patrimonio-lago/20 rounded-xl p-4 text-center">
-          <i aria-hidden="true" class="fas fa-user-plus text-2xl text-patrimonio-lago mb-2"></i>
+          <i aria-hidden="true" class="fas fa-user-plus text-2xl text-patrimonio-lago mb-2 dark:text-sky-300"></i>
           <p class="font-bold text-stone-800 dark:text-stone-200">Lector nuevo</p>
           <p class="text-sm text-stone-600 dark:text-stone-300 mt-1">El RUT <span class="font-mono font-bold">${rut}</span> no está registrado.</p>
           <p class="text-xs text-stone-500 dark:text-stone-400 mt-2">Regístralo para poder reservarle un libro.</p>
@@ -611,7 +611,7 @@ export default {
         <button data-action="registrar" class="btn-madera text-white px-5 py-2 rounded-xl text-sm font-medium">Registrar lector</button>`;
     } else if (!estado.puede_prestar) {
       cuerpo = html`
-        <div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-4">
+        <div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 rounded-xl p-4 dark:border-rose-900/60">
           <p class="font-bold text-rose-800 dark:text-rose-200 mb-1"><i aria-hidden="true" class="fas fa-ban mr-1.5"></i>No se puede reservar</p>
           <p class="text-sm text-rose-700 dark:text-rose-300">${estado.motivo_rechazo || 'El lector está impedido de pedir libros.'}</p>
         </div>
@@ -621,7 +621,7 @@ export default {
         <button data-action="ver-prestamos" class="btn-secundario border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 px-4 py-2 rounded-xl text-sm font-medium">Ver sus préstamos</button>`;
     } else {
       cuerpo = html`
-        <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4">
+        <div class="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl p-4 dark:border-emerald-900/60">
           <p class="font-bold text-emerald-800 dark:text-emerald-200"><i aria-hidden="true" class="fas fa-circle-check mr-1.5"></i>${estado.nombre}</p>
           <p class="text-sm text-emerald-700 dark:text-emerald-300 mt-0.5">Se puede poner en la fila de espera de este libro.</p>
         </div>
@@ -691,11 +691,11 @@ export default {
             <p class="text-xs font-mono text-stone-500 dark:text-stone-400">${estado.rut || rut}</p>
           </div>
           ${!estado.puede_prestar ? html`
-            <div class="bg-rose-50 border border-rose-200 rounded-xl p-3">
-              <p class="text-sm text-rose-700"><i aria-hidden="true" class="fas fa-ban mr-1.5"></i>${estado.motivo_rechazo || ''}</p>
+            <div class="bg-rose-50 border border-rose-200 rounded-xl p-3 dark:bg-rose-950/40 dark:border-rose-900/60">
+              <p class="text-sm text-rose-700 dark:text-rose-300"><i aria-hidden="true" class="fas fa-ban mr-1.5"></i>${estado.motivo_rechazo || ''}</p>
             </div>` : html`
-            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3">
-              <p class="text-sm text-emerald-700"><i aria-hidden="true" class="fas fa-circle-check mr-1.5"></i>Puede pedir libros prestados.</p>
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 dark:bg-emerald-950/40 dark:border-emerald-900/60">
+              <p class="text-sm text-emerald-700 dark:text-emerald-400"><i aria-hidden="true" class="fas fa-circle-check mr-1.5"></i>Puede pedir libros prestados.</p>
             </div>`}
           ${this._resumenLector(estado)}
           <div class="flex justify-end pt-1">
