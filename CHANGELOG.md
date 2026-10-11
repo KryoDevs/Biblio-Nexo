@@ -47,9 +47,47 @@ El proyecto utiliza [Conventional Commits](https://www.conventionalcommits.org/e
   teléfono) declara el viewport con teclado y muesca; la política de privacidad convierte su
   tabla de datos personales en fichas y reduce el margen en pantalla angosta.
 
+### Corregido en la segunda pasada (revisión con navegador real)
+
+La primera parte de la ronda se revisó leyendo el código y con las suites. Después se abrió el
+banco de vista previa en un Chromium de verdad, a 360, 390, 768 y 1024px, y aparecieron cuatro
+cosas que ninguna suite podía ver. Tres de ellas afectaban a **teléfonos reales**:
+
+- **El menú lateral seguía ocupando lugar dentro de la fila, en teléfono y tablet**: la regla base
+  de escritorio (`#sidebar { position: relative }`) estaba más abajo en el archivo que el bloque
+  del cajón y, con la misma especificidad, le ganaba por puro orden de cascada. Medido en un marco
+  de 358px: el cajón quedaba en `position: relative` con una transformación de -308px y el área de
+  trabajo se reducía a **50px** de ancho; la aplicación entera se veía recortada. Las dos formas
+  del menú viven ahora en consultas de medios que no pueden coincidir (`max-width: 1023.98px` y
+  `min-width: 1024px`), así que el orden del archivo dejó de importar, y la suite lo vigila.
+- **El panel de notificaciones se abría fuera de la pantalla**: cuelga de la campana, que está
+  pegada al borde derecho, y con sus 320px de ancho natural se alineaba por la derecha y desbordaba
+  por la izquierda. Medido: entre -46 y 258 en una pantalla de 358px, con el título
+  «Notificaciones» cortado. En pantalla angosta pasa a ocupar el ancho disponible, y la franja de
+  título recibe una capa propia para que el panel no quede pintado detrás del contenido (el
+  `backdrop-filter` de la franja la volvía el bloque contenedor del `fixed`).
+- **La tarjeta de un libro se desbordaba 47px a lo ancho**: el título largo empujaba la fila de
+  datos más allá de la tarjeta, así que en el teléfono la mitad derecha (autor, ISBN, sellos) se
+  perdía con el nombre del libro serrado por el borde. La fila lleva `w-full` y el contenedor de
+  datos `min-w-0` — que ya estaba, pero no alcanzaba sin el `w-full` de la fila.
+- **La veta de madera de los botones mostraba costuras**: el mosaico de 120px no cierra en los
+  bordes (el ruido de `feTurbulence` no es sin fin), así que cada unión dejaba una línea vertical
+  recta en medio del botón, visible sobre todo en los botones anchos. Ahora la mancha se estira al
+  tamaño del botón.
+- **El velo del cajón no se veía en modo oscuro**: un velo oscuro sobre el papel casi negro del
+  modo nocturno no se distingue. En modo oscuro sube de opacidad.
+- **El botón «Preparar datos sin conexión» y «Prestar»** usaban un `#5E3214` escrito a mano, que no
+  es el tono de hover de la paleta (`#633414`); ahora usan `.btn-madera`, que además les da la veta
+  y la microinteracción del resto de los botones de madera.
+
 ### Pruebas
-- Nueva suite `pruebas/probar-adaptabilidad.mjs` (80 comprobaciones, sin navegador), enganchada a
-  `npm run test:legacy` y al trabajo de interfaz de la CI.
+- Nueva suite `pruebas/probar-adaptabilidad.mjs` (88 comprobaciones, sin navegador), enganchada a
+  `npm run test:legacy` y al trabajo de interfaz de la CI. Además de los contratos de la primera
+  pasada, vigila los cuatro arreglos de la segunda: que el cajón sea fijo dentro de su consulta de
+  medios y que no quede ninguna regla `#sidebar` con `position` fuera de una (el choque de cascada
+  que recortaba el área de trabajo), que la franja y el panel de notificaciones se acomoden en
+  pantalla angosta, que la fila de la tarjeta de libro ocupe el ancho de su tarjeta y que la veta
+  de los botones no se repita.
 - `probar-contraste.mjs`: pares del tema oscuro y de los avisos, y los avisos entran al escaneo de
   regresiones (incluida la corrección del propio escáner, que leía `bg-[#10b981]` como expresión
   regular).

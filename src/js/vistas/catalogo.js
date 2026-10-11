@@ -277,7 +277,7 @@ export default {
     return html`${books.map((b, i) => html`
       <div class="bg-white dark:bg-stone-800 rounded-2xl p-4 shadow-sm border border-stone-200 dark:border-stone-700 flex flex-col md:flex-row gap-4 items-start md:items-center animate-fade-up" style="animation-delay: ${i * 0.05}s">
         
-        <div class="flex items-start gap-4 flex-1 min-w-0">
+        <div class="flex items-start gap-4 flex-1 min-w-0 w-full">
           ${crudo(this._portadaHtml(b))}
           <div class="min-w-0">
             <h3 class="font-bold text-stone-900 dark:text-stone-100 text-lg truncate">${b.titulo}</h3>
@@ -301,7 +301,7 @@ export default {
           
           <div class="flex flex-wrap gap-2 justify-end">
             ${b.stock > 0
-              ? html`<button class="loan-book-btn bg-patrimonio-madera text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-md hover:bg-[#5E3214] transition-all hover:scale-105 active:scale-95" data-id="${b.id}"><i aria-hidden="true" class="fas fa-hand-holding-hand mr-1"></i> Prestar</button>`
+              ? html`<button class="loan-book-btn btn-madera text-white px-5 py-2.5 rounded-full text-sm font-semibold shadow-md" data-id="${b.id}"><i aria-hidden="true" class="fas fa-hand-holding-hand mr-1"></i> Prestar</button>`
               : html`<button class="reserve-book-btn btn-secundario px-4 py-2 rounded-xl text-xs font-bold text-patrimonio-lago border border-stone-300 dark:border-stone-600 hover:bg-stone-50 dark:hover:bg-stone-700 transition dark:text-sky-300" data-id="${b.id}"><i aria-hidden="true" class="fas fa-bookmark mr-1"></i> Reservar</button>`}
             
             ${this.currentUserRole === 'admin' ? html`

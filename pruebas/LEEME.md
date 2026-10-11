@@ -391,11 +391,23 @@ vigila lo que se rompe solo al agregar una vista o una clase nueva:
   `data-etiqueta` (la tabla de parámetros de Administración queda exenta: es una
   lista de nombre y valor, y el motivo está escrito en el script).
 - **Diálogos**: `role="dialog"` + `aria-modal` y tope de alto con scroll interno.
-- **Modo nocturno**: fondo y color base, `color-scheme`, anillo de foco, 19 reglas
+- **Modo nocturno**: fondo y color base, `color-scheme`, anillo de foco, 20 reglas
   oscuras con nombre propio, dos escáneres de regresión (clases literales y
   colores que viajan como variable) y la prohibición de escribir los acentos de
   marca como variante oscura de Tailwind.
 - **Páginas fuera del panel**: 404, escaneo remoto y política de privacidad.
+- **Lo que se rompió una vez y no debe volver** (hallazgos de la revisión con
+  navegador real, ver el informe 06): el menú lateral tiene que ser fijo dentro
+  de su consulta de medios y no puede quedar ninguna regla `#sidebar` con
+  `position` fuera de una —cuando la hubo, le ganaba al cajón por orden de
+  cascada y el área de trabajo quedaba en 50px—; el panel de notificaciones y la
+  franja de título se acomodan en pantalla angosta; la fila de la tarjeta de
+  libro ocupa el ancho de su tarjeta; y la veta de los botones de madera no se
+  repite (el mosaico dejaba costuras visibles).
+
+Para leer los bloques `@media` de verdad —y no una ventana fija de caracteres,
+que deja de encontrar la regla en cuanto el bloque lleva un comentario largo— el
+script usa el ayudante `cuerposMedia()`, que recorre las llaves.
 
 ```bash
 node pruebas/probar-adaptabilidad.mjs

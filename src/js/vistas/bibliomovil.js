@@ -121,7 +121,7 @@ export default {
                   </button>
                 </div>
                 <button id="btn-preparar-ruta" type="button" title="Descarga el catálogo y los datos permitidos en este equipo para poder trabajar sin internet"
-                  class="bg-patrimonio-madera text-white px-5 py-2.5 rounded-xl font-bold shadow-sm hover:bg-[#5E3214] transition-all flex items-center gap-2">
+                  class="btn-madera text-white px-5 py-2.5 rounded-xl font-bold shadow-sm transition-all flex items-center gap-2">
                   <i aria-hidden="true" class="fas fa-cloud-arrow-down"></i> <span id="btn-preparar-ruta-texto">Preparar datos sin conexión</span>
                 </button>
               </div>

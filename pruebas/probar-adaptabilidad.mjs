@@ -45,6 +45,32 @@ const comprobar = (descripcion, condicion, detalle = '') => {
 
 const titulo = t => console.log(`\n${t}`);
 
+/**
+ * Devuelve el cuerpo de cada consulta de medios cuya cabecera coincida.
+ * Buscar la regla con una ventana fija de caracteres es frágil: basta agregar
+ * un comentario largo dentro del bloque para que la comprobación deje de
+ * encontrarla aunque la regla siga ahí. Esto lee el bloque de verdad, contando
+ * llaves.
+ */
+const cuerposMedia = (cabecera) => {
+  const cuerpos = [];
+  const re = new RegExp(cabecera.source, cabecera.flags.includes('g') ? cabecera.flags : cabecera.flags + 'g');
+  let m;
+  while ((m = re.exec(CSS)) !== null) {
+    const desde = CSS.indexOf('{', m.index);
+    if (desde < 0) continue;
+    let nivel = 0;
+    for (let j = desde; j < CSS.length; j++) {
+      if (CSS[j] === '{') nivel++;
+      else if (CSS[j] === '}') {
+        nivel--;
+        if (nivel === 0) { cuerpos.push(CSS.slice(desde + 1, j)); break; }
+      }
+    }
+  }
+  return cuerpos;
+};
+
 // ---------------------------------------------------------------------------
 // Archivos del sistema
 // ---------------------------------------------------------------------------
@@ -119,12 +145,42 @@ comprobar('#sidebar se oculta y se muestra con la clase .active en pantalla ango
   /#sidebar\.active\s*\{[^}]*transform:\s*translateX\(0\)/s.test(CSS));
 comprobar('el cajón cerrado no recibe el foco del teclado (visibility: hidden)',
   /#sidebar\s*\{[^}]*visibility:\s*hidden;/s.test(CSS));
+// Regresión real que se coló hasta una revisión con navegador: la regla base
+// de escritorio (`#sidebar { position: relative }`) vivía más abajo en el
+// archivo que el bloque del cajón, y con la misma especificidad le ganaba por
+// puro orden de cascada. El cajón seguía ocupando lugar en la fila y el área
+// de trabajo quedaba reducida a los ~50px que sobraban al costado: en un
+// teléfono la aplicación entera se veía recortada. Las dos formas del menú
+// tienen que vivir en consultas de medios que no puedan coincidir.
+const bloquesCajon = cuerposMedia(/@media\s*\(max-width:\s*1023\.98px\)/g);
+comprobar('el cajón lateral es fijo en pantalla angosta (no ocupa lugar en la fila)',
+  bloquesCajon.some(b => /#sidebar\s*\{[^}]*position:\s*fixed;/s.test(b)));
+comprobar('el menú de escritorio es relativo dentro de su propia consulta (min-width: 1024px)',
+  /@media\s*\(min-width:\s*1024px\)\s*\{\s*#sidebar\s*\{[^}]*position:\s*relative;/s.test(CSS),
+  'una regla #sidebar suelta fuera de consulta de medios vuelve a pisar el cajón por orden de cascada');
+comprobar('no queda ninguna regla #sidebar con position fuera de una consulta de medios',
+  !/^(?![\s\S]*@media)[^@]*#sidebar\s*\{[^}]*position:/m.test(CSS.split('@media')[0]) &&
+  !/^#sidebar\s*\{[^}]*position:/m.test(CSS),
+  'bastan una base suelta y el orden del archivo para volver a romper el teléfono');
 comprobar('Escape cierra el cajón lateral',
   /_escapeMenuLateral[\s\S]{0,220}Escape/.test(SHELL));
 comprobar('la página de atrás no se desplaza con el cajón abierto (body.menu-abierto)',
   /body\.menu-abierto\s*\{\s*overflow:\s*hidden/.test(CSS));
 comprobar('el panel de notificaciones no se sale de la pantalla del teléfono',
   /max-w-\[calc\(100vw-2rem\)\]/.test(SHELL));
+// El `max-w-[calc(100vw-2rem)]` de arriba NO alcanzaba: el `w-80` sigue siendo
+// el ancho natural y, como el panel cuelga de la campana (pegada al borde
+// derecho), el navegador lo alinea por la derecha y lo desborda por la
+// IZQUIERDA. Medido en un marco de 358px quedaba entre -46 y 258: 46px fuera
+// de la pantalla y el título «Notificaciones» cortado. En pantalla angosta el
+// panel pasa a ocupar el ancho disponible.
+const bloques640 = cuerposMedia(/@media\s*\(max-width:\s*640px\)/g);
+comprobar('en pantalla angosta el panel de notificaciones se ancha al ancho disponible',
+  bloques640.some(b => /#notificaciones-panel\s*\{[^}]*left:\s*0\.75rem;[^}]*right:\s*0\.75rem;[^}]*width:\s*auto;/s.test(b)),
+  'sin esto el panel se abre fuera de la pantalla por la izquierda');
+comprobar('la franja de título se pinta sobre la vista (si no, el panel queda detrás del contenido)',
+  bloques640.some(b => /\.franja-titulo\s*\{\s*position:\s*relative;\s*z-index:\s*10;/s.test(b)),
+  'el backdrop-filter de la franja la vuelve el bloque contenedor del panel y su capa lo dejaba detrás');
 
 comprobar('el cascarón monta la barra de accesos rápidos',
   /id="barra-inferior"/.test(SHELL) && /\.barra-inferior\s*\{[\s\S]{0,80}display:\s*none/.test(CSS));
@@ -156,6 +212,15 @@ if (bloqueConfig && vistasPorRol) {
       (rapidasPorRol[rol] || []).length <= 4);
   }
 }
+
+// La tarjeta de un libro: la portada en miniatura a la izquierda y los datos a
+// la derecha. El grupo de datos lleva `min-w-0` y la fila entera `w-full`; sin
+// eso, en un teléfono, el título largo empujaba la fila 47px más allá de la
+// tarjeta y la mitad derecha de los datos (autor, ISBN, sellos) quedaba fuera
+// de la pantalla, con el nombre del libro cortado por el borde.
+comprobar('la fila de datos de la tarjeta de libro ocupa el ancho de la tarjeta (min-w-0 y w-full)',
+  /class="flex items-start gap-4 flex-1 min-w-0 w-full"/.test(leer('src/js/vistas/catalogo.js')),
+  'sin w-full la tarjeta se desborda a lo ancho en el teléfono');
 
 comprobar('el área de trabajo deja espacio para la barra inferior (los avisos no quedan tapados)',
   /#views-container\s*\{[^}]*padding-bottom:\s*calc\(4\.75rem \+ env\(safe-area-inset-bottom\)\)/s.test(CSS));
@@ -286,10 +351,20 @@ const reglasOscuras = [
   ['la marca del menú lateral (oscuro en los dos temas)', /#sidebar \.text-patrimonio-madera\s*\{[^}]*color:\s*#E7B98D;/s],
   ['el panel de vidrio del ingreso, en la familia stone (no azulado)', /\.dark \.glass-panel\s*\{[^}]*rgba\(28,\s*25,\s*23/s],
   ['la escena del lago atenuada cuando el tema es oscuro', /\.dark #login-scene\s*\{[^}]*filter:/s],
+  ['el velo del cajón, que sobre fondo oscuro desaparecía', /\.dark #sidebar-overlay\s*\{[^}]*rgba\(12,\s*10,\s*9/s],
 ];
 for (const [nombre, patron] of reglasOscuras) {
   comprobar(`tiene corrección propia en modo oscuro: ${nombre}`, patron.test(CSS));
 }
+
+// La veta de madera de los botones era un mosaico de 120x120px: el ruido de
+// feTurbulence no cierra en los bordes y cada unión dejaba una línea vertical
+// recta en medio del botón (se notaba sobre todo en los botones anchos, como
+// el «Agregar» del catálogo). Ahora la mancha se estira al tamaño del botón y
+// no queda ninguna unión que mirar.
+comprobar('la veta del botón de madera no se repite (sin costuras visibles)',
+  /\.btn-madera\s*\{[^}]*background-repeat:\s*no-repeat;[^}]*background-size:\s*100% 100%;/s.test(CSS),
+  'el mosaico de 120px dejaba costuras verticales dentro del botón');
 
 comprobar('la franja del navegador del teléfono sigue al tema elegido, no al del sistema',
   /_sincronizarColorDeBarra/.test(SHELL) && /id="meta-color-tema"/.test(INDEX));

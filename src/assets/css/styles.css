@@ -828,9 +828,16 @@ textarea:focus-visible,
 .btn-madera {
     position: relative;
     background-color: var(--patrimonio-madera);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.012 0.15' numOctaves='2' seed='7'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.35'/%3E%3C/svg%3E");
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.006 0.13' numOctaves='2' seed='7'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.32'/%3E%3C/svg%3E");
     background-blend-mode: overlay;
-    background-size: 120px 120px;
+    /* La veta se estira al tamaño del botón, sin repetir. Antes era un mosaico
+       de 120x120px y se notaban las costuras: el ruido de feTurbulence no
+       cierra en los bordes, así que cada unión dejaba una línea vertical recta
+       en medio del botón (se veía sobre todo en los botones anchos, como el
+       «Agregar» del catálogo). Estirada, la mancha se lee como la veta larga
+       de una tabla y no queda ninguna unión que mirar. */
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
     transition: transform 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
 }
 .btn-madera:hover {
@@ -859,9 +866,26 @@ textarea:focus-visible,
    ========================================== */
 
 #sidebar {
-    position: relative;
     background-color: var(--patrimonio-lago); /* respaldo si el degradado no aplica */
     box-shadow: inset -3px 0 0 var(--patrimonio-madera);
+}
+
+/* En escritorio el menú lateral es una columna más del cascarón; en teléfono y
+   tablet el mismo menú es un cajón fijo (bloque «Cascarón adaptado», arriba).
+   Las dos formas viven en consultas de medios que NO pueden coincidir a la vez
+   —una es max-width: 1023.98px y esta es min-width: 1024px— a propósito: antes
+   esto era una sola regla base sin consulta, y como quedaba más abajo en el
+   archivo le ganaba a la del cajón por puro orden de cascada (misma
+   especificidad). El cajón seguía ocupando su lugar dentro de la fila flexible
+   y, en un teléfono, el área de trabajo quedaba reducida a los ~50px que
+   sobraban al costado: la aplicación entera se veía recortada. Con las dos
+   consultas separadas, el orden del archivo deja de importar. */
+@media (min-width: 1024px) {
+    #sidebar {
+        /* Punto de referencia de la silueta de cordillera (::after, absoluta)
+           y de los hijos del menú (#sidebar > *). */
+        position: relative;
+    }
 }
 
 #sidebar.momento-amanecer { background-image: linear-gradient(180deg, #24485A 0%, #1B3B48 45%, #14303C 100%); }
@@ -1537,3 +1561,45 @@ html.dark [tabindex]:focus-visible {
    (por ejemplo, «Editar» en el catálogo). La clase compilada de Tailwind se
    escribe escapada: hover:text-patrimonio-madera. */
 .dark .hover\:text-patrimonio-madera:hover { color: #E7B98D; }
+
+/* El velo que oscurece el fondo cuando el cajón está abierto. De día se ve
+   (lago al 40% sobre papel claro), pero en modo oscuro el papel de atrás es
+   stone-950 (#0c0a09) —casi negro— y un velo oscuro sobre negro no se
+   distingue: el cajón parecía flotar sin nada detrás y costaba ver que la
+   pantalla de atrás está desactivada. En modo oscuro el velo se hace más
+   opaco y se apoya en el borde del cajón. */
+.dark #sidebar-overlay {
+    background-color: rgba(12, 10, 9, 0.66);
+}
+
+/* El panel de notificaciones cuelga de la campana, que está pegada al borde
+   derecho de la franja de título. En un teléfono no queda lugar a su derecha:
+   medido en un marco de 358px, el panel (320px de ancho) se abría entre -46 y
+   258, o sea 46px fuera de la pantalla por la izquierda, con el título
+   «Notificaciones» cortado. En pantalla angosta el panel deja de colgar de la
+   campana y se ancha al ancho disponible. El `position: fixed` sin `top` toma
+   su lugar natural debajo de la campana; los costados, en cambio, se miden
+   contra la pantalla. La regla va con el id a propósito: le gana a la clase
+   `absolute` y al `w-80` de Tailwind sin depender del orden del archivo. */
+@media (max-width: 640px) {
+    /* El `backdrop-filter` de la franja la vuelve el bloque contenedor de los
+       elementos `fixed` que lleva adentro, y además crea un contexto de capas:
+       el panel quedaba pintado DETRÁS del contenido (la franja va antes en el
+       documento y su altura no lo contiene). Poner la franja en una capa
+       propia la deja encima de la vista, con el panel. El 10 es a propósito:
+       queda por debajo del velo del cajón (z-40) y del propio cajón (z-60),
+       así que con el menú abierto la franja se sigue atenuando como antes y no
+       se cuela encima del velo. */
+    .franja-titulo {
+        position: relative;
+        z-index: 10;
+    }
+
+    #notificaciones-panel {
+        position: fixed;
+        left: 0.75rem;
+        right: 0.75rem;
+        width: auto;
+        max-width: none;
+    }
+}
