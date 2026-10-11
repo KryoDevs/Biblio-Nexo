@@ -9,7 +9,14 @@ const P = {
   base:'#F7F4EB', card:'#FFFFFF', madera:'#7A431D', maderaHover:'#633414',
   lago:'#1B3B48', bosque:'#2C4A3E', stone500:'#78716c', stone400:'#a8a29e',
   stone600:'#57534e', rose700:'#be123c', amber600:'#d97706', amber700:'#b45309',
-  blanco:'#FFFFFF', ambar:'#F6B26B'
+  blanco:'#FFFFFF', ambar:'#F6B26B',
+  // Modo nocturno (ver «Modo nocturno — correcciones puntuales» en css/styles.css)
+  noche:'#0c0a09', nocheCard:'#1c1917', nocheBorde:'#44403c',
+  nocheTexto:'#e7e5e4', nocheTenue:'#a8a29e', nocheSuave:'#d6d3d1',
+  nocheMadera:'#E7B98D', nocheBosque:'#6EE7B7', nocheLago:'#7DD3FC',
+  nocheRosa:'#FDA4AF', nocheAmbar:'#FCD34D',
+  // Avisos (toasts): texto blanco sobre color pleno, iguales en los dos temas.
+  avisoExito:'#047857', avisoError:'#e11d48', avisoInfo:'#1B3B48'
 };
 
 const casos = [
@@ -27,6 +34,37 @@ const casos = [
   ['Alerta atraso (rose-700)',           P.rose700,  P.card, 4.5],
   ['Alerta por vencer (amber-700)',      P.amber700, P.card, 4.5],
   ['Foco sobre panel oscuro',            P.ambar,    P.lago, 3.0],
+
+  // --- Modo nocturno ---
+  // El modo oscuro no exime del estándar: si el texto se aclara y el fondo se
+  // oscurece, la relación de contraste se calcula igual. Estos pares son los
+  // que estaban por debajo del mínimo antes de la corrección (el lago sobre
+  // stone-900 daba 1.7:1 y el bosque, 1.8:1) y los que ahora usan las reglas
+  // .dark: de css/styles.css y los acentos de marca.
+  ['Texto principal sobre fondo nocturno', P.nocheTexto, P.noche, 4.5],
+  ['Texto principal sobre tarjeta nocturna', P.nocheTexto, P.nocheCard, 4.5],
+  ['Texto secundario sobre tarjeta nocturna', P.nocheSuave, P.nocheCard, 4.5],
+  ['Texto tenue sobre tarjeta nocturna',   P.nocheTenue, P.nocheCard, 4.5],
+  ['Sello de alerta en oscuro (rose-300)', P.nocheRosa, P.nocheCard, 4.5],
+  ['Sello de estado en oscuro (sky-300)',  P.nocheLago, P.nocheCard, 4.5],
+  ['Sello de disponible en oscuro (emerald-300)', P.nocheBosque, P.nocheCard, 4.5],
+  ['Sello del Bibliomóvil en oscuro',      P.nocheMadera, P.nocheCard, 4.5],
+  ['Acento madera aclarado (marca «Nexo»)', P.nocheMadera, P.lago, 4.5],
+  ['Marca «Nexo» en el menú lateral',       P.nocheMadera, P.lago, 4.5],
+  ['Acento bosque aclarado en oscuro',     P.nocheBosque, P.noche, 4.5],
+  ['Acento lago aclarado en oscuro',       P.nocheLago, P.noche, 4.5],
+  ['Foco del teclado en modo oscuro',      P.ambar,    P.noche, 3.0],
+  ['Alerta por vencer en oscuro (amber-300)', P.nocheAmbar, P.nocheCard, 4.5],
+  ['Panel de vidrio oscuro (texto claro encima)', P.nocheTexto, P.nocheCard, 4.5],
+  ['Placeholder del panel de vidrio (stone-500)', P.stone500, P.card, 4.5],
+
+  // --- Avisos (toasts) ---
+  // Llevan texto blanco sobre un color pleno, en los dos temas. El verde era
+  // esmeralda 500 (2,6:1): quedaba por debajo del mínimo y encandilaba de
+  // noche. Ahora es el 700.
+  ['Aviso de éxito',                     P.blanco, P.avisoExito, 4.5],
+  ['Aviso de error',                     P.blanco, P.avisoError, 4.5],
+  ['Aviso informativo',                  P.blanco, P.avisoInfo, 4.5],
 ];
 
 let fallos = 0;
@@ -51,6 +89,10 @@ import { fileURLToPath } from 'url';
 const RAIZ_UI = path.dirname(fileURLToPath(import.meta.url));
 const archivosUi = [
   path.join(RAIZ_UI, '../src/js/modules/ui-base.js'),
+  // Los avisos (toasts) viven acá, con sus colores plenos y texto blanco:
+  // revisarlos fuera de esta lista era justamente lo que dejó pasar el verde
+  // esmeralda 500 a 2,6:1.
+  path.join(RAIZ_UI, '../src/js/modules/ui-modales.js'),
   ...fs.readdirSync(path.join(RAIZ_UI, '../src/js/vistas'))
     .filter(f => f.endsWith('.js'))
     .map(f => path.join(RAIZ_UI, '../src/js/vistas', f))
@@ -58,10 +100,25 @@ const archivosUi = [
 const ui = archivosUi.map(f => fs.readFileSync(f, 'utf8')).join('\n');
 const prohibidos = [
   ['text-amber-600', 'solo 3.19:1 sobre blanco, usar amber-700'],
+  // Los acentos de marca son tintas para papel claro: sobre stone-900 quedan
+  // entre 1.5:1 y 2.2:1. En modo oscuro van por la regla .dark del CSS, que
+  // usa el mismo matiz aclarado (ver styles.css); escribirlos como variante
+  // oscura de Tailwind los haría invisibles.
+  ['dark:text-patrimonio-lago', '1.7:1 sobre stone-900; usa dark:text-sky-300 o la regla .dark del CSS'],
+  ['dark:text-patrimonio-bosque', '1.8:1 sobre stone-900; usa dark:text-emerald-400 o la regla .dark del CSS'],
+  ['dark:text-patrimonio-madera', '2.2:1 sobre stone-900; usa dark:text-amber-400 o la regla .dark del CSS'],
+  // Verde esmeralda 500: con el texto blanco del aviso queda en 2,6:1. El 700
+  // (#047857) da 5,5:1 y sigue siendo el mismo matiz.
+  ['bg-[#10b981]', 'texto blanco encima queda en 2.6:1; usar bg-[#047857] (esmeralda 700)'],
 ];
 let regresiones = 0;
+// Las clases prohibidas se buscan como texto literal: sin escapar, una clase
+// como bg-[#10b981] se leería como expresión regular (el [ ] es una clase de
+// caracteres) y marcaría cualquier bg- del código — pasó al agregar el primer
+// color con corchetes a esta lista.
+const escaparRegex = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 for (const [clase, motivo] of prohibidos) {
-  const n = (ui.match(new RegExp(clase, 'g')) || []).length;
+  const n = (ui.match(new RegExp(escaparRegex(clase), 'g')) || []).length;
   if (n > 0) { console.log(`✗ ${clase} reapareció ${n} vez/veces — ${motivo}`); regresiones++; }
 }
 // stone-400 solo se acepta sobre fondo oscuro.
@@ -85,6 +142,6 @@ if (lineasClaras.length > 0) {
   console.log(`✗ text-stone-400 sobre fondo claro en ${lineasClaras.length} línea(s) — solo 2.52:1`);
   regresiones++;
 }
-if (regresiones === 0) console.log('Sin regresiones de color en el código');
+if (regresiones === 0) console.log('Sin regresiones de color en el código (modo claro y oscuro)');
 process.exit(fallos > 0 || regresiones > 0 ? 1 : 0);
 process.exit(fallos > 0 ? 1 : 0);

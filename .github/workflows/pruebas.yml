@@ -97,6 +97,13 @@ jobs:
       - name: Probar contraste (Legacy)
         run: npm run test:legacy:contraste
 
+      - name: Probar adaptabilidad a teléfonos, tablets y modo oscuro
+        # Revisa los archivos fuente (no necesita navegador): viewport, alto en
+        # dvh, cajón lateral, área táctil, tablas en fichas y colores claros
+        # sin variante oscura. Es rápido y evita que una vista nueva rompa la
+        # adaptación sin que nadie se entere.
+        run: npm run test:legacy:adaptabilidad
+
       - name: Construir la aplicación (Vite + PWA)
         # El despliegue real es un build; que las pruebas pasen sobre el código
         # fuente no garantiza que el empaquetado lo haga (un script clásico

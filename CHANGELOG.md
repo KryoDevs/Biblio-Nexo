@@ -5,6 +5,58 @@ El proyecto utiliza [Conventional Commits](https://www.conventionalcommits.org/e
 
 ---
 
+## [1.4.0] — 2026-10-11
+
+### Añadido (`feat`)
+- **Adaptabilidad a teléfonos y tablets**: el menú lateral pasa a cajón hasta 1024px (el mismo
+  umbral del botón que lo abre — antes, en un iPad en vertical no había forma de navegar), con
+  cierre al elegir sección, con `Escape`, con botón propio y sin desplazar la página de atrás.
+- **Barra de accesos rápidos** en teléfono y tablet (`CONFIG.VISTAS_RAPIDAS` ∩ `VIEWS_BY_ROLE`,
+  máximo cuatro + «Más»): las tareas del día a un toque.
+- **Tablas adaptables**: hasta 768px cada fila se lee como ficha con la etiqueta de su columna
+  (`data-etiqueta`), sin duplicar HTML ni lógica. 12 tablas convertidas.
+- **Alto y recorte de pantalla**: helpers en `100dvh`, `viewport-fit=cover`,
+  `interactive-widget=resizes-content` y `env(safe-area-inset-*)` en cajón, barra inferior,
+  avisos y área de trabajo.
+- **Área táctil**: `.boton-icono` de 44px en pantalla táctil, 40px de alto mínimo en los botones
+  de las vistas y campos de 16px por debajo de 1024px (iOS no hace zoom al enfocar).
+- **Modo oscuro completo**: base `#0c0a09`, foco del teclado en ámbar sobre fondo oscuro, sellos
+  y esqueletos, mapa del Bibliomóvil con mosaicos invertidos y controles de Leaflet, acentos de
+  marca aclarados en un solo bloque del CSS (incluido el menú lateral, oscuro en los dos temas) y
+  `theme-color` que sigue al tema elegido.
+- **`public/tema-inicial.js`**: script clásico en el `<head>` que aplica el tema antes del primer
+  pintado — se acabó el destello blanco al cargar con el modo oscuro guardado.
+
+### Corregido (`fix`)
+- **`h-screen` en el cargador de arranque, el mensaje de error crítico y las pantallas de
+  ingreso**: `100vh` es más alto que la pantalla visible de un teléfono, así que el pie de los
+  formularios y el botón de reintentar quedaban debajo de la barra del navegador.
+- **Páginas del correo sin tema**: `renderNuevaPassword` y `renderCompletarInvitacion` no
+  aplicaban la preferencia guardada (se entra por el enlace, sin pasar por el ingreso).
+- **Ocho colores que viajaban como variable** (`${color}` ternarios en Administración, Préstamos,
+  Catálogo, Dashboard y Reportes) quedaban en `rose-700`/`amber-700` sobre tarjeta oscura
+  (2,5:1–3,2:1). Ahora llevan su pareja oscura y hay un escáner que los vigila.
+- **Interruptor del modo oscuro en Mi perfil**: el carril tenía dos clases oscuras a la vez
+  (`dark:bg-patrimonio-lago` y `dark:bg-stone-700`), así que podía verse encendido estando
+  apagado; ahora cada estado tiene su pareja por tema.
+- **Panel de vidrio del ingreso**: usaba un azulado fuera de la paleta; pasa a la familia stone.
+- **Aviso de éxito**: texto blanco sobre esmeralda 500 daba 2,56:1; ahora es el 700 (5,5:1).
+- **Diálogos**: tope de alto con scroll interno para que los botones no queden fuera de la
+  ventana con el teclado abierto o el teléfono en horizontal.
+- **Páginas fuera del panel**: el 404 usa `dvh`; el escaneo remoto (que siempre se abre desde un
+  teléfono) declara el viewport con teclado y muesca; la política de privacidad convierte su
+  tabla de datos personales en fichas y reduce el margen en pantalla angosta.
+
+### Pruebas
+- Nueva suite `pruebas/probar-adaptabilidad.mjs` (80 comprobaciones, sin navegador), enganchada a
+  `npm run test:legacy` y al trabajo de interfaz de la CI.
+- `probar-contraste.mjs`: pares del tema oscuro y de los avisos, y los avisos entran al escaneo de
+  regresiones (incluida la corrección del propio escáner, que leía `bg-[#10b981]` como expresión
+  regular).
+- `generar-vista-previa.mjs`: diez pantallas con el cascarón real, cada una en un marco del ancho
+  elegido (360, 390, 768, 1024 o completo), con modo oscuro y cajón abierto.
+- Detalle completo en `docs/auditoria/06-adaptabilidad-movil-y-modo-oscuro-2026-10-11.md`.
+
 ## [1.3.0] — 2026-10-03
 
 ### Añadido (`feat`)
