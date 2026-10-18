@@ -31,8 +31,8 @@ export default {
           </span>
         </div>
         <div class="space-y-1 text-sm">
-          <p class="flex items-center gap-2 text-stone-700 dark:text-stone-200 truncate"><i aria-hidden="true" class="fas fa-envelope text-stone-400 text-xs w-4"></i> ${u.email || '—'}</p>
-          <p class="flex items-center gap-2 text-stone-600 dark:text-stone-300"><i aria-hidden="true" class="fas fa-phone text-stone-400 text-xs w-4"></i> ${u.telefono || '—'}</p>
+          <p class="flex items-center gap-2 text-stone-700 dark:text-stone-200 truncate"><i aria-hidden="true" class="fas fa-envelope text-stone-500 dark:text-stone-400 text-xs w-4"></i> ${u.email || '—'}</p>
+          <p class="flex items-center gap-2 text-stone-600 dark:text-stone-300"><i aria-hidden="true" class="fas fa-phone text-stone-500 dark:text-stone-400 text-xs w-4"></i> ${u.telefono || '—'}</p>
         </div>
         <div class="flex gap-2 pt-1">
           <button class="edit-user-btn flex-1 bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200 rounded-xl py-2.5 text-sm font-bold active:scale-[0.98] transition" data-id="${u.id}"><i aria-hidden="true" class="fas fa-pen mr-1.5"></i> Editar</button>
