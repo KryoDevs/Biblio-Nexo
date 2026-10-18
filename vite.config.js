@@ -6,6 +6,17 @@ import { fileURLToPath } from 'url';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 export default defineConfig({
+  server: {
+    host: '0.0.0.0',
+    hmr: { host: 'localhost' },
+    cors: true,
+    headers: { 'X-Frame-Options': 'ALLOWALL' },
+    allowedHosts: true,
+  },
+  preview: {
+    host: '0.0.0.0',
+    cors: true
+  },
   build: {
     target: 'esnext',
     outDir: 'dist',

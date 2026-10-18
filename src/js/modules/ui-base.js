@@ -716,7 +716,9 @@ class UIManager {
     async _actualizarBadgeAtrasados() {
     const badge = document.getElementById('badge-atrasados');
     const badgeBell = document.getElementById('notificaciones-badge');
+    const badgeBellMobile = document.getElementById('notificaciones-badge-mobile');
     const panel = document.getElementById('notificaciones-lista');
+    const panelMobile = document.getElementById('notificaciones-lista-mobile');
     try {
       const { conteos } = await db.obtenerPrestamos('todos', 0, 1, 0);
       let count = 0;
@@ -761,22 +763,39 @@ class UIManager {
           badgeBell.textContent = count;
           badgeBell.classList.remove('hidden');
         }
-        if (panel) {
-          panel.innerHTML = notifsHTML;
-          // Delegación en vez de `onclick` inline: el CSP de index.html
-          // (script-src 'self') bloquea los manejadores inline, así que los
-          // avisos se veían pero no llevaban a ninguna parte.
-          panel.querySelectorAll('[data-go-view]').forEach(el => {
-            el.addEventListener('click', () => this.switchView(el.dataset.goView));
-          });
+        if (badgeBellMobile) {
+          badgeBellMobile.textContent = count;
+          badgeBellMobile.classList.remove('hidden');
         }
+        const applyPanel = (p) => {
+          if (!p) return;
+          p.innerHTML = notifsHTML;
+          p.querySelectorAll('[data-go-view]').forEach(el => {
+            el.addEventListener('click', () => {
+              this.switchView(el.dataset.goView);
+              // cerrar paneles tras navegar
+              document.getElementById('notificaciones-panel')?.classList.add('opacity-0','invisible','scale-95');
+              document.getElementById('notificaciones-panel-mobile')?.classList.add('opacity-0','invisible','scale-95');
+            });
+          });
+        };
+        applyPanel(panel);
+        applyPanel(panelMobile);
+        // También cerrar drawer móvil al navegar desde notificación
+        document.getElementById('sidebar')?.classList.remove('active');
+        document.getElementById('sidebar-overlay')?.classList.add('hidden');
+        document.body.classList.remove('mobile-drawer-open');
       } else {
         if (badgeBell) badgeBell.classList.add('hidden');
-        if (panel) panel.innerHTML = `<div class="p-6 text-center text-stone-500 text-sm"><i aria-hidden="true" class="fas fa-check-circle text-2xl text-emerald-500 mb-2 block"></i> Todo está al día.</div>`;
+        if (badgeBellMobile) badgeBellMobile.classList.add('hidden');
+        const empty = `<div class="p-6 text-center text-stone-500 text-sm"><i aria-hidden="true" class="fas fa-check-circle text-2xl text-emerald-500 mb-2 block"></i> Todo está al día.</div>`;
+        if (panel) panel.innerHTML = empty;
+        if (panelMobile) panelMobile.innerHTML = empty;
       }
     } catch (e) {
       if (badge) badge.classList.add('hidden');
       if (badgeBell) badgeBell.classList.add('hidden');
+      if (badgeBellMobile) badgeBellMobile.classList.add('hidden');
     }
   }
 
@@ -1154,7 +1173,8 @@ class UIManager {
    */
   _renderIndicadorConexion({ enLinea, sincronizando, pendientes } = {}) {
     const el = document.getElementById('estado-conexion');
-    if (!el) return; // la franja de título no está montada (por ejemplo, en pantallas de login)
+    const elMobile = document.getElementById('estado-conexion-mobile');
+    if (!el && !elMobile) return;
 
     const plural = pendientes === 1 ? 'pendiente' : 'pendientes';
     let clase, icono, texto;
@@ -1177,10 +1197,23 @@ class UIManager {
       texto = 'En línea';
     }
 
-    el.className = `ml-auto shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${clase}`;
-    el.innerHTML = `<i aria-hidden="true" class="fas ${icono}"></i><span>${escapeHtml(texto)}</span>`;
-    el.setAttribute('role', 'status');
-    el.setAttribute('aria-label', `Estado de conexión: ${texto}`);
+    const pintar = (nodo, esMobile) => {
+      if (!nodo) return;
+      // En móvil el texto largo no cabe: acortar
+      let textoMobile = texto;
+      if (esMobile) {
+        if (!enLinea && pendientes > 0) textoMobile = `Sin conex· ${pendientes}`;
+        else if (!enLinea) textoMobile = 'Sin señal';
+        else if (pendientes > 0) textoMobile = `${pendientes} pend.`;
+        else textoMobile = 'En línea';
+      }
+      nodo.className = `shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${clase} ${esMobile ? 'text-[10px] px-2 py-1' : 'ml-auto'}`;
+      nodo.innerHTML = `<i aria-hidden="true" class="fas ${icono}"></i><span>${escapeHtml(esMobile ? textoMobile : texto)}</span>`;
+      nodo.setAttribute('role', 'status');
+      nodo.setAttribute('aria-label', `Estado de conexión: ${texto}`);
+    };
+    pintar(el, false);
+    pintar(elMobile, true);
   }
 
   /**
