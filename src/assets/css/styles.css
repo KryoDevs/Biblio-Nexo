@@ -257,22 +257,33 @@ tbody tr:hover {
     100% { transform: rotate(360deg); }
 }
 
-/* Responsive */
+/* Responsive — versión distinta para teléfono */
 @media (max-width: 768px) {
     #sidebar {
         position: fixed;
         left: 0;
         top: 0;
-        width: 82%;
-        max-width: 300px;
+        width: 84%;
+        max-width: 320px;
         height: 100%;
+        height: 100dvh;
         z-index: 50;
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
+        transform: translateX(-101%);
+        transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
+        will-change: transform;
+        padding-bottom: env(safe-area-inset-bottom);
+        overflow-y: auto;
+        overscroll-behavior: contain;
     }
 
     #sidebar.active {
         transform: translateX(0);
+    }
+
+    /* Bloquear scroll del fondo cuando el drawer está abierto */
+    body.mobile-drawer-open {
+        overflow: hidden;
+        touch-action: none;
     }
 
     table {
@@ -281,6 +292,61 @@ tbody tr:hover {
 
     th, td {
         padding: 0.75rem 0.5rem;
+    }
+
+    /* Header móvil y navegación inferior ocupan espacio real: el contenido
+       no debe quedar debajo de ellos */
+    #views-container {
+        padding-bottom: calc(88px + env(safe-area-inset-bottom));
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior-y: contain;
+    }
+
+    /* Modales como bottom-sheet en teléfono: más cerca del pulgar y sin
+       quedar tapados por el teclado visual parcial */
+    .fixed.inset-0.z-\[10000\] {
+        align-items: flex-end;
+        padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+    }
+    .fixed.inset-0.z-\[10000\] > .ui-dialog,
+    .fixed.inset-0.z-\[10000\] > div[class*=\"rounded-2xl\"] {
+        max-height: min(92dvh, 720px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        margin-bottom: env(safe-area-inset-bottom);
+        border-radius: 1.5rem 1.5rem 1rem 1rem;
+    }
+
+    /* Formularios apilados a una sola columna y con targets de 44px */
+    #add-book-form,
+    #add-user-form {
+        grid-template-columns: 1fr !important;
+    }
+    #add-book-form input,
+    #add-user-form input,
+    #catalog-search-input,
+    #user-search-input,
+    #bibliomovil-search-input,
+    #bibliomovil-stop-name,
+    #bibliomovil-origin-name,
+    #manual-scan-input {
+        min-height: 44px;
+        font-size: 16px; /* evita zoom automático en iOS */
+    }
+    button,
+    a {
+        min-height: 0;
+    }
+    /* Botones icon-only mínimos táctiles */
+    .notify-loan-btn,
+    .renew-loan-btn,
+    .bibliomovil-stop-action,
+    .edit-book-btn,
+    .delete-book-btn,
+    .edit-user-btn,
+    .delete-user-btn {
+        min-width: 44px;
+        min-height: 44px;
     }
 }
 
@@ -993,4 +1059,209 @@ html.dark {
 }
 @media (prefers-reduced-motion: reduce) {
     .bibliomovil-marker-wrap--pendiente .bibliomovil-marker { animation: none; }
+}
+
+/* ===========================================================
+   Versión distinta para teléfonos — BiblioNexo Móvil
+   No es solo “responsive”: en <768px la app cambia de
+   paradigma: header compacto arriba + navegación inferior
+   fija para el pulgar, tarjetas full-width y flujos
+   verticales. El escritorio permanece intacto.
+   =========================================================== */
+
+/* Safe area global */
+:root {
+    --mobile-nav-height: 72px;
+    --mobile-header-height: 56px;
+}
+
+/* Header móvil — solo visible en teléfono */
+#mobile-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+/* Navegación inferior — la “versión distinta” que pide el usuario:
+   4-5 accesos primarios siempre al alcance del pulgar */
+#mobile-bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    align-items: stretch;
+    justify-content: space-around;
+    gap: 2px;
+    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+    border-top: 1px solid #e7e5e4;
+    box-shadow: 0 -8px 24px -12px rgba(27,59,72,0.35);
+    overscroll-behavior: contain;
+}
+.dark #mobile-bottom-nav {
+    background: rgba(28,25,23,0.96);
+    border-top-color: #44403c;
+}
+.mobile-nav-btn {
+    flex: 1 1 0;
+    min-width: 0;
+    max-width: 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 4px 4px;
+    border-radius: 14px;
+    color: #57534e;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-transform: uppercase;
+    transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
+}
+.mobile-nav-btn i {
+    font-size: 18px;
+    line-height: 1;
+}
+.mobile-nav-btn.is-active {
+    background: var(--patrimonio-madera);
+    color: #fff;
+    box-shadow: 0 4px 14px -6px rgba(122,67,29,0.6);
+}
+.dark .mobile-nav-btn {
+    color: #a8a29e;
+}
+.dark .mobile-nav-btn.is-active {
+    background: #a85a2a;
+    color: #fff;
+}
+.mobile-nav-btn:active:not(.is-active) {
+    transform: scale(0.96);
+    background: #f5f5f4;
+}
+.dark .mobile-nav-btn:active:not(.is-active) {
+    background: #292524;
+}
+
+/* Indicador de conexión en móvil — compacto para no romper el header */
+#estado-conexion-mobile {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    line-height: 1;
+}
+
+/* Ocultar franja de título en móvil (el header ya da contexto + bottom nav) */
+@media (max-width: 768px) {
+    .franja-titulo {
+        display: none !important;
+    }
+    #mobile-header,
+    #mobile-bottom-nav {
+        display: flex !important;
+    }
+}
+@media (min-width: 769px) {
+    #mobile-header,
+    #mobile-bottom-nav {
+        display: none !important;
+    }
+}
+
+/* Tarjetas de catálogo y préstamos — en móvil ocupan todo el ancho sin
+   bordes laterales desperdiciados y con sombra más suave */
+@media (max-width: 768px) {
+    .catalog-card {
+        border-radius: 1.25rem;
+        margin-left: -2px;
+        margin-right: -2px;
+    }
+    /* El “lomo” de ficha (borde superior) más sutil en pantallas angostas */
+    .catalog-card::before {
+        left: 1rem;
+        width: 1.75rem;
+    }
+}
+
+/* Lectores: de tabla a tarjetas en móvil (sin scroll horizontal) */
+.lectores-card-mobile {
+    display: none;
+}
+@media (max-width: 768px) {
+    .lectores-tabla-desktop {
+        display: none !important;
+    }
+    .lectores-card-mobile {
+        display: flex !important;
+    }
+    /* Dashboard: KPIs más densos pero legibles */
+    .grid.grid-cols-2.md\:grid-cols-4 {
+        gap: 0.75rem !important;
+    }
+    /* Reportes: period buttons en scroll horizontal sin wrap forzado */
+    .report-period-btn {
+        scroll-snap-align: start;
+    }
+}
+
+/* Botón flotante de Mesón para teléfono — acción primaria siempre visible */
+.mobile-fab-meson {
+    position: fixed;
+    right: 16px;
+    bottom: calc(var(--mobile-nav-height) + 16px + env(safe-area-inset-bottom));
+    z-index: 35;
+    width: 56px;
+    height: 56px;
+    border-radius: 18px;
+    background: var(--patrimonio-lago);
+    color: #fff;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    box-shadow: 0 10px 24px -8px rgba(27,59,72,0.6);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.mobile-fab-meson:active {
+    transform: scale(0.96);
+}
+@media (max-width: 768px) {
+    .mobile-fab-meson.is-visible {
+        display: flex;
+    }
+}
+
+/* Toast encima de la nav inferior, centrado en móvil */
+@media (max-width: 768px) {
+    #toast-container {
+        left: 12px !important;
+        right: 12px !important;
+        bottom: calc(var(--mobile-nav-height) + 12px + env(safe-area-inset-bottom)) !important;
+        align-items: stretch;
+    }
+    #toast-container > div {
+        width: 100%;
+        justify-content: flex-start;
+        font-size: 13px;
+        padding: 14px 16px;
+    }
+}
+
+/* View canvas: quitar brillo radial en móvil para rendimiento */
+@media (max-width: 768px) {
+    .view-canvas {
+        background-image: none;
+        background: #F7F4EB;
+    }
+    .dark .view-canvas {
+        background: #1c1917;
+    }
 }

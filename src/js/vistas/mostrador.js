@@ -41,10 +41,10 @@ export default {
     if (!container) return;
 
     container.innerHTML = `
-      <div class="flex flex-col md:flex-row gap-6 w-full h-full max-w-7xl mx-auto items-start">
-        <!-- Panel Izquierdo: El Escáner y Búsqueda -->
-        <div class="flex-1 w-full flex flex-col gap-6 sticky top-0">
-           <div class="bg-patrimonio-card dark:bg-stone-900 rounded-3xl shadow-soft-xl border border-stone-200 dark:border-stone-700 p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
+      <div class="flex flex-col md:flex-row gap-4 md:gap-6 w-full max-w-7xl mx-auto items-stretch md:items-start">
+        <!-- Panel Izquierdo: El Escáner y Búsqueda — en móvil va primero y sin sticky -->
+        <div class="flex-1 w-full flex flex-col gap-4 md:gap-6 md:sticky md:top-0">
+           <div class="bg-patrimonio-card dark:bg-stone-900 rounded-3xl shadow-soft-xl border border-stone-200 dark:border-stone-700 p-5 md:p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
                <div class="absolute -top-24 -right-24 w-64 h-64 bg-patrimonio-lago/5 rounded-full blur-3xl pointer-events-none"></div>
 
                <h3 class="font-serif font-bold text-3xl text-stone-900 dark:text-stone-100 mb-2">Mesón de Circulación</h3>

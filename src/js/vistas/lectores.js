@@ -14,6 +14,36 @@ import { db } from '../modules/db.js';
 
 
 export default {
+  // Versión móvil: tarjetas apiladas para pulgar, sin scroll horizontal
+  _renderUserCardsMobile(users) {
+    if (!users.length) {
+      return html`<p class="px-4 py-6 text-center text-stone-500 dark:text-stone-400 text-sm">${this.userSearch ? 'Ningún lector coincide con la búsqueda.' : 'Sin lectores registrados. Agrega el primero con el formulario de arriba.'}</p>`;
+    }
+    return html`${users.map(u => html`
+      <div class="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-4 flex flex-col gap-3 animate-fade-up">
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0 flex-1">
+            <p class="font-bold text-stone-900 dark:text-stone-100 text-[15px] leading-tight truncate">${u.nombre}</p>
+            <p class="font-mono text-xs text-stone-500 dark:text-stone-400 mt-0.5">${u.rut}</p>
+          </div>
+          <span class="w-9 h-9 rounded-full bg-stone-100 dark:bg-stone-700 flex items-center justify-center text-stone-500 dark:text-stone-300 shrink-0">
+            <i aria-hidden="true" class="fas fa-user"></i>
+          </span>
+        </div>
+        <div class="space-y-1 text-sm">
+          <p class="flex items-center gap-2 text-stone-700 dark:text-stone-200 truncate"><i aria-hidden="true" class="fas fa-envelope text-stone-500 dark:text-stone-400 text-xs w-4"></i> ${u.email || '—'}</p>
+          <p class="flex items-center gap-2 text-stone-600 dark:text-stone-300"><i aria-hidden="true" class="fas fa-phone text-stone-500 dark:text-stone-400 text-xs w-4"></i> ${u.telefono || '—'}</p>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button class="edit-user-btn flex-1 bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200 rounded-xl py-2.5 text-sm font-bold active:scale-[0.98] transition" data-id="${u.id}"><i aria-hidden="true" class="fas fa-pen mr-1.5"></i> Editar</button>
+          ${this.currentUserRole === 'admin'
+            ? html`<button class="delete-user-btn flex-1 bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900/50 rounded-xl py-2.5 text-sm font-bold active:scale-[0.98] transition" data-id="${u.id}"><i aria-hidden="true" class="fas fa-trash mr-1.5"></i> Eliminar</button>`
+            : ''}
+        </div>
+      </div>
+    `)}`;
+  },
+
   // UX-04: HTML de las filas de lectores. Separado para refrescar solo el tbody 
   // al buscar, sin destruir el formulario superior.
   _renderUserRows(users) {
@@ -29,9 +59,9 @@ export default {
           <div class="text-xs text-stone-500 dark:text-stone-400">${u.telefono || '—'}</div>
         </td>
         <td class="px-4 py-3 text-right whitespace-nowrap space-x-2">
-          <button class="edit-user-btn text-stone-500 dark:text-stone-400 hover:text-patrimonio-madera font-bold" data-id="${u.id}">Editar</button>
+          <button class="edit-user-btn text-stone-500 dark:text-stone-400 hover:text-patrimonio-madera font-bold min-w-[44px] min-h-[44px] px-3" data-id="${u.id}">Editar</button>
           ${this.currentUserRole === 'admin'
-            ? html`<button class="delete-user-btn text-rose-700 font-bold" data-id="${u.id}">Eliminar</button>`
+            ? html`<button class="delete-user-btn text-rose-700 font-bold min-w-[44px] min-h-[44px] px-3" data-id="${u.id}">Eliminar</button>`
             : ''}
         </td>
       </tr>
@@ -81,6 +111,8 @@ export default {
       const tbody = container.querySelector('#users-tbody');
       if (tbody) {
         tbody.innerHTML = this._renderUserRows(users).toString();
+        const cards = container.querySelector('#users-cards-mobile');
+        if (cards) cards.innerHTML = this._renderUserCardsMobile(users).toString();
         const pag = container.querySelector('#users-pagination');
         if (pag) pag.innerHTML = this._paginacionHtml(this.userPage, total, porPagina, 'user-page-btn');
         this._bindUserRowEvents(container);
@@ -126,7 +158,7 @@ export default {
               class="w-full pl-8 pr-3 py-2 text-sm border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 focus:outline-none focus:border-patrimonio-lago focus:ring-1 focus:ring-patrimonio-lago" />
           </div>
         </div>
-        <table class="w-full text-sm text-left">
+        <table class="w-full text-sm text-left lectores-tabla-desktop hidden md:table">
           <thead class="text-xs font-bold uppercase text-stone-500 dark:text-stone-400 bg-stone-50 dark:bg-stone-800/60 border-b border-stone-200 dark:border-stone-700">
             <tr>
               <th scope="col" class="px-4 py-3">Nombre</th>
@@ -137,6 +169,7 @@ export default {
           </thead>
           <tbody id="users-tbody">${this._renderUserRows(users)}</tbody>
         </table>
+        <div id="users-cards-mobile" class="lectores-card-mobile md:hidden flex flex-col gap-3 p-3">${this._renderUserCardsMobile(users)}</div>
         <div id="users-pagination">${crudo(this._paginacionHtml(this.userPage, total, porPagina, 'user-page-btn'))}</div>
       </div>
     `;
