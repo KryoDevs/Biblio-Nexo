@@ -107,6 +107,24 @@ jobs:
       - name: Verificar el resultado PWA empaquetado
         run: npm run verify:build
 
+      # jsdom no calcula CSS ni posiciones. Este paso reproduce los errores
+      # móviles sobre el build real, sin datos ni credenciales de producción.
+      - name: Instalar Chromium para las regresiones visuales
+        run: npx playwright install --with-deps chromium
+
+      - name: Probar distribución y navegación móvil (Chromium)
+        run: npm run test:visual
+
+      - name: Conservar capturas y trazas si falla la revisión visual
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regresiones-visuales
+          path: .arena/pruebas-visuales/
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
+
   # ==========================================================================
   # 3. Migraciones contra un PostgreSQL embebido
   # ==========================================================================

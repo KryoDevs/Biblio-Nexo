@@ -474,16 +474,16 @@ class UIManager {
     return `
       <div class="border border-stone-300 dark:border-stone-600 rounded-xl p-3 bg-stone-50 dark:bg-stone-800/60 space-y-2">
         <p class="text-[10px] font-black uppercase tracking-widest text-stone-500 dark:text-stone-400">Tratamiento de datos personales</p>
-        <p class="text-[11px] text-stone-600 dark:text-stone-300 leading-relaxed">${escapeHtml(c.texto)} <a href="/privacidad.html" target="_blank" rel="noopener" class="text-patrimonio-lago hover:underline">Ver la política completa.</a></p>
+        <p class="text-[11px] text-stone-600 dark:text-stone-300 leading-relaxed">${escapeHtml(c.texto)} <a href="/privacidad.html" target="_blank" rel="noopener" class="text-patrimonio-lago dark:text-stone-200 hover:underline">Ver la política completa.</a></p>
         <label class="flex items-start gap-2 cursor-pointer pt-1">
           <input type="checkbox" id="${prefijo}-user-consent" class="mt-0.5 accent-[#7A431D]" />
-          <span class="text-[11px] text-stone-700">El lector fue informado y autoriza el uso de sus datos para este fin.</span>
+          <span class="text-[11px] text-stone-700 dark:text-stone-200">El lector fue informado y autoriza el uso de sus datos para este fin.</span>
         </label>
         <label class="flex items-start gap-2 cursor-pointer">
           <input type="checkbox" id="${prefijo}-user-minor" class="mt-0.5 accent-[#7A431D]" />
-          <span class="text-[11px] text-stone-700">Es menor de 18 años (requiere autorización del apoderado).</span>
+          <span class="text-[11px] text-stone-700 dark:text-stone-200">Es menor de 18 años (requiere autorización del apoderado).</span>
         </label>
-        <div id="${prefijo}-guardian-fields" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+        <div id="${prefijo}-guardian-fields" class="apoderado-campos hidden grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
           <input id="${prefijo}-guardian-name" aria-label="Nombre del apoderado" placeholder="Nombre del apoderado"
             class="px-3 py-2 border border-stone-300 dark:border-stone-600 rounded-md bg-white dark:bg-stone-800 text-sm focus:outline-none focus:border-patrimonio-lago" />
           <input id="${prefijo}-guardian-rut" aria-label="RUT del apoderado" placeholder="RUT del apoderado"
@@ -695,7 +695,10 @@ class UIManager {
     // Se muestra el nombre si lo hay; el correo pasa a segunda línea.
     if (nameEl) nameEl.textContent = this.currentUserName || this.currentUserEmail;
     if (subEl) subEl.textContent = this.currentUserName ? this.currentUserEmail : '';
-    if (badgeEl) badgeEl.textContent = this._perfil?.cargo || roleInfo.title;
+    if (badgeEl) {
+      badgeEl.textContent = this._perfil?.cargo || roleInfo.title;
+      badgeEl.title = badgeEl.textContent;
+    }
     if (inicialEl) {
       const base = this.currentUserName || this.currentUserEmail || '?';
       inicialEl.textContent = base.trim().charAt(0).toUpperCase();
@@ -781,10 +784,8 @@ class UIManager {
         };
         applyPanel(panel);
         applyPanel(panelMobile);
-        // También cerrar drawer móvil al navegar desde notificación
-        document.getElementById('sidebar')?.classList.remove('active');
-        document.getElementById('sidebar-overlay')?.classList.add('hidden');
-        document.body.classList.remove('mobile-drawer-open');
+        // El cambio de vista cierra los paneles. Actualizar los conteos no
+        // debe cerrar un menú que la persona acaba de abrir mientras cargaban.
       } else {
         if (badgeBell) badgeBell.classList.add('hidden');
         if (badgeBellMobile) badgeBellMobile.classList.add('hidden');
@@ -812,9 +813,13 @@ class UIManager {
    * clic y volvía a la pantalla de ingreso sin poder cambiar nada.
    */
   renderNuevaPassword() {
+    this._limpiarModales?.();
+    this._limpiarMenuMovil?.();
+    this._limpiarNotificaciones?.();
+    this.limpiarControlDeInactividad();
     const momento = this._momentoDelDia();
     document.body.innerHTML = `
-      <div class="h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
+      <div class="pantalla-acceso h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
         <div id="login-scene" class="momento-${momento}" aria-hidden="true">
           <div class="astro"></div>
           <svg aria-hidden="true" focusable="false" class="absolute inset-x-0 bottom-0 w-full h-[45%]" viewBox="0 0 400 200" preserveAspectRatio="none">
@@ -895,9 +900,13 @@ class UIManager {
    * usa "Mis datos" en Mi perfil) — nada de esquema nuevo.
    */
   renderCompletarInvitacion() {
+    this._limpiarModales?.();
+    this._limpiarMenuMovil?.();
+    this._limpiarNotificaciones?.();
+    this.limpiarControlDeInactividad();
     const momento = this._momentoDelDia();
     document.body.innerHTML = `
-      <div class="h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
+      <div class="pantalla-acceso h-screen w-full flex items-center justify-center p-4 relative overflow-hidden">
         <div id="login-scene" class="momento-${momento}" aria-hidden="true">
           <div class="astro"></div>
           <svg aria-hidden="true" focusable="false" class="absolute inset-x-0 bottom-0 w-full h-[45%]" viewBox="0 0 400 200" preserveAspectRatio="none">
@@ -999,11 +1008,14 @@ class UIManager {
   }
 
   renderLogin() {
+    this._limpiarModales?.();
+    this._limpiarMenuMovil?.();
+    this._limpiarNotificaciones?.();
     this.limpiarControlDeInactividad();
     const momento = this._momentoDelDia();
 
     document.body.innerHTML = `
-      <div id="login-screen" class="h-screen w-full flex items-center justify-center p-4 relative overflow-hidden transition-colors duration-500">
+      <div id="login-screen" class="pantalla-acceso h-screen w-full flex items-center justify-center p-4 relative overflow-hidden transition-colors duration-500">
 
         <!-- Escena viva del Lago Ranco: cielo, sol/luna y cordillera cambian con la hora real -->
         <div id="login-scene" class="momento-${momento}" aria-hidden="true">
@@ -1050,7 +1062,7 @@ class UIManager {
             <div>
               <div class="flex justify-between items-center mb-1">
                 <label for="password-input" class="text-[11px] font-black uppercase tracking-wide text-stone-600 dark:text-stone-400 block">Contraseña</label>
-                <button type="button" id="forgot-password-btn" class="text-[11px] font-bold text-patrimonio-lago dark:text-patrimonio-lago hover:underline transition-colors">¿Olvidaste tu contraseña?</button>
+                <button type="button" id="forgot-password-btn" class="text-[11px] font-bold text-patrimonio-lago dark:text-stone-200 hover:underline transition-colors">¿Olvidaste tu contraseña?</button>
               </div>
               <input id="password-input" type="password" placeholder="••••••••" autocomplete="current-password"
                 class="w-full px-4 py-3 border border-stone-300/50 dark:border-stone-600/50 rounded-xl bg-white/70 dark:bg-stone-950/50 text-sm text-stone-900 dark:text-stone-100 focus:outline-none focus:border-patrimonio-lago focus:ring-2 focus:ring-patrimonio-lago/30 transition-all placeholder:text-stone-500 dark:placeholder:text-stone-400 backdrop-blur-sm" />
@@ -1199,16 +1211,11 @@ class UIManager {
 
     const pintar = (nodo, esMobile) => {
       if (!nodo) return;
-      // En móvil el texto largo no cabe: acortar
-      let textoMobile = texto;
-      if (esMobile) {
-        if (!enLinea && pendientes > 0) textoMobile = `Sin conex· ${pendientes}`;
-        else if (!enLinea) textoMobile = 'Sin señal';
-        else if (pendientes > 0) textoMobile = `${pendientes} pend.`;
-        else textoMobile = 'En línea';
-      }
-      nodo.className = `shrink-0 inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${clase} ${esMobile ? 'text-[10px] px-2 py-1' : 'ml-auto'}`;
-      nodo.innerHTML = `<i aria-hidden="true" class="fas ${icono}"></i><span>${escapeHtml(esMobile ? textoMobile : texto)}</span>`;
+      // Mismo estado y prioridad en ambos tamaños. En móvil el indicador
+      // comparte la columna de la marca y trunca sin empujar los controles.
+      nodo.className = `inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${clase} ${esMobile ? 'max-w-full text-[10px]' : 'shrink-0 ml-auto'}`;
+      nodo.innerHTML = `<i aria-hidden="true" class="fas ${icono} shrink-0"></i><span${esMobile ? ' class="truncate"' : ''}>${escapeHtml(texto)}</span>`;
+      nodo.title = `Estado de conexión: ${texto}`;
       nodo.setAttribute('role', 'status');
       nodo.setAttribute('aria-label', `Estado de conexión: ${texto}`);
     };
@@ -1307,7 +1314,7 @@ class UIManager {
     if (legend) legend.innerHTML = segmentos.map(s => `
       <div class="flex items-center gap-2.5 py-1.5">
         <span class="w-2.5 h-2.5 rounded-sm shrink-0" style="background:${escapeHtml(s.color)}"></span>
-        <span class="text-xs text-stone-600 dark:text-stone-300 flex-1 truncate">${escapeHtml(s.etiqueta)}</span>
+        <span class="leyenda-etiqueta text-xs text-stone-600 dark:text-stone-300 min-w-0 flex-1">${escapeHtml(s.etiqueta)}</span>
         <span class="text-xs font-bold text-stone-900 dark:text-stone-100 tabular-nums">${escapeHtml(String(s.valor))}</span>
         <span class="text-[11px] text-stone-500 dark:text-stone-400 tabular-nums w-12 text-right">${escapeHtml(String(pct(s.valor)))}%</span>
       </div>

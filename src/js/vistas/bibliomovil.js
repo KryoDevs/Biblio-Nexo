@@ -95,7 +95,7 @@ export default {
       <div class="space-y-6">
         <section class="bibliomovil-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600">
           <div class="p-5 md:p-6 flex flex-col gap-5">
-            <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+            <div class="bibliomovil-cabecera flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
               <div class="min-w-0">
                 <p class="text-[10px] font-black uppercase tracking-widest text-patrimonio-madera">Operación en ruta</p>
                 <h2 class="font-serif font-bold text-2xl text-stone-900 dark:text-stone-100 mt-0.5 flex items-center gap-2">
@@ -109,7 +109,7 @@ export default {
                 </p>
               </div>
               <div class="flex flex-wrap items-center gap-2.5 shrink-0">
-                <div class="inline-flex rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 p-1" role="group" aria-label="Secciones de la vista Bibliomóvil">
+                <div class="inline-flex flex-wrap rounded-xl border border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 p-1" role="group" aria-label="Secciones de la vista Bibliomóvil">
                   <button type="button" class="biblio-tab-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-colors bg-patrimonio-lago text-white" data-target="todos" aria-pressed="true">
                     <i aria-hidden="true" class="fas fa-layer-group mr-1"></i> Todo
                   </button>

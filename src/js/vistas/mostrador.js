@@ -41,9 +41,9 @@ export default {
     if (!container) return;
 
     container.innerHTML = `
-      <div class="flex flex-col md:flex-row gap-4 md:gap-6 w-full max-w-7xl mx-auto items-stretch md:items-start">
+      <div class="meson-paneles flex flex-col md:flex-row gap-4 md:gap-6 w-full max-w-7xl mx-auto items-stretch md:items-start">
         <!-- Panel Izquierdo: El Escáner y Búsqueda — en móvil va primero y sin sticky -->
-        <div class="flex-1 w-full flex flex-col gap-4 md:gap-6 md:sticky md:top-0">
+        <div class="flex-1 min-w-0 w-full flex flex-col gap-4 md:gap-6 md:sticky md:top-0">
            <div class="bg-patrimonio-card dark:bg-stone-900 rounded-3xl shadow-soft-xl border border-stone-200 dark:border-stone-700 p-5 md:p-8 flex flex-col items-center justify-center text-center relative overflow-hidden">
                <div class="absolute -top-24 -right-24 w-64 h-64 bg-patrimonio-lago/5 rounded-full blur-3xl pointer-events-none"></div>
 
@@ -85,7 +85,7 @@ export default {
         </div>
 
         <!-- Panel Derecho: Resultados (scan-result) -->
-        <div class="flex-[1.5] w-full bg-patrimonio-card dark:bg-stone-900 rounded-3xl shadow-soft-xl border border-stone-200 dark:border-stone-700 overflow-hidden flex flex-col relative min-h-[500px]">
+        <div class="flex-[1.5] min-w-0 w-full bg-patrimonio-card dark:bg-stone-900 rounded-3xl shadow-soft-xl border border-stone-200 dark:border-stone-700 overflow-hidden flex flex-col relative min-h-[500px]">
            <div id="scan-result" class="flex-1 flex flex-col p-6 overflow-y-auto">
               <div class="m-auto text-center py-12 text-stone-500">
                 <div class="w-24 h-24 mx-auto bg-stone-50 dark:bg-stone-800/50 rounded-full flex items-center justify-center mb-4 border border-stone-100 shadow-inner">

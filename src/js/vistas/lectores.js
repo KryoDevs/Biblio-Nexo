@@ -20,10 +20,10 @@ export default {
       return html`<p class="px-4 py-6 text-center text-stone-500 dark:text-stone-400 text-sm">${this.userSearch ? 'Ningún lector coincide con la búsqueda.' : 'Sin lectores registrados. Agrega el primero con el formulario de arriba.'}</p>`;
     }
     return html`${users.map(u => html`
-      <div class="bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-4 flex flex-col gap-3 animate-fade-up">
+      <div class="ficha-lector bg-white dark:bg-stone-800 rounded-2xl border border-stone-200 dark:border-stone-700 p-4 flex flex-col gap-3 animate-fade-up">
         <div class="flex items-start justify-between gap-2">
           <div class="min-w-0 flex-1">
-            <p class="font-bold text-stone-900 dark:text-stone-100 text-[15px] leading-tight truncate">${u.nombre}</p>
+            <p class="font-bold text-stone-900 dark:text-stone-100 text-[15px] leading-tight">${u.nombre}</p>
             <p class="font-mono text-xs text-stone-500 dark:text-stone-400 mt-0.5">${u.rut}</p>
           </div>
           <span class="w-9 h-9 rounded-full bg-stone-100 dark:bg-stone-700 flex items-center justify-center text-stone-500 dark:text-stone-300 shrink-0">
@@ -31,7 +31,7 @@ export default {
           </span>
         </div>
         <div class="space-y-1 text-sm">
-          <p class="flex items-center gap-2 text-stone-700 dark:text-stone-200 truncate"><i aria-hidden="true" class="fas fa-envelope text-stone-500 dark:text-stone-400 text-xs w-4"></i> ${u.email || '—'}</p>
+          <p class="flex items-start gap-2 text-stone-700 dark:text-stone-200"><i aria-hidden="true" class="fas fa-envelope text-stone-500 dark:text-stone-400 text-xs w-4 shrink-0 mt-1"></i><span class="min-w-0">${u.email || '—'}</span></p>
           <p class="flex items-center gap-2 text-stone-600 dark:text-stone-300"><i aria-hidden="true" class="fas fa-phone text-stone-500 dark:text-stone-400 text-xs w-4"></i> ${u.telefono || '—'}</p>
         </div>
         <div class="flex gap-2 pt-1">
@@ -95,9 +95,21 @@ export default {
     const container = this._container();
     if (!container) return;
 
+    const solicitud = (this._lectoresRenderVersion || 0) + 1;
+    this._lectoresRenderVersion = solicitud;
+    const vigente = () => solicitud === this._lectoresRenderVersion && this.currentView === 'users' && container.isConnected;
     const porPagina = this.param('filas_por_pagina');
-    const { lectores: users, total } = await db.obtenerLectores(this.userSearch || '', this.userPage, porPagina);
-    if (this.currentView !== 'users') return;
+    let respuesta;
+    try {
+      respuesta = await db.obtenerLectores(this.userSearch || '', this.userPage, porPagina);
+    } catch (err) {
+      if (!vigente()) return;
+      if (!soloTabla) throw err;
+      this.showToast(err.message || 'No se pudo actualizar la lista de lectores.', 'error');
+      return;
+    }
+    if (!vigente()) return;
+    const { lectores: users, total } = respuesta;
 
     if (users.length === 0 && this.userPage > 0) {
       this.userPage = Math.max(0, Math.ceil(total / porPagina) - 1);
@@ -150,7 +162,7 @@ export default {
         </form>
       </div>
       <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 overflow-x-auto">
-        <div class="catalog-card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="lectores-cabecera catalog-card-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100">Lectores registrados</h3>
           <div class="relative sm:w-64">
             <i aria-hidden="true" class="fas fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 dark:text-stone-400 text-xs"></i>
@@ -225,6 +237,7 @@ export default {
     const userSearchInput = document.getElementById('user-search-input');
     userSearchInput.addEventListener('input', () => {
       clearTimeout(this._userSearchTimer);
+      this._lectoresRenderVersion = (this._lectoresRenderVersion || 0) + 1;
       this._userSearchTimer = setTimeout(() => {
         this.userSearch = userSearchInput.value.trim();
         this.userPage = 0;

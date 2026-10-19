@@ -30,3 +30,8 @@ supabase/.branches/
 secretos.*
 OpenWA/ 
 dist/
+
+# Capturas, trazas y resultados locales de las pruebas de navegador
+.arena/
+playwright-report/
+test-results/

@@ -139,7 +139,7 @@ export default {
 
         <!-- Encabezado: quién eres y con qué rol -->
         <section class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5 md:p-6">
-          <div class="flex flex-col md:flex-row md:items-center gap-5">
+          <div class="perfil-resumen flex flex-col md:flex-row md:items-center gap-5">
             <div class="w-20 h-20 md:w-24 md:h-24 rounded-2xl bg-patrimonio-madera text-white font-serif font-bold text-3xl md:text-4xl flex items-center justify-center mx-auto md:mx-0 shrink-0 shadow-sm"
               role="img" aria-label="Inicial de ${nombreMostrado}">${inicial}</div>
 
@@ -168,7 +168,7 @@ export default {
           </div>
         </section>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="perfil-columnas grid grid-cols-1 lg:grid-cols-3 gap-4">
 
           <!-- Columna principal: lo que se edita -->
           <div class="lg:col-span-2 space-y-4">
@@ -286,7 +286,7 @@ export default {
               <div class="flex items-center gap-2">
                 <button id="fuente-menos-btn" type="button" aria-label="Reducir tamaño de letra"
                   class="w-11 h-11 shrink-0 rounded-xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 hover:border-patrimonio-lago text-stone-700 dark:text-stone-200 font-serif font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed">A-</button>
-                <span id="fuente-nivel-texto" class="text-sm text-stone-600 dark:text-stone-300 font-bold flex-1 text-center"></span>
+                <span id="fuente-nivel-texto" class="min-w-0 break-words text-sm text-stone-600 dark:text-stone-300 font-bold flex-1 text-center"></span>
                 <button id="fuente-mas-btn" type="button" aria-label="Aumentar tamaño de letra"
                   class="w-11 h-11 shrink-0 rounded-xl border border-stone-300 dark:border-stone-600 bg-white dark:bg-stone-800 hover:border-patrimonio-lago text-stone-700 dark:text-stone-200 font-serif font-bold text-lg disabled:opacity-40 disabled:cursor-not-allowed">A+</button>
               </div>

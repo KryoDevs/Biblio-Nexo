@@ -27,6 +27,8 @@ export default {
     const container = this._container();
     if (!container) return;
 
+    const solicitud = (this._prestamosRenderVersion || 0) + 1;
+    this._prestamosRenderVersion = solicitud;
     const filtro = this.loanFilter || 'todos';
     const porPagina = this.param('filas_por_pagina');
     const diasAviso = this.param('dias_aviso_previo');
@@ -35,7 +37,7 @@ export default {
     // una lista truncada daba números falsos.
     const { prestamos: visibles, total, conteos } =
       await db.obtenerPrestamos(filtro, this.loanPage, porPagina, diasAviso);
-    if (this.currentView !== 'loans') return;
+    if (solicitud !== this._prestamosRenderVersion || this.currentView !== 'loans' || !container.isConnected) return;
 
     // Si se devolvió el último de la página final, se retrocede una
     if (visibles.length === 0 && this.loanPage > 0) {
@@ -87,11 +89,11 @@ export default {
               const puedeRenovar = estado.clave !== 'vencido'
                 && Number(l.renovaciones || 0) < this.param('max_renovaciones');
               const sinContacto = !l.lectores?.email && this.formatPhone(l.lectores?.telefono).length < 11;
-              const colorFecha = estado.clave === 'vencido' ? 'text-rose-700 font-bold'
-                : estado.clave === 'porVencer' ? 'text-amber-700 font-bold' : 'text-stone-600 dark:text-stone-300';
+              const colorFecha = estado.clave === 'vencido' ? 'text-rose-700 dark:text-rose-300 font-bold'
+                : estado.clave === 'porVencer' ? 'text-amber-700 dark:text-amber-300 font-bold' : 'text-stone-600 dark:text-stone-300';
               return html`
-              <div class="bg-white dark:bg-stone-900 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between border border-stone-200 dark:border-stone-700 shadow-sm hover:shadow-md transition gap-4 animate-fade-up" style="animation-delay: ${i * 0.05}s">
-                  <div class="flex flex-col sm:flex-row gap-4 sm:items-center flex-1">
+              <div class="ficha-prestamo bg-white dark:bg-stone-900 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between border border-stone-200 dark:border-stone-700 shadow-sm hover:shadow-md transition gap-4 animate-fade-up" style="animation-delay: ${i * 0.05}s">
+                  <div class="ficha-prestamo-datos flex flex-col sm:flex-row gap-4 sm:items-center flex-1 min-w-0">
                     <div class="flex-1">
                       <div class="font-bold text-lg text-stone-800 dark:text-stone-200 leading-tight mb-1">${l.libros?.titulo}</div>
                       <div class="text-sm text-stone-500 dark:text-stone-400 font-medium"><i aria-hidden="true" class="fas fa-user mr-1.5 text-stone-500"></i>${l.lectores?.nombre} <span class="text-xs font-mono ml-1 text-stone-500">(${l.lectores?.rut || 'Sin RUT'})</span></div>
@@ -101,7 +103,7 @@ export default {
                       <div class="text-[10px] uppercase tracking-widest font-bold px-2 py-0.5 rounded bg-stone-100 dark:bg-stone-800 ${colorFecha}">${estado.etiqueta}</div>
                     </div>
                   </div>
-                  <div class="flex items-center gap-2 border-t sm:border-t-0 sm:border-l border-stone-100 dark:border-stone-800 pt-3 sm:pt-0 sm:pl-4 shrink-0">
+                  <div class="ficha-prestamo-acciones flex flex-wrap items-center gap-2 border-t sm:border-t-0 sm:border-l border-stone-100 dark:border-stone-800 pt-3 sm:pt-0 sm:pl-4 shrink-0">
                     ${sinContacto
                       ? html`<button class="btn-secundario w-8 h-8 flex items-center justify-center rounded bg-stone-100 dark:bg-stone-800 text-stone-500 cursor-not-allowed" disabled title="Lector sin correo ni teléfono"><i aria-hidden="true" class="fas fa-bell-slash"></i></button>`
                       : html`<button class="notify-loan-btn btn-secundario w-8 h-8 flex items-center justify-center rounded bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-500 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition" data-id="${l.id}" title="Avisar al lector"><i aria-hidden="true" class="fas fa-bell"></i></button>`
@@ -247,7 +249,7 @@ export default {
           <p class="text-xs text-stone-500 dark:text-stone-400">Busca al lector por nombre o RUT. O escribe un RUT nuevo para registrarlo.</p>
           <div class="relative">
             <i aria-hidden="true" class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-stone-500 dark:text-stone-400"></i>
-            <input id="lector-search-input" autocomplete="off" class="w-full pl-9 pr-3 py-2.5 border border-stone-300 dark:border-stone-600 rounded-lg focus:ring-1 focus:ring-patrimonio-lago focus:border-patrimonio-lago text-sm" placeholder="Ej: María Pérez o 12345678-5">
+            <input id="lector-search-input" autocomplete="off" class="w-full pl-9 pr-3 py-2.5 border border-stone-300 dark:border-stone-600 rounded-lg focus:ring-1 focus:ring-patrimonio-lago focus:border-patrimonio-lago bg-white dark:bg-stone-800 text-stone-900 dark:text-stone-100 text-sm" placeholder="Ej: María Pérez o 12345678-5">
           </div>
           <div id="lector-search-results" class="max-h-48 overflow-y-auto space-y-1 mt-2"></div>
           <div class="flex justify-end gap-2 pt-2 border-t border-stone-200 dark:border-stone-700 mt-4">
@@ -264,13 +266,19 @@ export default {
       
       let timer;
       let selectedRut = null;
-
-      const close = () => {
-        overlay.remove();
-        resolve(null);
-      };
+      let resultado = null;
+      let versionBusqueda = 0;
+      let cerrado = false;
+      const close = this._prepararModal(overlay, { alCerrar: () => {
+        cerrado = true;
+        versionBusqueda++;
+        clearTimeout(timer);
+        resolve(resultado);
+      } });
 
       const select = (rut, nombre) => {
+        versionBusqueda++;
+        clearTimeout(timer);
         selectedRut = rut;
         input.value = rut; // Mostrar solo el RUT en el input
         resultsContainer.innerHTML = `
@@ -285,9 +293,8 @@ export default {
       overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
 
       confirmBtn.addEventListener('click', () => {
-        const rutToReturn = selectedRut || input.value.trim();
-        overlay.remove();
-        resolve(rutToReturn);
+        resultado = selectedRut || input.value.trim();
+        close();
       });
 
       input.addEventListener('input', () => {
@@ -303,6 +310,7 @@ export default {
         confirmBtn.disabled = !input.value.trim();
         selectedRut = null;
         clearTimeout(timer);
+        const solicitud = ++versionBusqueda;
         const q = input.value.trim();
         if (q.length < 2) {
           resultsContainer.innerHTML = '';
@@ -312,13 +320,14 @@ export default {
           resultsContainer.innerHTML = '<p class="text-xs text-stone-500 dark:text-stone-400 p-2"><i aria-hidden="true" class="fas fa-spinner fa-spin mr-1"></i> Buscando...</p>';
           try {
             const res = await db.obtenerLectores(q, 0, 5);
+            if (cerrado || solicitud !== versionBusqueda) return;
             if (res.lectores.length === 0) {
               resultsContainer.innerHTML = '<p class="text-xs text-stone-500 dark:text-stone-400 p-2">Ningún lector coincide. Escriba el RUT completo para registrarlo como nuevo.</p>';
             } else {
               resultsContainer.innerHTML = res.lectores.map(l => `
-                <button type="button" data-rut="${l.rut}" data-nombre="${escapeHtml(l.nombre)}" class="w-full text-left px-3 py-2 rounded-lg border border-transparent hover:bg-stone-50 dark:bg-stone-800/50 hover:border-stone-200 dark:border-stone-700 focus:bg-stone-50 dark:bg-stone-800/50 focus:border-stone-200 dark:border-stone-700 focus:outline-none transition-colors">
+                <button type="button" data-rut="${escapeHtml(l.rut)}" data-nombre="${escapeHtml(l.nombre)}" class="w-full text-left px-3 py-2 rounded-lg border border-transparent hover:bg-stone-50 dark:bg-stone-800/50 hover:border-stone-200 dark:border-stone-700 focus:bg-stone-50 dark:bg-stone-800/50 focus:border-stone-200 dark:border-stone-700 focus:outline-none transition-colors">
                   <p class="text-sm font-medium text-stone-800 dark:text-stone-200">${escapeHtml(l.nombre)}</p>
-                  <p class="text-[11px] font-mono text-stone-500 dark:text-stone-400">${l.rut}</p>
+                  <p class="text-[11px] font-mono text-stone-500 dark:text-stone-400">${escapeHtml(l.rut)}</p>
                 </button>
               `).join('');
               
@@ -327,6 +336,7 @@ export default {
               });
             }
           } catch(err) {
+            if (cerrado || solicitud !== versionBusqueda) return;
             resultsContainer.innerHTML = '<p class="text-xs text-rose-500 p-2">Error al buscar.</p>';
           }
         }, 350);
@@ -338,8 +348,6 @@ export default {
         }
       });
 
-      // UX1: Auto focus
-      setTimeout(() => input.focus(), 100);
     });
   },
 
