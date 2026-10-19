@@ -18,9 +18,11 @@
     "test:legacy:consolidacion": "python pruebas/verificar_consolidacion.py && python pruebas/verificar_llamadas_rpc.py && python3 pruebas/verificar_clases_tailwind.py",
     "test:legacy:interfaz": "node pruebas/probar-interfaz.mjs && node pruebas/probar-vistas.mjs && node pruebas/probar-escaneo-remoto.mjs",
     "test:legacy:offline": "node pruebas/probar-persistencia.mjs && node pruebas/probar-sync-queue.mjs && node pruebas/probar-estado-conexion.mjs",
-    "test:legacy:contraste": "node pruebas/probar-contraste.mjs"
+    "test:legacy:contraste": "node pruebas/probar-contraste.mjs",
+    "test:visual": "playwright test --config pruebas/visual/playwright.config.js"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4.3.3",
     "autoprefixer": "^10.5.5",
     "fake-indexeddb": "6.2.5",

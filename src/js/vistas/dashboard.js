@@ -104,7 +104,7 @@ on conflict (id) do update set rol = 'admin';</pre>
           </p>
         </div>` : ''}
 
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="metricas-grid grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         ${cards.map(c => html`
           <div class="catalog-card elevate-hover bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5">
             <i aria-hidden="true" class="fas ${c.icon} ${c.color} text-xl mb-2"></i>
@@ -114,7 +114,7 @@ on conflict (id) do update set rol = 'admin';</pre>
         `)}
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+      <div class="resumen-graficos grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
         <!-- Anillo 1: dónde están físicamente las copias en este momento -->
         <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5">
           <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100 mb-1">Estado del fondo</h3>

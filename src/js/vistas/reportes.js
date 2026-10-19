@@ -35,6 +35,9 @@ export default {
     const container = this._container();
     if (!container) return;
 
+    const solicitud = (this._reportesRenderVersion || 0) + 1;
+    this._reportesRenderVersion = solicitud;
+    const vigente = () => solicitud === this._reportesRenderVersion && this.currentView === 'reports' && container.isConnected;
     const periodo = this.reportPeriod || 'mes';
     const rango = this._rangoPeriodo(periodo);
 
@@ -42,14 +45,14 @@ export default {
     try {
       reporte = await db.obtenerReporte(rango.desde, rango.hasta);
     } catch (err) {
-      if (this.currentView !== 'reports') return;
+      if (!vigente()) return;
       container.innerHTML = html`<div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl border border-stone-300 dark:border-stone-600 p-6 text-center">
         <p class="text-sm text-stone-600 dark:text-stone-300">No se pudo generar el reporte.</p>
         <p class="text-xs text-stone-500 dark:text-stone-400 mt-1">${err.message || ''}</p>
       </div>`;
       return;
     }
-    if (this.currentView !== 'reports') return;
+    if (!vigente()) return;
 
     // La migración 004 agrega las columnas de fecha que los reportes necesitan
     if (reporte.faltaMigracion) {
@@ -87,7 +90,7 @@ export default {
         <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100 mb-3">${titulo}</h3>
         ${items.length ? html`<ol class="space-y-2">${items.map((i, n) => html`
           <li class="flex items-center gap-3 text-sm">
-            <span class="w-5 h-5 rounded bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400 text-[10px] font-black flex items-center justify-center shrink-0">${n + 1}</span>
+            <span class="reporte-etiqueta w-5 h-5 rounded bg-stone-100 dark:bg-stone-700 text-stone-500 dark:text-stone-400 text-[10px] font-black flex items-center justify-center shrink-0">${n + 1}</span>
             <span class="flex-1 truncate text-stone-700 dark:text-stone-300">${i.etiqueta}</span>
             <span class="font-bold text-stone-900 dark:text-stone-100 tabular-nums">${i.total}</span>
           </li>`)}</ol>`
@@ -107,7 +110,7 @@ export default {
             </h3>
             <p class="text-xs text-stone-500 dark:text-stone-400">Distribución histórica acumulada por punto de atención territorial.</p>
           </div>
-          <span class="text-xs font-bold text-stone-600 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 px-2.5 py-1 rounded-lg self-start sm:self-auto">
+          <span class="reporte-etiqueta text-xs font-bold text-stone-600 dark:text-stone-300 bg-stone-100 dark:bg-stone-800 px-2.5 py-1 rounded-lg self-start sm:self-auto">
             ${paradas.length} ${paradas.length === 1 ? 'parada registrada' : 'paradas registradas'}
           </span>
         </div>
@@ -121,7 +124,7 @@ export default {
                 <li class="p-3 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50/60 dark:bg-stone-800/50">
                   <div class="flex items-center justify-between gap-3 text-sm mb-1.5">
                     <div class="flex items-center gap-2.5 min-w-0">
-                      <span class="w-5 h-5 rounded bg-patrimonio-lago text-white text-[10px] font-black flex items-center justify-center shrink-0">${idx + 1}</span>
+                      <span class="reporte-etiqueta w-5 h-5 rounded bg-patrimonio-lago text-white text-[10px] font-black flex items-center justify-center shrink-0">${idx + 1}</span>
                       <span class="font-bold text-stone-800 dark:text-stone-100 truncate">${p.parada || 'Parada sin nombre'}</span>
                       ${tieneCoord ? html`<span class="text-[11px] font-mono text-stone-500 dark:text-stone-400 hidden sm:inline">(${Number(p.lat).toFixed(4)}, ${Number(p.lng).toFixed(4)})</span>` : ''}
                     </div>
@@ -168,7 +171,7 @@ export default {
           <p class="text-[11px] text-stone-500 dark:text-stone-400 mt-0.5">Generado el ${this._fechaLegible(this._rangoPeriodo('dia').desde)}</p>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div class="metricas-grid grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
           ${tarjetas.map(c => html`
             <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5">
               <i aria-hidden="true" class="fas ${c.icono} ${c.color} text-xl mb-2"></i>
@@ -177,7 +180,7 @@ export default {
             </div>`)}
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="resumen-graficos grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5">
             <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100 mb-1">Movimiento del período</h3>
             <p class="text-xs text-stone-500 dark:text-stone-400 mb-4">Proporción entre lo prestado y lo devuelto.</p>

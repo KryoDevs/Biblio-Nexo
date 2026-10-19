@@ -86,9 +86,49 @@ body {
     animation: loginRise 0.55s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.ui-modal-overlay {
+    padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+}
 .ui-dialog {
+    min-width: 0;
+    max-height: calc(100vh - 2rem);
+    max-height: calc(100dvh - 2rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overflow-wrap: anywhere;
+    overscroll-behavior: contain;
     animation: dialogIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
+body.modal-abierto {
+    overflow: hidden;
+}
+#toast-container {
+    /* Debe quedar por encima de los diálogos (z=10000), no detrás del velo. */
+    z-index: 11000;
+    max-width: min(28rem, calc(100vw - 24px));
+}
+#toast-container > div > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+#toast-container > div > i {
+    flex-shrink: 0;
+}
+
+/* También invitaciones y recuperación de contraseña, no solo login. */
+.pantalla-acceso {
+    height: auto;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-y: auto;
+    padding-top: calc(1rem + env(safe-area-inset-top));
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+.pantalla-acceso input {
+    min-height: 44px;
+    font-size: max(1rem, 16px);
+}
+
 
 .skeleton-shimmer .bg-stone-200,
 .skeleton-shimmer .bg-stone-100 {
@@ -107,6 +147,7 @@ body {
 }
 
 .view-canvas {
+    container: area-trabajo / inline-size;
     background-image:
         radial-gradient(1200px 420px at 0% -10%, rgba(122, 67, 29, 0.05), transparent 55%),
         radial-gradient(900px 380px at 100% 0%, rgba(27, 59, 72, 0.04), transparent 50%);
@@ -164,8 +205,109 @@ tbody tr:hover {
 /* Cabecera de tarjeta con título — para tablas e historiales */
 .catalog-card-header {
     background-color: #FAF8F1; /* stone-50 cálido */
+    border-top-left-radius: inherit;
+    border-top-right-radius: inherit;
     border-bottom: 1px solid #d6d3c7; /* stone-300 */
     padding: 1rem;
+}
+
+.dark .catalog-card-header {
+    background-color: #292524;
+    border-bottom-color: #44403c;
+}
+
+/* Ajustar según el espacio REAL de trabajo: en una tableta el sidebar
+   consume parte del viewport y la letra ampliada necesita más espacio.
+   No esconder el desborde: permitir que tarjetas, controles y textos fluyan. */
+.metricas-grid > *,
+.ficha-libro,
+.ficha-prestamo {
+    min-width: 0;
+}
+.ficha-libro .stamp {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+@container area-trabajo (width < 44rem) {
+    /* Que un formulario no desborde no basta: seis columnas pueden dejar
+       campos de 30 px. La tableta también necesita una columna utilizable. */
+    #add-book-form,
+    #add-user-form > .grid,
+    #perfil-form > .grid,
+    #password-form > .grid,
+    .apoderado-campos,
+    .resumen-graficos {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    #add-book-form > * {
+        grid-column: 1 / -1;
+        min-width: 0;
+    }
+    .lectores-cabecera {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .lectores-cabecera > .relative {
+        width: 100%;
+    }
+    .metricas-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0.75rem;
+    }
+    .metricas-grid > .catalog-card {
+        padding: 1rem;
+        overflow-wrap: anywhere;
+    }
+    .catalog-toolbar,
+    .catalog-toolbar-acciones,
+    .ficha-libro,
+    .ficha-prestamo,
+    .ficha-prestamo-datos,
+    .meson-paneles,
+    .perfil-resumen,
+    .bibliomovil-cabecera {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .catalog-toolbar-acciones > .relative,
+    .ficha-libro-acciones {
+        width: 100%;
+    }
+    .ficha-libro-acciones {
+        align-items: stretch;
+    }
+    .ficha-libro-acciones > :last-child {
+        justify-content: flex-start;
+    }
+    .ficha-prestamo-acciones {
+        border-left-width: 0;
+        border-top-width: 1px;
+        padding-left: 0;
+        padding-top: 0.75rem;
+    }
+    .meson-paneles > * {
+        position: static;
+        flex: 1 1 auto;
+    }
+    .perfil-columnas {
+        display: flex;
+        flex-direction: column;
+    }
+    .perfil-resumen > :first-child {
+        margin-inline: auto;
+    }
+    .perfil-resumen > :nth-child(2) {
+        text-align: center;
+    }
+    .perfil-resumen > :nth-child(2) > .flex {
+        justify-content: center;
+    }
+}
+@container area-trabajo (width < 16rem) {
+    .metricas-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 /* Riel activo del menú lateral — se "enciende" con el color madera al estar activa */
@@ -227,6 +369,21 @@ tbody tr:hover {
    depender solo del color (lleva su propio ícono y texto). */
 .stamp-movil { color: var(--patrimonio-madera); }
 
+/* Tailwind v4 usa la propiedad rotate; no cancela el transform del sello.
+   Respetar la variante recta evita que el borde sobresalga de tarjetas angostas. */
+.stamp.\!rotate-0 { transform: none; }
+
+/* Tintas claras sobre piedra oscura: las variantes originales permanecen
+   intactas en papel, pero lago/bosque oscuros no se leen sobre stone-900. */
+.dark .stamp-info { color: #d6d3d1; }
+.dark .stamp-success { color: #a7f3d0; }
+.dark .stamp-danger { color: #fda4af; }
+.dark .stamp-movil { color: #F6B26B; }
+.dark .metricas-grid .text-patrimonio-lago { color: #d6d3d1; }
+.dark .metricas-grid .text-patrimonio-madera { color: #F6B26B; }
+.dark .metricas-grid .text-patrimonio-bosque { color: #a7f3d0; }
+.dark .metricas-grid .text-rose-700 { color: #fda4af; }
+
 /* Sello sobre fondo oscuro (sidebar) — variante clara sin relleno */
 .stamp-onDark {
     display: inline-flex;
@@ -257,8 +414,39 @@ tbody tr:hover {
     100% { transform: rotate(360deg); }
 }
 
-/* Responsive — versión distinta para teléfono */
-@media (max-width: 768px) {
+/* Estructura de la aplicación. Las reglas de posición viven juntas: una
+   decoración del sidebar no debe devolver el drawer móvil al flujo flex. */
+.app-shell {
+    height: 100vh;
+    height: 100dvh;
+}
+
+#app-main,
+#views-container {
+    min-width: 0;
+    min-height: 0;
+}
+
+#sidebar {
+    position: relative;
+    min-height: 0;
+}
+
+#sidebar-close-btn {
+    display: none;
+}
+
+#current-user-badge {
+    display: block;
+    width: fit-content;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Mismo corte que md de Tailwind: a partir de 48rem se usa escritorio. */
+@media (width < 48rem) {
     #sidebar {
         position: fixed;
         left: 0;
@@ -269,21 +457,61 @@ tbody tr:hover {
         height: 100dvh;
         z-index: 50;
         transform: translateX(-101%);
-        transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
-        will-change: transform;
+        visibility: hidden;
+        pointer-events: none;
+        transition: transform 0.32s cubic-bezier(0.22,1,0.36,1), visibility 0.32s;
         padding-bottom: env(safe-area-inset-bottom);
-        overflow-y: auto;
-        overscroll-behavior: contain;
+        overflow: hidden;
     }
 
     #sidebar.active {
         transform: translateX(0);
+        /* La visibilidad es inmediata al abrir para poder enfocar «Cerrar»;
+           solo se retrasa al salir, mientras termina la animación. */
+        transition-property: transform;
+        visibility: visible;
+        pointer-events: auto;
     }
 
-    /* Bloquear scroll del fondo cuando el drawer está abierto */
-    body.mobile-drawer-open {
+    #sidebar-close-btn {
+        display: flex;
+    }
+
+    .sidebar-brand {
+        padding-top: calc(1.25rem + env(safe-area-inset-top));
+    }
+
+    #nav-menu {
+        overscroll-behavior: contain;
+        touch-action: pan-y;
+    }
+
+    #nav-menu .nav-btn {
+        min-height: 44px;
+    }
+
+    .sidebar-user {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 44px;
+        gap: 0.5rem;
+        padding: 0.75rem;
+    }
+    #perfil-btn {
+        grid-column: 1;
+        grid-row: 1 / 3;
+    }
+    .sidebar-user > .dark-mode-toggle,
+    #logout-btn {
+        grid-column: 2;
+        width: 44px;
+        height: 44px;
+    }
+
+    /* Se bloquea solo el fondo; touch-action:none en body impedía también
+       desplazar el menú en teléfonos bajos o con la letra ampliada. */
+    body.mobile-drawer-open,
+    body.mobile-drawer-open #views-container {
         overflow: hidden;
-        touch-action: none;
     }
 
     table {
@@ -297,24 +525,46 @@ tbody tr:hover {
     /* Header móvil y navegación inferior ocupan espacio real: el contenido
        no debe quedar debajo de ellos */
     #views-container {
-        padding-bottom: calc(88px + env(safe-area-inset-bottom));
+        padding-bottom: calc(var(--mobile-nav-height) + 1rem + env(safe-area-inset-bottom));
+        scroll-padding-bottom: calc(var(--mobile-nav-height) + 1rem + env(safe-area-inset-bottom));
         -webkit-overflow-scrolling: touch;
         overscroll-behavior-y: contain;
     }
 
     /* Modales como bottom-sheet en teléfono: más cerca del pulgar y sin
        quedar tapados por el teclado visual parcial */
-    .fixed.inset-0.z-\[10000\] {
+    .ui-modal-overlay {
         align-items: flex-end;
-        padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+        padding: max(0.75rem, env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) max(0.75rem, env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
     }
-    .fixed.inset-0.z-\[10000\] > .ui-dialog,
-    .fixed.inset-0.z-\[10000\] > div[class*=\"rounded-2xl\"] {
-        max-height: min(92dvh, 720px);
+    .ui-modal-overlay > .ui-dialog {
+        min-width: 0;
+        max-height: min(calc(100dvh - 1.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom)), 720px);
         overflow-y: auto;
         overscroll-behavior: contain;
-        margin-bottom: env(safe-area-inset-bottom);
+        padding: 1.25rem;
         border-radius: 1.5rem 1.5rem 1rem 1rem;
+    }
+    .ui-dialog > .flex.justify-end {
+        flex-wrap: wrap;
+    }
+    .ui-dialog button {
+        min-height: 44px;
+    }
+    .ui-dialog input:not([type="checkbox"]):not([type="radio"]),
+    .ui-dialog select,
+    .ui-dialog textarea {
+        min-height: 44px;
+        font-size: max(1rem, 16px);
+    }
+
+    #login-screen {
+        height: auto;
+        min-height: 100vh;
+        min-height: 100dvh;
+        overflow-y: auto;
+        padding-top: calc(1rem + env(safe-area-inset-top));
+        padding-bottom: calc(1rem + env(safe-area-inset-bottom));
     }
 
     /* Formularios apilados a una sola columna y con targets de 44px */
@@ -322,8 +572,14 @@ tbody tr:hover {
     #add-user-form {
         grid-template-columns: 1fr !important;
     }
-    #add-book-form input,
-    #add-user-form input,
+    /* col-span-2 creaba una segunda columna implícita aunque el grid
+       declarara solo una, dejando campos estrechos y un hueco a su lado. */
+    #add-book-form > * {
+        grid-column: 1 / -1;
+        min-width: 0;
+    }
+    #add-book-form input:not([type="checkbox"]):not([type="radio"]),
+    #add-user-form input:not([type="checkbox"]):not([type="radio"]),
     #catalog-search-input,
     #user-search-input,
     #bibliomovil-search-input,
@@ -331,13 +587,15 @@ tbody tr:hover {
     #bibliomovil-origin-name,
     #manual-scan-input {
         min-height: 44px;
-        font-size: 16px; /* evita zoom automático en iOS */
+        font-size: max(1rem, 16px); /* evita zoom automático en iOS sin reducir la preferencia de letra */
     }
     button,
     a {
         min-height: 0;
     }
     /* Botones icon-only mínimos táctiles */
+    #add-book-submit-btn,
+    #add-user-submit-btn,
     .notify-loan-btn,
     .renew-loan-btn,
     .bibliomovil-stop-action,
@@ -406,45 +664,6 @@ textarea:focus-visible,
 }
 .skip-link:focus {
     top: 0;
-}
-
-/* Print Styles — pensados para que la vista Reportes salga presentable en PDF */
-@media print {
-    @page {
-        margin: 1.5cm;
-    }
-
-    aside,
-    header,
-    #sidebar,
-    #sidebar-overlay,
-    .franja-titulo,
-    #toast-container,
-    .no-print {
-        display: none !important;
-    }
-
-    body {
-        background: white !important;
-    }
-
-    /* El área de trabajo deja de tener scroll propio para que se imprima entera */
-    #views-container {
-        overflow: visible !important;
-        padding: 0 !important;
-    }
-
-    /* Las tarjetas no deben partirse entre dos páginas */
-    .catalog-card {
-        break-inside: avoid;
-        page-break-inside: avoid;
-        box-shadow: none !important;
-        border-color: #d6d3c7 !important;
-    }
-
-    table {
-        border: 1px solid #000;
-    }
 }
 
 /* ==========================================
@@ -548,7 +767,6 @@ textarea:focus-visible,
    ========================================== */
 
 #sidebar {
-    position: relative;
     background-color: var(--patrimonio-lago); /* respaldo si el degradado no aplica */
     box-shadow: inset -3px 0 0 var(--patrimonio-madera);
 }
@@ -593,7 +811,9 @@ textarea:focus-visible,
     *, *::before, *::after {
         animation-duration: 0.01ms !important;
         animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
+        /* Cero evita transiciones encadenadas de visibility heredada que
+           retrasaban el foco al abrir el menú con movimiento reducido. */
+        transition-duration: 0s !important;
         scroll-behavior: auto !important;
     }
     .btn-madera:hover, .btn-secundario:hover, .elevate-hover:hover { transform: none; }
@@ -1072,7 +1292,6 @@ html.dark {
 /* Safe area global */
 :root {
     --mobile-nav-height: 72px;
-    --mobile-header-height: 56px;
 }
 
 /* Header móvil — solo visible en teléfono */
@@ -1080,8 +1299,23 @@ html.dark {
     position: sticky;
     top: 0;
     z-index: 30;
+    padding-top: calc(0.625rem + env(safe-area-inset-top));
+    padding-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right));
+    gap: 8px;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+}
+
+/* La letra grande no debe agrandar tres cajas vacías hasta expulsar
+   la marca, el título y el estado. Se conserva el área táctil de 44 × 44 px. */
+#sidebar-toggle-btn-mobile,
+#mobile-header .mobile-header-actions > button {
+    width: 44px;
+    height: 44px;
+}
+#mobile-header .mobile-header-actions,
+#mobile-header .mobile-brand {
+    gap: 8px;
 }
 
 /* Navegación inferior — la “versión distinta” que pide el usuario:
@@ -1096,7 +1330,8 @@ html.dark {
     align-items: stretch;
     justify-content: space-around;
     gap: 2px;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    height: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));
+    padding: 6px max(4px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
     background: rgba(255,255,255,0.96);
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
@@ -1131,7 +1366,8 @@ html.dark {
     font-size: 18px;
     line-height: 1;
 }
-.mobile-nav-btn.is-active {
+.mobile-nav-btn.is-active,
+.mobile-nav-btn[aria-expanded="true"] {
     background: var(--patrimonio-madera);
     color: #fff;
     box-shadow: 0 4px 14px -6px rgba(122,67,29,0.6);
@@ -1139,7 +1375,8 @@ html.dark {
 .dark .mobile-nav-btn {
     color: #a8a29e;
 }
-.dark .mobile-nav-btn.is-active {
+.dark .mobile-nav-btn.is-active,
+.dark .mobile-nav-btn[aria-expanded="true"] {
     background: #a85a2a;
     color: #fff;
 }
@@ -1153,14 +1390,27 @@ html.dark {
 
 /* Indicador de conexión en móvil — compacto para no romper el header */
 #estado-conexion-mobile {
+    max-width: 100%;
+    margin-top: 4px;
+    vertical-align: top;
     font-size: 10px;
     padding: 4px 8px;
     border-radius: 999px;
     line-height: 1;
 }
 
+/* El porcentaje se resuelve contra la altura del header (su contenedor),
+   incluso cuando cambia la escala de letra o el área segura del teléfono. */
+#notificaciones-panel-mobile {
+    max-height: calc(100dvh - 100% - var(--mobile-nav-height) - 1.5rem - env(safe-area-inset-bottom));
+    overflow: hidden;
+}
+#notificaciones-lista-mobile {
+    overscroll-behavior: contain;
+}
+
 /* Ocultar franja de título en móvil (el header ya da contexto + bottom nav) */
-@media (max-width: 768px) {
+@media (width < 48rem) {
     .franja-titulo {
         display: none !important;
     }
@@ -1169,7 +1419,7 @@ html.dark {
         display: flex !important;
     }
 }
-@media (min-width: 769px) {
+@media (width >= 48rem) {
     #mobile-header,
     #mobile-bottom-nav {
         display: none !important;
@@ -1178,7 +1428,7 @@ html.dark {
 
 /* Tarjetas de catálogo y préstamos — en móvil ocupan todo el ancho sin
    bordes laterales desperdiciados y con sombra más suave */
-@media (max-width: 768px) {
+@media (width < 48rem) {
     .catalog-card {
         border-radius: 1.25rem;
         margin-left: -2px;
@@ -1195,16 +1445,12 @@ html.dark {
 .lectores-card-mobile {
     display: none;
 }
-@media (max-width: 768px) {
+@media (width < 48rem) {
     .lectores-tabla-desktop {
         display: none !important;
     }
     .lectores-card-mobile {
         display: flex !important;
-    }
-    /* Dashboard: KPIs más densos pero legibles */
-    .grid.grid-cols-2.md\:grid-cols-4 {
-        gap: 0.75rem !important;
     }
     /* Reportes: period buttons en scroll horizontal sin wrap forzado */
     .report-period-btn {
@@ -1233,14 +1479,14 @@ html.dark {
 .mobile-fab-meson:active {
     transform: scale(0.96);
 }
-@media (max-width: 768px) {
+@media (width < 48rem) {
     .mobile-fab-meson.is-visible {
         display: flex;
     }
 }
 
 /* Toast encima de la nav inferior, centrado en móvil */
-@media (max-width: 768px) {
+@media (width < 48rem) {
     #toast-container {
         left: 12px !important;
         right: 12px !important;
@@ -1256,7 +1502,7 @@ html.dark {
 }
 
 /* View canvas: quitar brillo radial en móvil para rendimiento */
-@media (max-width: 768px) {
+@media (width < 48rem) {
     .view-canvas {
         background-image: none;
         background: #F7F4EB;
@@ -1264,4 +1510,79 @@ html.dark {
     .dark .view-canvas {
         background: #1c1917;
     }
+}
+
+/* El nombre y el correo deben poder leerse completos para distinguir lectores. */
+.ficha-lector p,
+.leyenda-etiqueta {
+    overflow-wrap: anywhere;
+}
+@container area-trabajo (width < 44rem) {
+    .lectores-tabla-desktop { display: none !important; }
+    .lectores-card-mobile { display: flex !important; }
+}
+
+/* Al final para que las reglas de pantalla no vuelvan a mostrar la navegación.
+   PDF/impresión no deben heredar la altura fija, el scroll ni la tinta clara. */
+@media print {
+    @page { margin: 1.5cm; }
+    /* No congelar la entrada de una vista a mitad de su animación al imprimir. */
+    *, *::before, *::after {
+        animation: none !important;
+        transition: none !important;
+    }
+    .animate-fade-up {
+        opacity: 1 !important;
+        transform: none !important;
+    }
+    html {
+        background: white !important;
+        color-scheme: light !important;
+    }
+    aside, header, #sidebar, #sidebar-overlay, .franja-titulo,
+    #mobile-header, #mobile-bottom-nav, #mobile-fab-meson,
+    #toast-container, .ui-modal-overlay, .no-print {
+        display: none !important;
+    }
+    body, .app-shell, #app-main {
+        height: auto !important;
+        overflow: visible !important;
+        background: white !important;
+    }
+    .app-shell, #app-main {
+        display: block !important;
+    }
+    #views-container {
+        container-type: normal;
+        height: auto !important;
+        overflow: visible !important;
+        padding: 0 !important;
+        background: white !important;
+    }
+    .catalog-card {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        box-shadow: none !important;
+        border-color: #d6d3d1 !important;
+    }
+    #report-sheet, #report-sheet * {
+        color: #1c1917 !important;
+    }
+    #report-sheet .catalog-card, #report-sheet .catalog-card-header {
+        background: white !important;
+    }
+    #report-sheet li {
+        background: transparent !important;
+    }
+    #report-sheet .reporte-etiqueta {
+        background: #f5f5f4 !important;
+    }
+    /* El canvas conserva su proporción y centro aun si beforeprint se
+       ejecuta antes de que Chart.js termine de recalcular el tamaño. */
+    #report-sheet canvas {
+        width: 100% !important;
+        height: 100% !important;
+        object-fit: contain;
+    }
+    table { border: 1px solid #000; }
 }

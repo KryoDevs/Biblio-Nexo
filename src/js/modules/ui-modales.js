@@ -14,7 +14,7 @@ export default {
         if (!container) return;
 
         const toast = document.createElement('div');
-        const bgColor = type === 'success' ? 'bg-[#10b981]' : type === 'error' ? 'bg-[#e11d48]' : 'bg-[#1B3B48]';
+        const bgColor = type === 'success' ? 'bg-patrimonio-bosque' : type === 'error' ? 'bg-[#e11d48]' : 'bg-[#1B3B48]';
         const icon = type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-triangle' : 'fa-info-circle';
 
         toast.className = `${bgColor} toast-enter text-white px-5 py-4 rounded-2xl shadow-lg border border-white/10 font-bold flex items-center gap-3 transform transition-all duration-300 translate-y-10 scale-95 opacity-0 z-50 text-sm pointer-events-auto`;
@@ -81,8 +81,6 @@ export default {
                 if (e.key === 'Enter') close(input.value.trim() || null);
             });
             overlay.addEventListener('click', e => { if (e.target === overlay) close(null); });
-            // Fokus automático para UX
-            setTimeout(() => input.focus(), 50);
         });
     },
 
@@ -92,43 +90,72 @@ export default {
      * Devuelve la función de cierre, que se debe usar en vez de overlay.remove().
      */
     _prepararModal(overlay, { titulo, alCerrar } = {}) {
+        this._modalesAbiertos ||= [];
+        // También tolerar que se haya reemplazado el DOM al cerrar sesión.
+        for (const anterior of [...this._modalesAbiertos]) {
+            if (!anterior.overlay.isConnected) anterior.cerrar({ restaurarFoco: false });
+        }
         const focoAnterior = document.activeElement;
         const caja = overlay.firstElementChild;
-
-        // Semántica de diálogo
+        overlay.classList.add('ui-modal-overlay');
+        caja?.classList.add('ui-dialog');
+        if (caja) caja.tabIndex = -1;
         overlay.setAttribute('role', 'dialog');
         overlay.setAttribute('aria-modal', 'true');
 
-        // Se asocia el título para que el lector de pantalla lo anuncie al abrir
         const encabezado = caja?.querySelector('h1, h2, h3');
         if (encabezado) {
-            if (!encabezado.id) {
-                encabezado.id = `modal-titulo-${Math.random().toString(36).slice(2, 9)}`;
-            }
+            if (!encabezado.id) encabezado.id = `modal-titulo-${Math.random().toString(36).slice(2, 9)}`;
             overlay.setAttribute('aria-labelledby', encabezado.id);
         } else if (titulo) {
             overlay.setAttribute('aria-label', titulo);
         }
 
+        // Guardar el estado original una sola vez. Al apilar un aviso sobre
+        // otro diálogo, el fondo solo se rehabilita cuando se cierra el último.
+        if (!this._modalesAbiertos.length) {
+            this._fondoModales = new Map([...document.body.children]
+                .filter(el => el !== overlay && el.id !== 'toast-container' && !el.matches('script, style'))
+                .map(el => [el, el.hasAttribute('inert')]));
+        }
         const enfocables = () => [...overlay.querySelectorAll(
-            'button:not([disabled]), [href], input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])'
-        )].filter(el => el.offsetParent !== null || el === document.activeElement);
+            'button, a[href], input:not([type="hidden"]), select, textarea, [tabindex]:not([tabindex="-1"])'
+        )].filter(el => !el.matches(':disabled, [aria-disabled="true"]') && el.getClientRects().length);
+        const enfocar = () => (enfocables()[0] || caja)?.focus({ preventScroll: true });
+        const registro = { overlay, enfocar, cerrar: null };
+        let cerrado = false;
+        const cerrar = ({ restaurarFoco = true } = {}) => {
+            if (cerrado) return;
+            cerrado = true;
+            const eraSuperior = this._modalesAbiertos.at(-1) === registro;
+            document.removeEventListener('keydown', alTeclear, true);
+            this._modalesAbiertos = this._modalesAbiertos.filter(m => m !== registro);
+            overlay.remove();
+            this._actualizarFondoModales();
+            if (restaurarFoco && eraSuperior) {
+                if (focoAnterior?.isConnected && !focoAnterior.closest('[inert]')) focoAnterior.focus({ preventScroll: true });
+                else this._modalesAbiertos.at(-1)?.enfocar();
+            }
+            alCerrar?.();
+        };
+        registro.cerrar = cerrar;
 
         const alTeclear = e => {
+            if (this._modalesAbiertos.at(-1) !== registro) return;
             if (e.key === 'Escape') {
                 e.preventDefault();
+                e.stopImmediatePropagation();
                 cerrar();
                 return;
             }
             if (e.key !== 'Tab') return;
-
-            // Trampa de foco: al llegar al último elemento, Tab vuelve al primero
             const lista = enfocables();
-            if (lista.length === 0) return;
             const primero = lista[0];
-            const ultimo = lista[lista.length - 1];
-
-            if (e.shiftKey && document.activeElement === primero) {
+            const ultimo = lista.at(-1);
+            if (!lista.length || !overlay.contains(document.activeElement)) {
+                e.preventDefault();
+                enfocar();
+            } else if (e.shiftKey && (document.activeElement === primero || document.activeElement === caja)) {
                 e.preventDefault();
                 ultimo.focus();
             } else if (!e.shiftKey && document.activeElement === ultimo) {
@@ -136,21 +163,29 @@ export default {
                 primero.focus();
             }
         };
-
-        const cerrar = () => {
-            document.removeEventListener('keydown', alTeclear, true);
-            overlay.remove();
-            // Se devuelve el foco a donde estaba, si ese elemento sigue en la página
-            if (focoAnterior && document.body.contains(focoAnterior)) {
-                focoAnterior.focus();
-            }
-            alCerrar?.();
-        };
-
+        this._modalesAbiertos.push(registro);
+        this._actualizarFondoModales();
         document.addEventListener('keydown', alTeclear, true);
+        enfocar();
         return cerrar;
-    }
-,
+    },
+
+    _actualizarFondoModales() {
+        const superior = this._modalesAbiertos.at(-1);
+        for (const modal of this._modalesAbiertos) {
+            modal.overlay.toggleAttribute('inert', modal !== superior);
+            modal.overlay.setAttribute('aria-modal', String(modal === superior));
+        }
+        for (const [elemento, estabaInactivo] of this._fondoModales || []) {
+            elemento.toggleAttribute('inert', superior ? true : estabaInactivo);
+        }
+        if (!superior) this._fondoModales = null;
+        document.body.classList.toggle('modal-abierto', !!superior);
+    },
+
+    _limpiarModales() {
+        for (const modal of [...(this._modalesAbiertos || [])].reverse()) modal.cerrar({ restaurarFoco: false });
+    },
 
   showNotifyModal(prestamo) {
     const mensaje = this._textoAviso(prestamo);

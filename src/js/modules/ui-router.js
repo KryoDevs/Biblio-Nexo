@@ -42,18 +42,166 @@ export default {
     `).join('');
 
     nav.querySelectorAll('.nav-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        this.switchView(btn.dataset.view);
-        // En móvil, cerramos el menú lateral tras elegir una vista
-        document.getElementById('sidebar')?.classList.remove('active');
-        document.getElementById('sidebar-overlay')?.classList.add('hidden');
-        document.body.classList.remove('mobile-drawer-open');
-        });
-      });
+      btn.addEventListener('click', () => this.switchView(btn.dataset.view));
+    });
 
-      this._renderMobileBottomNav();
-      this._actualizarBadgeAtrasados();
-    },
+    this._renderMobileBottomNav();
+    this._actualizarBadgeAtrasados();
+  },
+
+  // Una sola transición de estado para todos los accesos al menú. El drawer
+  // cerrado no ocupa ancho ni recibe foco; abierto deja inactivo el fondo.
+  _cambiarMenuMovil(abierto, { restaurarFoco = true } = {}) {
+    const sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    const esMovil = this._mediaMenuMovil?.matches || false;
+    const mostrar = esMovil && abierto;
+    const estabaAbierto = sidebar.classList.contains('active');
+
+    if (mostrar && !estabaAbierto) {
+      this._origenMenuMovil = document.activeElement;
+      this._cerrarNotificaciones();
+    }
+
+    document.getElementById('app-main')?.toggleAttribute('inert', mostrar);
+    // Sacar el foco ANTES de ocultar el panel que lo contiene.
+    if (!mostrar && sidebar.contains(document.activeElement) && (esMovil || estabaAbierto)) {
+      // La barra inferior puede haberse regenerado al actualizar el perfil.
+      const origen = this._origenMenuMovil?.isConnected
+        ? this._origenMenuMovil : document.getElementById(this._origenMenuMovil?.id || '');
+      const destino = restaurarFoco && esMovil && origen?.isConnected
+        ? origen : document.getElementById('views-container');
+      destino?.focus({ preventScroll: true });
+    }
+
+    sidebar.classList.toggle('active', mostrar);
+    sidebar.toggleAttribute('inert', esMovil && !mostrar);
+    if (esMovil) sidebar.setAttribute('aria-hidden', String(!mostrar));
+    else sidebar.removeAttribute('aria-hidden');
+    if (mostrar) {
+      sidebar.setAttribute('role', 'dialog');
+      sidebar.setAttribute('aria-modal', 'true');
+    } else {
+      sidebar.removeAttribute('role');
+      sidebar.removeAttribute('aria-modal');
+    }
+    document.getElementById('sidebar-overlay')?.classList.toggle('hidden', !mostrar);
+    document.body.classList.toggle('mobile-drawer-open', mostrar);
+    ['sidebar-toggle-btn-mobile', 'mobile-menu-btn'].forEach(id => {
+      document.getElementById(id)?.setAttribute('aria-expanded', String(mostrar));
+    });
+
+    if (mostrar && !estabaAbierto) {
+      document.getElementById('sidebar-close-btn')?.focus({ preventScroll: true });
+    }
+    if (!mostrar) this._origenMenuMovil = null;
+  },
+
+  _iniciarMenuMovil() {
+    this._limpiarMenuMovil?.();
+    const sidebar = document.getElementById('sidebar');
+    const media = typeof window.matchMedia === 'function'
+      ? window.matchMedia('(width < 48rem)') : { matches: false };
+    this._mediaMenuMovil = media;
+    const ajustarModo = () => {
+      this._cambiarMenuMovil(false, { restaurarFoco: false });
+      this._cerrarNotificaciones();
+    };
+    const cerrar = () => this._cambiarMenuMovil(false);
+    document.getElementById('sidebar-toggle-btn-mobile')?.addEventListener('click', () => {
+      this._cambiarMenuMovil(!sidebar.classList.contains('active'));
+    });
+    document.getElementById('sidebar-overlay')?.addEventListener('click', cerrar);
+    document.getElementById('sidebar-close-btn')?.addEventListener('click', cerrar);
+
+    const manejarTeclado = evento => {
+      if (!media.matches || !sidebar.classList.contains('active')) return;
+      if (evento.key === 'Escape') {
+        evento.preventDefault();
+        cerrar();
+      } else if (evento.key === 'Tab') {
+        const controles = [...sidebar.querySelectorAll('button, a[href], [tabindex="0"]')]
+          .filter(el => !el.disabled && el.getClientRects().length);
+        const primero = controles[0];
+        const ultimo = controles.at(-1);
+        if (evento.shiftKey && document.activeElement === primero) {
+          evento.preventDefault();
+          ultimo?.focus();
+        } else if (!evento.shiftKey && document.activeElement === ultimo) {
+          evento.preventDefault();
+          primero?.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', manejarTeclado);
+    if (media.addEventListener) media.addEventListener('change', ajustarModo);
+    else media.addListener?.(ajustarModo);
+    ajustarModo();
+
+    // También se ejecuta al salir de la sesión: no dejar el fondo bloqueado
+    // ni acumular escuchadores al volver a entrar o girar el dispositivo.
+    this._limpiarMenuMovil = () => {
+      this._cambiarMenuMovil(false, { restaurarFoco: false });
+      document.removeEventListener('keydown', manejarTeclado);
+      if (media.removeEventListener) media.removeEventListener('change', ajustarModo);
+      else media.removeListener?.(ajustarModo);
+      this._mediaMenuMovil = null;
+      this._limpiarMenuMovil = null;
+    };
+  },
+
+  _cerrarNotificaciones() {
+    ['', '-mobile'].forEach(sufijo => {
+      const panel = document.getElementById(`notificaciones-panel${sufijo}`);
+      panel?.classList.add('opacity-0', 'invisible', 'scale-95');
+      panel?.classList.remove('opacity-100', 'scale-100');
+      document.getElementById(`notificaciones-btn${sufijo}`)?.setAttribute('aria-expanded', 'false');
+    });
+  },
+
+  _iniciarNotificaciones() {
+    this._limpiarNotificaciones?.();
+    const paneles = ['', '-mobile'].map(sufijo => ({
+      boton: document.getElementById(`notificaciones-btn${sufijo}`),
+      panel: document.getElementById(`notificaciones-panel${sufijo}`),
+      cerrar: document.getElementById(`notificaciones-close${sufijo}`)
+    }));
+    paneles.forEach(({ boton, panel, cerrar }) => {
+      boton?.addEventListener('click', () => {
+        const abrir = panel.classList.contains('invisible');
+        this._cerrarNotificaciones();
+        if (abrir) {
+          panel.classList.remove('opacity-0', 'invisible', 'scale-95');
+          panel.classList.add('opacity-100', 'scale-100');
+          boton.setAttribute('aria-expanded', 'true');
+        }
+      });
+      cerrar?.addEventListener('click', () => {
+        this._cerrarNotificaciones();
+        boton?.focus({ preventScroll: true });
+      });
+    });
+    const cerrarFuera = evento => {
+      if (paneles.every(({ boton, panel }) => !boton?.contains(evento.target) && !panel?.contains(evento.target))) {
+        this._cerrarNotificaciones();
+      }
+    };
+    const cerrarConEscape = evento => {
+      if (evento.key !== 'Escape') return;
+      const abierto = paneles.find(({ panel }) => panel && !panel.classList.contains('invisible'));
+      if (abierto) {
+        this._cerrarNotificaciones();
+        abierto.boton?.focus({ preventScroll: true });
+      }
+    };
+    document.addEventListener('click', cerrarFuera);
+    document.addEventListener('keydown', cerrarConEscape);
+    this._limpiarNotificaciones = () => {
+      document.removeEventListener('click', cerrarFuera);
+      document.removeEventListener('keydown', cerrarConEscape);
+      this._limpiarNotificaciones = null;
+    };
+  },
 
   // Construye la navegación inferior distinta para teléfonos: 4-5 accesos
   // primarios siempre al alcance del pulgar, sin abrir el drawer.
@@ -113,7 +261,7 @@ export default {
         </button>
       `).join('')}
       ${tieneMas ? `
-        <button type="button" id="mobile-menu-btn" class="mobile-nav-btn" aria-label="Más opciones" aria-expanded="false">
+        <button type="button" id="mobile-menu-btn" class="mobile-nav-btn" aria-label="Más opciones" aria-controls="sidebar" aria-expanded="false">
           <i aria-hidden="true" class="fas fa-bars"></i>
           <span>Más</span>
         </button>
@@ -124,21 +272,7 @@ export default {
       btn.addEventListener('click', () => this.switchView(btn.dataset.mobileView));
     });
     document.getElementById('mobile-menu-btn')?.addEventListener('click', () => {
-      const sidebar = document.getElementById('sidebar');
-      const overlay = document.getElementById('sidebar-overlay');
-      const menuBtn = document.getElementById('mobile-menu-btn');
-      const isOpen = sidebar?.classList.contains('active');
-      if (isOpen) {
-        sidebar?.classList.remove('active');
-        overlay?.classList.add('hidden');
-        document.body.classList.remove('mobile-drawer-open');
-        menuBtn?.setAttribute('aria-expanded', 'false');
-      } else {
-        sidebar?.classList.add('active');
-        overlay?.classList.remove('hidden');
-        document.body.classList.add('mobile-drawer-open');
-        menuBtn?.setAttribute('aria-expanded', 'true');
-      }
+      this._cambiarMenuMovil(!document.getElementById('sidebar')?.classList.contains('active'));
     });
 
     // Marcar activo según vista actual
@@ -162,6 +296,12 @@ export default {
       if (active) btn.setAttribute('aria-current', 'page');
       else btn.removeAttribute('aria-current');
     });
+    // Si la vista pertenece al menú ampliado, «Más» mantiene el contexto
+    // activo en vez de dejar toda la barra sin selección (p. ej. Dashboard).
+    const mas = document.getElementById('mobile-menu-btn');
+    mas?.setAttribute('aria-expanded', String(document.getElementById('sidebar')?.classList.contains('active') || false));
+    const vistaPrimaria = document.querySelector('#mobile-bottom-nav [data-mobile-view].is-active');
+    mas?.classList.toggle('is-active', !!viewName && !vistaPrimaria);
     // Título del header móvil
     const mobileTitle = document.getElementById('mobile-page-title');
     if (mobileTitle) {
@@ -232,6 +372,8 @@ export default {
   },
 
   async switchView(viewName) {
+    this._cambiarMenuMovil(false, { restaurarFoco: false });
+    this._cerrarNotificaciones();
     const solicitud = (this._viewRenderVersion || 0) + 1;
     this._viewRenderVersion = solicitud;
     const vistaAnterior = this.currentView;
@@ -268,10 +410,11 @@ export default {
     
     try {
         await (renderers[viewName] || renderers.dashboard)();
-        // Al cambiar de vista en móvil, volver arriba (como app nativa)
-        this._container()?.scrollTo?.({ top: 0, behavior: 'smooth' });
-        // También hacer scroll del contenedor principal si es el que desplaza
-        try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+        // Una carga anterior no debe desplazar la vista que se abrió después.
+        if (solicitud !== this._viewRenderVersion || this.currentView !== viewName || container !== this._container()) return;
+        const behavior = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
+        container?.scrollTo?.({ top: 0, behavior });
+        try { window.scrollTo({ top: 0, behavior }); } catch {}
     } catch (e) {
         if (solicitud !== this._viewRenderVersion || this.currentView !== viewName) return;
         console.error(`Fallo al cargar la vista "${viewName}":`, e);
@@ -303,29 +446,35 @@ export default {
   },
 
   async renderShell(user) {
+    this._limpiarModales?.();
+    this._limpiarMenuMovil?.();
+    this._limpiarNotificaciones?.();
     document.body.innerHTML = `
-      <div class="h-screen w-full flex bg-patrimonio-base dark:bg-stone-950 overflow-hidden transition-colors duration-500">
+      <div class="app-shell w-full flex bg-patrimonio-base dark:bg-stone-950 overflow-hidden transition-colors duration-500">
 
         <!-- Fondo oscuro para cerrar el menú lateral en móvil -->
-        <div id="sidebar-overlay" class="hidden fixed inset-0 bg-patrimonio-lago/40 backdrop-blur-sm z-40 transition-opacity"></div>
+        <div id="sidebar-overlay" class="hidden fixed inset-0 bg-patrimonio-lago/40 backdrop-blur-sm z-[45] transition-opacity"></div>
 
         <!-- Menú lateral: identidad institucional + navegación agrupada por rol -->
         <a href="#views-container" class="skip-link">Saltar al contenido principal</a>
-        <aside id="sidebar" class="momento-${this._momentoDelDia()} hidden md:flex w-72 shrink-0 text-white flex-col z-50 shadow-xl">
-          <div class="tab-corner px-5 py-5 border-b border-white/10 flex items-center gap-2">
+        <aside id="sidebar" aria-label="Menú principal" class="momento-${this._momentoDelDia()} flex w-72 shrink-0 text-white flex-col z-50 shadow-xl">
+          <div class="sidebar-brand tab-corner px-5 py-5 border-b border-white/10 flex items-center gap-2 shrink-0">
             <i aria-hidden="true" class="fas fa-book text-patrimonio-madera text-lg"></i>
-            <div class="leading-none">
+            <div class="leading-none min-w-0 flex-1">
               <span class="font-serif font-semibold text-white text-lg block">
                 Biblio<span class="text-patrimonio-madera">Nexo</span>
               </span>
               <span class="text-[9px] text-stone-500 dark:text-stone-400 font-bold uppercase tracking-widest">Futrono · Región de Los Ríos</span>
             </div>
+            <button id="sidebar-close-btn" type="button" class="w-11 h-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white hover:bg-white/20" aria-label="Cerrar menú" title="Cerrar menú">
+              <i aria-hidden="true" class="fas fa-xmark"></i>
+            </button>
           </div>
 
-          <nav id="nav-menu" class="flex-1 overflow-y-auto px-3 py-5"></nav>
+          <nav id="nav-menu" aria-label="Secciones" class="flex-1 min-h-0 overflow-y-auto px-3 py-5"></nav>
 
-          <div class="border-t border-white/10 p-4 flex items-center gap-3">
-            <button class="dark-mode-toggle w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition shrink-0" title="Alternar modo oscuro"><i aria-hidden="true" class="dark-mode-icon fas fa-moon"></i></button>
+          <div class="sidebar-user border-t border-white/10 p-4 flex items-center gap-3 shrink-0">
+            <button class="dark-mode-toggle w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition shrink-0" title="Alternar modo oscuro" aria-label="Alternar modo oscuro"><i aria-hidden="true" class="dark-mode-icon fas fa-moon"></i></button>
               <button id="perfil-btn" title="Ver y editar mi perfil"
               class="flex items-center gap-3 min-w-0 flex-1 text-left rounded-lg -m-1 p-1 hover:bg-white/10 transition">
               <span id="current-user-initial" class="w-9 h-9 rounded-full bg-patrimonio-madera flex items-center justify-center font-black text-sm shrink-0 text-white"></span>
@@ -335,47 +484,42 @@ export default {
                 <span id="current-user-badge" class="stamp-onDark mt-1.5"></span>
               </span>
             </button>
-            <button id="logout-btn" title="Cerrar sesión"
+            <button id="logout-btn" type="button" title="Cerrar sesión" aria-label="Cerrar sesión"
               class="w-9 h-9 rounded-lg text-stone-300 hover:bg-white/10 hover:text-white flex items-center justify-center transition shrink-0">
               <i aria-hidden="true" class="fas fa-right-from-bracket"></i>
             </button>
           </div>
         </aside>
 
-        <!-- Sidebar móvil: mismo contenido pero como drawer -->
-        <aside id="sidebar-mobile-drawer" class="md:hidden fixed inset-y-0 left-0 w-[84%] max-w-[320px] bg-patrimonio-lago text-white flex flex-col z-50 shadow-xl translate-x-[-101%] transition-transform duration-300 ease-out" aria-hidden="true" style="display:none">
-        </aside>
-
         <!-- Columna principal -->
-        <div class="flex-1 flex flex-col min-w-0">
+        <div id="app-main" class="flex-1 flex flex-col min-w-0">
           <!-- Header distinto para teléfonos -->
           <header id="mobile-header" class="hidden md:hidden bg-white/95 dark:bg-stone-900/95 border-b border-stone-200 dark:border-stone-800 px-3 py-2.5 flex items-center gap-2.5 sticky top-0 shrink-0">
-            <button id="sidebar-toggle-btn-mobile" class="w-11 h-11 rounded-xl flex items-center justify-center bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 active:scale-95 transition shrink-0" aria-label="Abrir menú">
+            <button id="sidebar-toggle-btn-mobile" class="w-11 h-11 rounded-xl flex items-center justify-center bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 active:scale-95 transition shrink-0" type="button" aria-label="Abrir menú" aria-controls="sidebar" aria-expanded="false">
               <i aria-hidden="true" class="fas fa-bars text-[18px]"></i>
             </button>
-            <div class="flex items-center gap-2 min-w-0">
+            <div class="mobile-brand flex items-center gap-2 min-w-0 flex-1">
               <i aria-hidden="true" class="fas fa-book text-patrimonio-madera"></i>
               <div class="leading-none min-w-0">
                 <span class="font-serif font-semibold text-stone-900 dark:text-stone-100 text-[15px] block truncate">Biblio<span class="text-patrimonio-madera">Nexo</span></span>
-                <span id="mobile-page-title" class="text-[10px] font-bold uppercase tracking-widest text-stone-500 dark:text-stone-400 block truncate">Dashboard</span>
+                <span id="mobile-page-title" class="text-[10px] font-bold uppercase tracking-widest text-stone-500 dark:text-stone-400 block truncate mt-0.5">Dashboard</span>
+                <span id="estado-conexion-mobile" class="mt-1 max-w-full"></span>
               </div>
             </div>
-            <div class="ml-auto flex items-center gap-2 shrink-0">
-              <div class="relative">
-                <button id="notificaciones-btn-mobile" class="relative w-9 h-9 rounded-xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-stone-600 dark:text-stone-300 active:scale-95 transition" title="Notificaciones" aria-label="Notificaciones">
-                  <i aria-hidden="true" class="fas fa-bell text-[14px]"></i>
-                  <span id="notificaciones-badge-mobile" class="absolute -top-1 -right-1 bg-rose-600 text-white text-[9px] font-bold px-1 py-0.5 rounded-full hidden">0</span>
-                </button>
-                <div id="notificaciones-panel-mobile" class="absolute right-0 mt-3 w-[92vw] max-w-[360px] bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl shadow-2xl opacity-0 invisible transition-all transform origin-top-right scale-95 z-50">
-                  <div class="p-4 border-b border-stone-100 dark:border-stone-800 flex justify-between items-center bg-stone-50/50 dark:bg-stone-800/20 rounded-t-2xl">
-                    <h3 class="font-bold text-stone-800 dark:text-stone-200">Notificaciones</h3>
-                    <button id="notificaciones-close-mobile" class="w-8 h-8 rounded-lg flex items-center justify-center text-stone-500 hover:text-stone-700 dark:hover:text-stone-200"><i aria-hidden="true" class="fas fa-times"></i></button>
-                  </div>
-                  <div id="notificaciones-lista-mobile" class="max-h-80 overflow-y-auto divide-y divide-stone-100 dark:divide-stone-800/50"></div>
-                </div>
+            <div class="mobile-header-actions ml-auto flex items-center gap-2 shrink-0">
+              <button id="notificaciones-btn-mobile" type="button" class="relative w-11 h-11 rounded-xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-stone-600 dark:text-stone-300 active:scale-95 transition" title="Notificaciones" aria-label="Notificaciones" aria-controls="notificaciones-panel-mobile" aria-expanded="false">
+                <i aria-hidden="true" class="fas fa-bell text-[14px]"></i>
+                <span id="notificaciones-badge-mobile" class="absolute -top-1 -right-1 bg-rose-600 text-white text-[9px] font-bold px-1 py-0.5 rounded-full hidden">0</span>
+              </button>
+              <button type="button" class="dark-mode-toggle w-11 h-11 flex items-center justify-center rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 shrink-0" title="Alternar modo oscuro" aria-label="Alternar modo oscuro"><i aria-hidden="true" class="dark-mode-icon fas fa-moon"></i></button>
+            </div>
+            <!-- Se ancla al header completo, no a la campana: nunca sale del viewport. -->
+            <div id="notificaciones-panel-mobile" class="absolute inset-x-3 top-full mt-2 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl shadow-sm opacity-0 invisible transition-all origin-top-right scale-95 z-50 flex flex-col">
+              <div class="p-3 border-b border-stone-100 dark:border-stone-800 flex justify-between items-center gap-2 bg-stone-50/50 dark:bg-stone-800/20 rounded-t-2xl shrink-0">
+                <h3 class="font-bold text-stone-800 dark:text-stone-200">Notificaciones</h3>
+                <button id="notificaciones-close-mobile" type="button" class="w-11 h-11 shrink-0 rounded-lg flex items-center justify-center text-stone-500 hover:text-stone-700 dark:hover:text-stone-200" aria-label="Cerrar notificaciones"><i aria-hidden="true" class="fas fa-times"></i></button>
               </div>
-              <span id="estado-conexion-mobile" class="shrink-0 hidden sm:inline-flex"></span>
-              <button class="dark-mode-toggle w-9 h-9 flex items-center justify-center rounded-xl bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-200 shrink-0" title="Alternar modo oscuro" aria-label="Alternar modo oscuro"><i aria-hidden="true" class="dark-mode-icon fas fa-moon"></i></button>
+              <div id="notificaciones-lista-mobile" class="min-h-0 overflow-y-auto divide-y divide-stone-100 dark:divide-stone-800/50"></div>
             </div>
           </header>
 
@@ -388,14 +532,14 @@ export default {
             </div>
             <div class="ml-auto flex items-center gap-4 relative">
               <div class="relative">
-                <button id="notificaciones-btn" class="relative text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200 transition-colors" title="Centro de notificaciones">
+                <button id="notificaciones-btn" type="button" aria-label="Notificaciones" aria-controls="notificaciones-panel" aria-expanded="false" class="relative text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200 transition-colors" title="Centro de notificaciones">
                   <i aria-hidden="true" class="fas fa-bell text-[1.1rem]"></i>
                   <span id="notificaciones-badge" class="absolute -top-1.5 -right-1.5 bg-rose-600 shadow text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
                 </button>
                 <div id="notificaciones-panel" class="absolute right-0 mt-3 w-80 bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-700 rounded-2xl shadow-2xl opacity-0 invisible transition-all transform origin-top-right scale-95 z-50">
                   <div class="p-4 border-b border-stone-100 dark:border-stone-800 flex justify-between items-center bg-stone-50/50 dark:bg-stone-800/20 rounded-t-2xl">
                     <h3 class="font-bold text-stone-800 dark:text-stone-200">Notificaciones</h3>
-                    <button id="notificaciones-close" class="text-stone-500 hover:text-stone-700 dark:hover:text-stone-200"><i aria-hidden="true" class="fas fa-times"></i></button>
+                    <button id="notificaciones-close" type="button" aria-label="Cerrar notificaciones" class="text-stone-500 hover:text-stone-700 dark:hover:text-stone-200"><i aria-hidden="true" class="fas fa-times"></i></button>
                   </div>
                   <div id="notificaciones-lista" class="max-h-80 overflow-y-auto divide-y divide-stone-100 dark:divide-stone-800/50"></div>
                 </div>
@@ -418,129 +562,11 @@ export default {
       <div id="toast-container" role="status" aria-live="polite" aria-atomic="false" class="fixed bottom-5 right-5 z-[9999] flex flex-col gap-3 pointer-events-none"></div>
     `;
 
-    // Clonar el drawer móvil desde el sidebar de escritorio para no duplicar HTML
-    // El aside #sidebar es hidden md:flex, en móvil necesitamos un drawer visible.
-    // Creamos uno nuevo copiando el contenido interno.
-    const desktopSidebar = document.getElementById('sidebar');
-    const mobileDrawer = document.getElementById('sidebar-mobile-drawer');
-    let activeSidebar = desktopSidebar;
-
-    // En móvil, el sidebar real es el drawer; en escritorio es el lateral
-    // Para simplificar, en móvil convertimos #sidebar en drawer visible
-    if (desktopSidebar) {
-      // En móvil, hacerlo visible como drawer
-      const mq = (typeof window.matchMedia === 'function')
-        ? window.matchMedia('(max-width: 768px)')
-        : { matches: false, addEventListener() {}, addListener() {} };
-      const applySidebarMode = () => {
-        if (mq.matches) {
-          desktopSidebar.classList.remove('hidden');
-          desktopSidebar.style.display = 'flex';
-          activeSidebar = desktopSidebar;
-          if (mobileDrawer) mobileDrawer.style.display = 'none';
-        } else {
-          desktopSidebar.classList.remove('active');
-          desktopSidebar.classList.add('hidden', 'md:flex');
-          desktopSidebar.style.display = '';
-          document.body.classList.remove('mobile-drawer-open');
-          document.getElementById('sidebar-overlay')?.classList.add('hidden');
-          activeSidebar = desktopSidebar;
-        }
-      };
-      applySidebarMode();
-      mq.addEventListener('change', applySidebarMode);
-      // Guardar referencia para toggle
-      this._applySidebarMode = applySidebarMode;
-    }
-
     document.getElementById('logout-btn').addEventListener('click', () => auth.logout());
-      this._initDarkMode();
-    document.getElementById('perfil-btn').addEventListener('click', () => {
-      this.switchView('profile');
-      document.getElementById('sidebar')?.classList.remove('active');
-      document.getElementById('sidebar-overlay')?.classList.add('hidden');
-      document.body.classList.remove('mobile-drawer-open');
-    });
-
-    // Notificaciones desktop
-    const bellBtn = document.getElementById('notificaciones-btn');
-    const notifPanel = document.getElementById('notificaciones-panel');
-    if (bellBtn && notifPanel) {
-      const toggleNotifs = () => {
-        const isHidden = notifPanel.classList.contains('opacity-0');
-        if (isHidden) {
-          notifPanel.classList.remove('opacity-0', 'invisible', 'scale-95');
-          notifPanel.classList.add('opacity-100', 'scale-100');
-        } else {
-          notifPanel.classList.add('opacity-0', 'invisible', 'scale-95');
-          notifPanel.classList.remove('opacity-100', 'scale-100');
-        }
-      };
-      bellBtn.addEventListener('click', toggleNotifs);
-      document.getElementById('notificaciones-close')?.addEventListener('click', toggleNotifs);
-      
-      if (this._notifOutsideClickHandler) {
-        document.removeEventListener('click', this._notifOutsideClickHandler);
-      }
-      this._notifOutsideClickHandler = (e) => {
-        if (!notifPanel.classList.contains('opacity-0') && !bellBtn.contains(e.target) && !notifPanel.contains(e.target)) {
-          toggleNotifs();
-        }
-      };
-      document.addEventListener('click', this._notifOutsideClickHandler);
-    }
-
-    // Notificaciones móvil (duplicadas pero sincronizadas)
-    const bellBtnM = document.getElementById('notificaciones-btn-mobile');
-    const notifPanelM = document.getElementById('notificaciones-panel-mobile');
-    if (bellBtnM && notifPanelM) {
-      const toggleNotifsM = () => {
-        const isHidden = notifPanelM.classList.contains('opacity-0');
-        if (isHidden) {
-          notifPanelM.classList.remove('opacity-0', 'invisible', 'scale-95');
-          notifPanelM.classList.add('opacity-100', 'scale-100');
-        } else {
-          notifPanelM.classList.add('opacity-0', 'invisible', 'scale-95');
-          notifPanelM.classList.remove('opacity-100', 'scale-100');
-        }
-      };
-      bellBtnM.addEventListener('click', (e) => { e.stopPropagation(); toggleNotifsM(); });
-      document.getElementById('notificaciones-close-mobile')?.addEventListener('click', toggleNotifsM);
-      // Cerrar al tocar fuera
-      document.addEventListener('click', (e) => {
-        if (!notifPanelM.classList.contains('opacity-0') && !bellBtnM.contains(e.target) && !notifPanelM.contains(e.target)) {
-          notifPanelM.classList.add('opacity-0', 'invisible', 'scale-95');
-          notifPanelM.classList.remove('opacity-100', 'scale-100');
-        }
-      });
-    }
-
-    const sidebar = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebar-overlay');
-    const toggleMobile = document.getElementById('sidebar-toggle-btn-mobile');
-    const openDrawer = () => {
-      sidebar.classList.add('active');
-      overlay.classList.remove('hidden');
-      document.body.classList.add('mobile-drawer-open');
-    };
-    const closeDrawer = () => {
-      sidebar.classList.remove('active');
-      overlay.classList.add('hidden');
-      document.body.classList.remove('mobile-drawer-open');
-      document.getElementById('mobile-menu-btn')?.setAttribute('aria-expanded', 'false');
-    };
-    toggleMobile?.addEventListener('click', () => {
-      if (sidebar.classList.contains('active')) closeDrawer();
-      else openDrawer();
-    });
-    overlay.addEventListener('click', closeDrawer);
-
-    // Mantener compatibilidad con el id legacy que usan algunas pruebas
-    const legacyToggle = document.getElementById('sidebar-toggle-btn');
-    legacyToggle?.addEventListener('click', () => {
-      if (sidebar.classList.contains('active')) closeDrawer();
-      else openDrawer();
-    });
+    this._initDarkMode();
+    document.getElementById('perfil-btn').addEventListener('click', () => this.switchView('profile'));
+    this._iniciarMenuMovil();
+    this._iniciarNotificaciones();
 
     // FAB móvil -> ir a Mesón
     document.getElementById('mobile-fab-meson')?.addEventListener('click', () => this.switchView('scanner'));

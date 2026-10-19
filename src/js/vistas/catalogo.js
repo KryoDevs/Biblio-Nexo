@@ -30,6 +30,12 @@ export default {
     if (!container) return;
 
     const porPagina = this.param('filas_por_pagina');
+    // Un cambio de filtro/página invalida también la búsqueda que estaba en
+    // vuelo. Conservar lo escrito aunque todavía no haya vencido el debounce.
+    const busquedaVisible = container.querySelector('#catalog-search-input');
+    if (busquedaVisible) this.catalogSearch = busquedaVisible.value.trim();
+    clearTimeout(this._catalogSearchTimer);
+    this._catalogSearchVersion = (this._catalogSearchVersion || 0) + 1;
 
     // El catálogo está separado en dos colecciones (migración 030):
     //   · el rol de ruta ve el catálogo del Bibliomóvil (es_bibliomovil = true);
@@ -108,12 +114,12 @@ export default {
       </div>` : ''}
       <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 overflow-x-auto">
         <div class="catalog-card-header flex flex-col gap-3">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="catalog-toolbar flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div class="min-w-0">
             <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100">${tituloCatalogo}</h3>
             <p class="text-xs text-stone-500 dark:text-stone-400 mt-0.5">${ayudaCatalogo}</p>
           </div>
-          <div class="flex flex-col sm:flex-row sm:items-center gap-2 shrink-0">
+          <div class="catalog-toolbar-acciones flex flex-col sm:flex-row sm:items-center gap-2 shrink-0 min-w-0">
             ${this._puedeVerBibliomovil() ? html`
               <button id="ir-a-bibliomovil" type="button"
                 class="px-3 py-2 rounded-lg border border-stone-300 dark:border-stone-600 text-xs font-bold text-stone-700 dark:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 flex items-center gap-1.5"
@@ -210,20 +216,25 @@ export default {
       this._catalogSearchTimer = setTimeout(async () => {
         this.catalogSearch = searchInput.value.trim();
         this.bookPage = 0;
-        const { libros: resultados, total: totalNuevo } = await db.obtenerLibros(
-          this.catalogSearch, 0, porPagina, esColeccionRuta, this.catalogFilter || 'todos'
-        );
-        const tbody = document.getElementById('catalog-tbody');
-        if (solicitudBusqueda !== this._catalogSearchVersion || this.currentView !== 'catalog' || !tbody) return;
-        this._booksCache = resultados;
-        // _renderBookRows siempre devuelve HtmlSeguro — llamar .toString() es suficiente
-        tbody.innerHTML = this._renderBookRows(resultados).toString();
-        const paginacion = document.getElementById('catalog-pagination');
-        if (paginacion) {
-          paginacion.innerHTML = this._paginacionHtml(0, totalNuevo, porPagina, 'catalog-page-btn');
-          this._bindPaginacion(container, '.catalog-page-btn', p => { this.bookPage = p; this.renderCatalog(); });
+        try {
+          const { libros: resultados, total: totalNuevo } = await db.obtenerLibros(
+            this.catalogSearch, 0, porPagina, esColeccionRuta, this.catalogFilter || 'todos'
+          );
+          const tbody = document.getElementById('catalog-tbody');
+          if (solicitudBusqueda !== this._catalogSearchVersion || this.currentView !== 'catalog' || !tbody) return;
+          this._booksCache = resultados;
+          // _renderBookRows siempre devuelve HtmlSeguro — llamar .toString() es suficiente
+          tbody.innerHTML = this._renderBookRows(resultados).toString();
+          const paginacion = document.getElementById('catalog-pagination');
+          if (paginacion) {
+            paginacion.innerHTML = this._paginacionHtml(0, totalNuevo, porPagina, 'catalog-page-btn');
+            this._bindPaginacion(container, '.catalog-page-btn', p => { this.bookPage = p; this.renderCatalog(); });
+          }
+          this._bindCatalogRowEvents(container);
+        } catch (err) {
+          if (solicitudBusqueda !== this._catalogSearchVersion || this.currentView !== 'catalog') return;
+          this.showToast(err.message || 'No se pudo actualizar el catálogo. Inténtalo nuevamente.', 'error');
         }
-        this._bindCatalogRowEvents(container);
       }, 350);
     });
   },
@@ -275,12 +286,12 @@ export default {
         </div>`;
     }
     return html`${books.map((b, i) => html`
-      <div class="bg-white dark:bg-stone-800 rounded-2xl p-4 shadow-sm border border-stone-200 dark:border-stone-700 flex flex-col md:flex-row gap-4 items-start md:items-center animate-fade-up" style="animation-delay: ${i * 0.05}s">
+      <div class="ficha-libro bg-white dark:bg-stone-800 rounded-2xl p-4 shadow-sm border border-stone-200 dark:border-stone-700 flex flex-col md:flex-row gap-4 items-start md:items-center animate-fade-up" style="animation-delay: ${i * 0.05}s">
         
-        <div class="flex items-start gap-4 flex-1 min-w-0">
+        <div class="ficha-libro-datos flex items-start gap-4 flex-1 min-w-0 w-full">
           ${crudo(this._portadaHtml(b))}
-          <div class="min-w-0">
-            <h3 class="font-bold text-stone-900 dark:text-stone-100 text-lg truncate">${b.titulo}</h3>
+          <div class="min-w-0 flex-1">
+            <h3 class="font-bold text-stone-900 dark:text-stone-100 text-lg break-words">${b.titulo}</h3>
             <p class="text-sm text-stone-500 dark:text-stone-400 truncate">${b.autor}</p>
             <div class="text-xs text-stone-500 dark:text-stone-400 mt-1 mb-2 font-mono">${b.isbn}</div>
             ${(b.genero || b.ubicacion || b.es_bibliomovil) ? html`
@@ -292,7 +303,7 @@ export default {
           </div>
         </div>
 
-        <div class="flex flex-col md:items-end gap-3 shrink-0">
+        <div class="ficha-libro-acciones flex flex-col md:items-end gap-3 shrink-0 max-w-full">
           <div class="text-center md:text-right">
             <span class="text-[10px] font-bold uppercase tracking-widest text-stone-500 block mb-0.5">Disponibles</span>
             <span class="${b.stock === 0 ? 'text-rose-600' : b.stock <= 1 ? 'text-amber-700' : 'text-emerald-600'} font-black text-xl">${b.stock}</span>
@@ -306,15 +317,17 @@ export default {
             
             ${this.currentUserRole === 'admin' ? html`
               <button class="toggle-collection-btn px-3 py-2 rounded-xl text-xs font-bold border transition ${b.es_bibliomovil
-                ? 'text-patrimonio-lago border-stone-300 dark:border-stone-600 hover:bg-stone-100 dark:hover:bg-stone-700'
-                : 'text-patrimonio-bosque border-stone-300 dark:border-stone-600 hover:bg-stone-100 dark:hover:bg-stone-700'}"
+                ? 'text-patrimonio-lago dark:text-stone-200 border-stone-300 dark:border-stone-600 hover:bg-stone-100 dark:hover:bg-stone-700'
+                : 'text-patrimonio-bosque dark:text-emerald-200 border-stone-300 dark:border-stone-600 hover:bg-stone-100 dark:hover:bg-stone-700'}"
                 data-id="${b.id}" data-destino="${b.es_bibliomovil ? 'sede' : 'ruta'}"
                 title="${b.es_bibliomovil ? 'Devolver este ejemplar al catálogo de la biblioteca' : 'Asignar este ejemplar al catálogo del Bibliomóvil'}"
                 aria-label="${b.es_bibliomovil ? 'Mover a la biblioteca' : 'Mover al Bibliomóvil'}">
                 <i aria-hidden="true" class="fas ${b.es_bibliomovil ? 'fa-warehouse' : 'fa-truck'} mr-1"></i> ${b.es_bibliomovil ? 'A la sede' : 'Al Bibliomóvil'}
               </button>
-              <button class="edit-book-btn px-3 py-2 rounded-xl text-xs font-bold text-stone-500 hover:text-patrimonio-madera hover:bg-stone-100 dark:hover:bg-stone-700 transition" data-id="${b.id}"><i aria-hidden="true" class="fas fa-pen"></i></button>
-              <button class="delete-book-btn px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition" data-id="${b.id}"><i aria-hidden="true" class="fas fa-trash"></i></button>` : ''}
+              <div class="flex gap-2" role="group" aria-label="Gestionar libro">
+                <button aria-label="Editar libro" title="Editar libro" class="edit-book-btn px-3 py-2 rounded-xl text-xs font-bold text-stone-500 hover:text-patrimonio-madera hover:bg-stone-100 dark:hover:bg-stone-700 transition" data-id="${b.id}"><i aria-hidden="true" class="fas fa-pen"></i></button>
+              <button aria-label="Eliminar libro" title="Eliminar libro" class="delete-book-btn px-3 py-2 rounded-xl text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition" data-id="${b.id}"><i aria-hidden="true" class="fas fa-trash"></i></button>
+              </div>` : ''}
           </div>
         </div>
 

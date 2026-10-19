@@ -19,8 +19,8 @@ O con los atajos ya armados en `package.json` (agrupan varias pruebas
 relacionadas):
 
 ```bash
-npm run test:interfaz   # probar-interfaz, probar-vistas, probar-escaneo-remoto
-npm run test:offline    # probar-persistencia, probar-sync-queue, probar-estado-conexion
+npm run test:legacy:interfaz   # probar-interfaz, probar-vistas, probar-escaneo-remoto
+npm run test:legacy:offline    # probar-persistencia, probar-sync-queue, probar-estado-conexion
 ```
 
 Termina con código 0 si todo pasa, y 1 si algo falla.
@@ -410,6 +410,50 @@ No forma parte de la aplicación ni de la suite: `dist/` está en `.gitignore` y
 
 ---
 
+## Regresiones visuales móviles en Chromium (18 de octubre de 2026)
+
+Las pruebas jsdom anteriores no calculan posiciones ni estilos. La suite
+`pruebas/visual/` contiene **75 pruebas con navegador real** sobre el build de
+producción: 320–1440 px, modos claro/oscuro, letra al 130 %, nueve vistas,
+los tres roles, menú táctil y teclado, notificaciones, diálogos y login horizontal.
+Comprueba geometría y comportamiento; no depende de snapshots de píxeles.
+
+- `movil.pw.js`: 49 casos originales de estructura, navegación y vistas.
+- `casos-limite.pw.js`: 26 casos adicionales de diálogos apilados/selector de
+  lectores, foco y limpieza, avisos visibles y con contraste, acceso con poco
+  alto, campos de ancho útil (incluido apoderado), identidad y leyendas completas,
+  impresión de reportes/hoja de ruta, respuestas fuera de orden, cambio de tema,
+  texto largo y vistas sin datos.
+- `apoyo.js`: apertura aislada, medición de desbordes, estado del menú y contraste
+  calculado sobre los colores de las superficies opacas probadas.
+
+```bash
+npm ci
+npx playwright install --with-deps chromium
+npm run build
+npm run test:visual
+```
+
+El servidor `vite preview` se inicia y detiene automáticamente. Para un Chromium
+preinstalado se admite `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/ruta/al/chromium`.
+Las capturas y trazas de fallos se guardan en `.arena/pruebas-visuales/` (ignorado
+por Git). Para ver una traza: `npx playwright show-trace ruta/a/trace.zip`.
+
+`datos-prueba.js` se inyecta solo en el navegador de prueba: no abre conexiones a
+servicios reales y no se incluye en la aplicación. Las solicitudes a otros
+orígenes y los service workers quedan bloqueados para mantener el aislamiento.
+Sus opciones permiten vaciar el catálogo y controlar respuestas pendientes con
+barreras (`__controlPruebasUI`), sin temporizaciones arbitrarias ni cambios al
+cliente de producción. Para repetir solo la segunda ronda:
+`npm run test:visual -- casos-limite` (después de construir).
+El teclado y las áreas seguras se simulan; queda pendiente la comprobación
+manual en el teléfono físico y en Safari.
+
+Detalle de causas, correcciones y límites:
+[Revisión móvil](../docs/revision-movil-2026-10-18.md).
+
+---
+
 ## Integración continua
 
 `.github/workflows/pruebas.yml` corre cinco trabajos en cada envío:
@@ -417,7 +461,7 @@ No forma parte de la aplicación ni de la suite: `dist/` está en `.gitignore` y
 | Trabajo | Qué hace |
 |---|---|
 | `consolidacion` | Lee los archivos SQL, segundos. Incluye `verificar_consolidacion.py` y, desde esta ronda, `verificar_llamadas_rpc.py` |
-| `interfaz` | DOM simulado con jsdom: `probar-interfaz.mjs`, y desde esta ronda `probar-vistas.mjs` y `probar-escaneo-remoto.mjs` — más IndexedDB en memoria con fake-indexeddb (`probar-persistencia.mjs`, Fase 1.2; `probar-sync-queue.mjs`, Fase 1.3; `probar-estado-conexion.mjs`, Fase 1.4) |
+| `interfaz` | Vitest, verificadores heredados de interfaz/offline/contraste, build y verificación PWA; ahora también Playwright/Chromium (`test:visual`), con capturas y trazas si falla |
 | `migraciones` | Desde esta ronda: `probar-migraciones.py` contra PostgreSQL embebido (`pgserver`), sin servicio aparte |
 | `base-de-datos` | PostgreSQL 17 real (antes 16) |
 | `reconstruccion` | Rehace la base con el CLI de Supabase desde cero, contra PostgreSQL 17 (antes 16) |
