@@ -308,8 +308,16 @@ class SyncQueue {
      * Intenta reproducir todo lo pendiente cuyo turno ya llegó. Nunca lanza
      * ni deja una promesa rechazada suelta: es sincronización en segundo
      * plano, igual que persistencia.sincronizarTodo().
+     *
+     * `forzar` salta la espera exponencial: lo usa el evento "online" del
+     * navegador. Si la conexión ACABA de volver, no tiene sentido seguir
+     * esperando los minutos que quedaban de una espera calculada cuando la
+     * red estaba caída (podían ser hasta 30): la persona ya tiene red y la
+     * operación seguiría "guardada" en pantalla sin motivo. Las llamadas
+     * programadas (temporizador, intervalo de main.js) no fuerzan: respetan
+     * la espera para no martillar una red que sigue caída.
      */
-    async reintentarPendientes() {
+    async reintentarPendientes(forzar = false) {
         if (this._reintentando) return;
         this._reintentando = true;
         await this._avisar(); // Fase 1.4: que el indicador pueda mostrar "sincronizando" desde ya
@@ -317,7 +325,7 @@ class SyncQueue {
             const pendientes = await persistencia.listarOperacionesPendientes();
             const ahora = Date.now();
             for (const operacion of pendientes) {
-                if (operacion.proximoIntentoEn > ahora) continue;
+                if (!forzar && operacion.proximoIntentoEn > ahora) continue;
                 await this._intentarUna(operacion);
             }
         } catch {
@@ -346,7 +354,14 @@ class SyncQueue {
             return;
         }
         try {
-            const { error } = await llamar(operacion.params);
+            // Con tiempo límite, igual que el primer intento
+            // (_ejecutarRpcMuta): sin esto, una llamada colgada (el candado
+            // de sesión de gotrue-js, ver utilidades.js) dejaba
+            // `_reintentando` en true para siempre y la cola no volvía a
+            // sincronizar nada en toda la sesión, en silencio. El error de
+            // tiempo agotado no trae `.code`, así que esFalloDeRed() lo trata
+            // como lo que es: se reprograma y se sigue intentando.
+            const { error } = await conTiempoLimite(llamar(operacion.params), ESPERA);
             if (error) {
                 if (esFalloDeRed(error)) {
                     await this._reprogramar(operacion);
@@ -401,8 +416,9 @@ export const colaSync = new SyncQueue();
 
 if (typeof window !== 'undefined') {
     // Apenas el navegador avisa que recuperó la conexión, no hace falta
-    // esperar al próximo reintento programado.
-    window.addEventListener('online', () => colaSync.reintentarPendientes());
+    // esperar al próximo reintento programado NI a que venza la espera
+    // exponencial en curso: se fuerza el turno de todo lo pendiente.
+    window.addEventListener('online', () => colaSync.reintentarPendientes(true));
 }
 
 async function _ejecutarRpcMuta(rpcName, params, mensajeCola, errorMsgs = {}) {
@@ -568,17 +584,26 @@ export const db = {
         let detalle;
         if (resultado?.existe && resultado.lector_id != null) {
             try {
-                const { data: activos } = await conTiempoLimite(
+                const { data: activos, error: errorActivos } = await conTiempoLimite(
                     supabase.from('prestamos')
                         .select('fecha_devolucion_esperada, libros(titulo)')
                         .eq('lector_id', resultado.lector_id)
                         .eq('estado', 'activo'),
                     ESPERA
                 );
-                detalle = (activos || []).map(p => ({
-                    fechaDevolucionEsperada: p.fecha_devolucion_esperada ?? null,
-                    tituloLibro: p.libros?.titulo ?? null
-                }));
+                // PostgREST también puede fallar SIN lanzar: devuelve
+                // { data: null, error }. Ese `null` no significa "no tiene
+                // préstamos activos": convertirlo en [] pisaba el detalle
+                // ya guardado y borraba los atrasos conocidos, así que sin
+                // conexión ese lector volvía a poder pedir prestado. Con
+                // `undefined`, guardarLectorConsultado() conserva el detalle
+                // anterior (igual que cuando la llamada lanza, ver el catch).
+                detalle = errorActivos
+                    ? undefined
+                    : (activos || []).map(p => ({
+                        fechaDevolucionEsperada: p.fecha_devolucion_esperada ?? null,
+                        tituloLibro: p.libros?.titulo ?? null
+                    }));
             } catch {
                 detalle = undefined;
             }

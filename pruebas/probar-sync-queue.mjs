@@ -106,6 +106,19 @@ class ConsultaFalsa {
     }
     then(resolver, rechazar) {
         try {
+            // ¿Se programó un desenlace especial para esta consulta de tabla?
+            // (ver programarConsulta más abajo). Los pasos se CONSUMEN (no se
+            // repiten como en .rpc()/.insert()): una consulta con error
+            // programado no debe contaminar las sincronizaciones de
+            // persistencia.js que usan la misma tabla más adelante.
+            const paso = proximoPasoConsulta(this._tabla);
+            if (paso?.tipo === 'error') {
+                resolver({
+                    data: null,
+                    error: { code: paso.code || 'PGRST000', message: paso.mensaje || 'Error de consulta programado.' }
+                });
+                return;
+            }
             let filas = this._filas.filter(f => this._filtros.every(fn => fn(f)));
             if (this._orden) {
                 const { col, ascending } = this._orden;
@@ -124,6 +137,7 @@ class ConsultaFalsa {
 const llamadasRpc = [];
 const comportamientos = {}; // nombre de la función RPC -> lista de pasos pendientes
 const comportamientosInsert = {}; // nombre de tabla -> lista de pasos pendientes
+const comportamientosConsulta = {}; // nombre de tabla -> pasos CONSUMIBLES para un select
 
 /** Programa qué debe responder la próxima (o próximas) llamada(s) a este RPC. */
 function programarRpc(nombre, pasos) {
@@ -147,6 +161,17 @@ function proximoPasoInsert(tabla) {
     const pasos = comportamientosInsert[tabla];
     if (!pasos || pasos.length === 0) return { tipo: 'exito' };
     return pasos.length > 1 ? pasos.shift() : pasos[0];
+}
+
+/** Programa el desenlace de los próximos `select` a una tabla (se consumen). */
+function programarConsulta(tabla, pasos) {
+    comportamientosConsulta[tabla] = [...pasos];
+}
+
+function proximoPasoConsulta(tabla) {
+    const pasos = comportamientosConsulta[tabla];
+    if (!pasos || pasos.length === 0) return null;
+    return pasos.shift(); // consumible a propósito: ver el comentario en ConsultaFalsa.then()
 }
 
 const clienteFalso = {
@@ -342,6 +367,29 @@ comprobar('al quinto intento seguido sin poder sincronizar, queda un aviso (sigu
 
 await vaciarCola();
 
+// Al volver la conexión (evento "online" → reintentarPendientes(true)) no hay
+// que seguir esperando lo que quede de la espera exponencial: la red ya
+// volvió. Sin forzar (temporizador/intervalo), la espera se respeta igual
+// que siempre — las dos mitades de este comportamiento se comprueban aquí.
+console.log('\n7b. Reintento forzado al recuperar la conexión: no espera a que venza la espera exponencial');
+const idForzado = await persistencia.encolarOperacion('prestar_libro',
+    { p_libro_id: 21, p_lector_rut: '22222222-2' }, 'Préstamo con espera lejana');
+await persistencia.actualizarOperacion(idForzado, { proximoIntentoEn: Date.now() + 60 * 60 * 1000 });
+programarRpc('prestar_libro', [{ tipo: 'exito', data: [{ prestamo_id: 456 }] }]);
+llamadasRpc.length = 0;
+await colaSync.reintentarPendientes();
+pendientes = await persistencia.listarOperacionesPendientes();
+comprobar('sin forzar, una operación cuya espera no ha vencido sigue en cola y no se llama al RPC',
+    pendientes.some(o => o.id === idForzado) && !llamadasRpc.some(l => l.nombre === 'prestar_libro'),
+    JSON.stringify({ pendientes, llamadasRpc }));
+await colaSync.reintentarPendientes(true);
+pendientes = await persistencia.listarOperacionesPendientes();
+comprobar('forzando (como hace el evento "online"), la misma operación se reproduce de inmediato y sale de la cola',
+    !pendientes.some(o => o.id === idForzado) && llamadasRpc.some(l => l.nombre === 'prestar_libro' && l.params.p_libro_id === 21),
+    JSON.stringify({ pendientes, llamadasRpc }));
+
+await vaciarCola();
+
 // ---------------------------------------------------------------------------
 // 8. estadoLector(): respaldo sin conexión con la copia local (Fase 1.2)
 // ---------------------------------------------------------------------------
@@ -422,6 +470,37 @@ const estadoConservado = await db.estadoLector('77777777-7');
 comprobar('si una consulta posterior no trae el detalle de atrasados, se conserva el que ya había (no se borra con un arreglo vacío)',
     estadoConservado?.puede_prestar === false && /atrasada/.test(estadoConservado?.motivo_rechazo || ''),
     JSON.stringify(estadoConservado));
+
+// El mismo escenario, pero por el camino REAL de db.estadoLector() en línea:
+// el RPC responde bien, pero la segunda consulta (los préstamos activos que
+// alimentan el detalle) vuelve con { data: null, error } SIN lanzar ninguna
+// excepción — así responde PostgREST ante un error de servidor. Ese `null`
+// no puede convertirse en un detalle vacío que pise el atraso ya guardado:
+// "no se pudo consultar" no es lo mismo que "no tiene préstamos activos".
+await persistencia.guardarLectorConsultado({
+    existe: true, lector_id: 54, nombre: 'Lector Con Detalle Previo', rut: '44444444-4',
+    email: null, telefono: null, bloqueado_manual: false, motivo_bloqueo: null,
+    prestamos_activos_detalle: [
+        { fechaDevolucionEsperada: '2020-06-01', tituloLibro: 'Libro Atrasado Previo' }
+    ]
+});
+programarRpc('estado_lector', [{ tipo: 'exito', data: [{
+    existe: true, lector_id: 54, nombre: 'Lector Con Detalle Previo', rut: '44444444-4',
+    email: null, telefono: null, bloqueado_manual: false, motivo_bloqueo: null,
+    prestamos_activos: 1, prestamos_atrasados: 1, puede_prestar: false,
+    motivo_rechazo: 'Tiene préstamos atrasados.'
+}] }]);
+programarConsulta('prestamos', [{ tipo: 'error', mensaje: 'Error interno al consultar préstamos.' }]);
+await db.estadoLector('44444444-4');
+// estadoLector() guarda en segundo plano (sin await, a propósito): se da un
+// margen breve para que la escritura en IndexedDB alcance a completarse.
+await new Promise(r => setTimeout(r, 50));
+programarRpc('estado_lector', [{ tipo: 'red' }]);
+const estadoTrasErrorConsulta = await db.estadoLector('44444444-4');
+comprobar('un error {data:null,error} en la consulta de préstamos activos NO borra el detalle de atrasados ya guardado ' +
+    '(sin conexión, ese lector debe seguir sin poder pedir prestado)',
+    estadoTrasErrorConsulta?.puede_prestar === false && /atrasada/.test(estadoTrasErrorConsulta?.motivo_rechazo || ''),
+    JSON.stringify(estadoTrasErrorConsulta));
 
 // ---------------------------------------------------------------------------
 // 9. consultarLibro(): respaldo sin conexión con el catálogo local
