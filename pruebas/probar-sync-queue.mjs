@@ -250,6 +250,67 @@ comprobar('se guardó con los MISMOS parámetros que se habrían mandado con con
 await vaciarCola();
 
 // ---------------------------------------------------------------------------
+// 1b. Clave de operación (migración 031): nace antes del primer intento y el
+//     reintento la reusa — así el servidor puede reconocer una repetición
+// ---------------------------------------------------------------------------
+console.log('\n1b. Clave de operación (031): el primer intento y el reintento comparten la misma clave');
+
+programarRpc('prestar_libro', [{ tipo: 'red' }]);
+llamadasRpc.length = 0;
+await db.registrarPrestamo(7, '11111111-1');
+pendientes = await persistencia.listarOperacionesPendientes();
+const claveLlamada = llamadasRpc.find(l => l.nombre === 'prestar_libro')?.params?.p_clave_operacion;
+const claveEncolada = pendientes[0]?.params?.p_clave_operacion;
+comprobar('el primer intento ya viajó con una clave de operación (UUID)',
+    typeof claveLlamada === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(claveLlamada),
+    JSON.stringify(llamadasRpc));
+comprobar('la operación encolada guarda EXACTAMENTE esa clave (el reintento es la misma operación, no una nueva)',
+    !!claveEncolada && claveEncolada === claveLlamada,
+    JSON.stringify({ claveLlamada, claveEncolada }));
+
+// Al reintentar con éxito, el RPC se repite con la misma clave todavía.
+programarRpc('prestar_libro', [{ tipo: 'exito', data: [{ prestamo_id: 99 }] }]);
+llamadasRpc.length = 0;
+await colaSync.reintentarPendientes(true);
+comprobar('el reintento de la cola reproduce la llamada con la misma clave',
+    llamadasRpc.some(l => l.nombre === 'prestar_libro' && l.params?.p_clave_operacion === claveEncolada),
+    JSON.stringify(llamadasRpc));
+
+// Dos operaciones DISTINTAS no pueden compartir clave: se fusionarían en una.
+programarRpc('prestar_libro', [{ tipo: 'red' }]);
+llamadasRpc.length = 0;
+await db.registrarPrestamo(9, '11111111-1');
+const claveOtraOperacion = llamadasRpc.find(l => l.nombre === 'prestar_libro')?.params?.p_clave_operacion;
+comprobar('otra operación genera otra clave',
+    !!claveOtraOperacion && claveOtraOperacion !== claveEncolada,
+    JSON.stringify({ claveEncolada, claveOtraOperacion }));
+
+await vaciarCola();
+
+// Puente de despliegue: contra una base donde la 031 aún no corre, PostgREST
+// responde que la firma con clave no existe (PGRST202). El cliente debe
+// reintentar sin la clave y operar igual que antes — invertir el orden de
+// despliegue pierde la idempotencia, no la circulación.
+console.log('\n1c. Sin la migración 031 en el servidor: se reintenta sin clave y se opera igual');
+
+programarRpc('prestar_libro', [
+    { tipo: 'rechazo', code: 'PGRST202', mensaje: 'Could not find the function public.prestar_libro in the schema cache' },
+    { tipo: 'exito', data: [{ prestamo_id: 100 }] }
+]);
+llamadasRpc.length = 0;
+resultado = await db.registrarPrestamo(11, '11111111-1');
+pendientes = await persistencia.listarOperacionesPendientes();
+comprobar('ante PGRST202 con clave, la operación prospera sin clave (no se encola ni se pierde)',
+    resultado?.prestamo_id === 100 && pendientes.length === 0,
+    JSON.stringify({ resultado, pendientes }));
+comprobar('hubo dos llamadas: la primera con clave y la segunda ya sin ella',
+    llamadasRpc.length === 2 &&
+    !!llamadasRpc[0]?.params?.p_clave_operacion &&
+    !('p_clave_operacion' in (llamadasRpc[1]?.params || {})),
+    JSON.stringify(llamadasRpc));
+
+// ---------------------------------------------------------------------------
 // 2. Rechazo real del servidor: se lanza, NUNCA se encola
 // ---------------------------------------------------------------------------
 console.log('\n2. Rechazo real del servidor (con código): se lanza, nunca se encola');

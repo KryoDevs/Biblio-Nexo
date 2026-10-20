@@ -109,10 +109,54 @@ const INTENTOS_ANTES_DE_AVISAR = 5;        // a esta altura, además de seguir r
 // Qué RPC llamar por cada tipo de operación encolada. Deliberadamente la
 // MISMA llamada que hace cada método de más abajo — la cola no reimplementa
 // la lógica de negocio, solo la repite tal cual cuando vuelve la conexión.
+/**
+ * Idempotencia de los reintentos (migración 031): prestar/devolver/renovar
+ * aceptan una `p_clave_operacion` (UUID). La clave se genera ANTES del
+ * primer intento (en _ejecutarRpcMuta) y viaja dentro de los mismos
+ * `params` que se encolan, así que cada reintento reusa LA MISMA clave: si
+ * el primer intento llegó al servidor pero la respuesta se perdió (un
+ * timeout de conTiempoLimite es exactamente eso: "no sé si se hizo"), el
+ * servidor reconoce la clave y devuelve el resultado ya aplicado en vez de
+ * ejecutar la operación dos veces. Sin esto, ese caso creaba un préstamo
+ * fantasma, consumía una renovación extra o dejaba un aviso falso de
+ * "ya fue devuelto" en Diagnóstico.
+ */
+const RPCS_CON_CLAVE = new Set(['prestar_libro', 'devolver_prestamo', 'renovar_prestamo']);
+
+function nuevaClaveOperacion() {
+    // Sin UUID disponible (navegador muy antiguo), simplemente no se manda
+    // clave y el comportamiento es el de siempre — nunca debe impedir operar.
+    try {
+        return globalThis.crypto?.randomUUID?.() ?? null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Ejecuta `llamar(params)`; si el servidor responde que la función con esa
+ * firma no existe y los params llevaban clave, reintenta UNA vez sin ella.
+ *
+ * Es el puente de despliegue de la 031: PostgREST resuelve las funciones
+ * por sus parámetros, así que un cliente nuevo contra una base donde la 031
+ * (+ reaplicar la 010) aún no corre recibiría PGRST202 en cada préstamo.
+ * Con este respaldo, invertir el orden de despliegue solo hace perder la
+ * idempotencia hasta aplicar el SQL — nunca la circulación. En cuanto la
+ * base tiene las firmas nuevas, este camino deja de usarse solo.
+ */
+async function conRespaldoSinClave(params, llamar) {
+    const resultado = await llamar(params);
+    if (resultado?.error && params?.p_clave_operacion && esFuncionInexistente(resultado.error)) {
+        const { p_clave_operacion: _claveDescartada, ...sinClave } = params;
+        return llamar(sinClave);
+    }
+    return resultado;
+}
+
 const OPERACIONES_COLA = {
-    prestar_libro: params => supabase.rpc('prestar_libro', params),
-    devolver_prestamo: params => supabase.rpc('devolver_prestamo', params),
-    renovar_prestamo: params => supabase.rpc('renovar_prestamo', params),
+    prestar_libro: params => conRespaldoSinClave(params, p => supabase.rpc('prestar_libro', p)),
+    devolver_prestamo: params => conRespaldoSinClave(params, p => supabase.rpc('devolver_prestamo', p)),
+    renovar_prestamo: params => conRespaldoSinClave(params, p => supabase.rpc('renovar_prestamo', p)),
     reservar_libro: params => supabase.rpc('reservar_libro', params),
     retirar_reserva: params => supabase.rpc('retirar_reserva', params),
     // A diferencia de las cinco de arriba (RPCs atómicas), estas dos son un
@@ -422,11 +466,24 @@ if (typeof window !== 'undefined') {
 }
 
 async function _ejecutarRpcMuta(rpcName, params, mensajeCola, errorMsgs = {}) {
+    // La clave de operación (031) nace AQUÍ, antes del primer intento, y es
+    // la que se encola si la red falla: generarla recién al encolar no
+    // serviría, porque el intento que pudo haber llegado al servidor (un
+    // timeout) habría ido sin ella — o con otra — y el reintento duplicaría
+    // igual. Ver RPCS_CON_CLAVE/conRespaldoSinClave junto a OPERACIONES_COLA.
+    let paramsFinales = params;
+    if (RPCS_CON_CLAVE.has(rpcName) && !params.p_clave_operacion) {
+        const clave = nuevaClaveOperacion();
+        if (clave) paramsFinales = { ...params, p_clave_operacion: clave };
+    }
     let resultado;
     try {
-        resultado = await conTiempoLimite(supabase.rpc(rpcName, params), ESPERA);
+        resultado = await conTiempoLimite(
+            conRespaldoSinClave(paramsFinales, p => supabase.rpc(rpcName, p)),
+            ESPERA
+        );
     } catch (e) {
-        if (esFalloDeRed(e)) return colaSync.encolar(rpcName, params, mensajeCola);
+        if (esFalloDeRed(e)) return colaSync.encolar(rpcName, paramsFinales, mensajeCola);
         throw e;
     }
     const { data, error } = resultado;
@@ -434,7 +491,7 @@ async function _ejecutarRpcMuta(rpcName, params, mensajeCola, errorMsgs = {}) {
         if (esFuncionInexistente(error) && errorMsgs.migracionFaltante) {
             throw new Error(errorMsgs.migracionFaltante);
         }
-        if (esFalloDeRed(error)) return colaSync.encolar(rpcName, params, mensajeCola);
+        if (esFalloDeRed(error)) return colaSync.encolar(rpcName, paramsFinales, mensajeCola);
         throw new Error(error.message || errorMsgs.porDefecto || `Error en la operación ${rpcName}.`);
     }
     return Array.isArray(data) ? data[0] : data;

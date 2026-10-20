@@ -558,15 +558,22 @@ grant execute on function public.estadisticas_paradas() to authenticated;
 -- Por eso `devolver_prestamo` comprueba `row_count` y falla en voz alta.
 
 -- ── prestar_libro ── (última versión: 008_perfiles_y_permisos_librero.sql;
--- ampliada en 027_prestamos_coordenadas.sql con parada_nombre/parada_lat/parada_lng)
+-- ampliada en 027_prestamos_coordenadas.sql con parada_nombre/parada_lat/parada_lng
+-- y en 031_clave_operacion_idempotencia.sql con p_clave_operacion: la genera el
+-- cliente antes del primer intento y la reusa en cada reintento de la cola sin
+-- conexión, para que repetir la misma petición —tras un timeout en que el
+-- servidor sí alcanzó a registrarla— devuelva el préstamo ya creado en vez de
+-- crear un segundo préstamo fantasma.)
 drop function if exists public.prestar_libro(bigint, text);
 drop function if exists public.prestar_libro(bigint, text, text, numeric, numeric);
+drop function if exists public.prestar_libro(bigint, text, text, numeric, numeric, uuid);
 create or replace function public.prestar_libro(
   p_libro_id bigint,
   p_lector_rut text,
   p_parada_nombre text default null,
   p_parada_lat numeric default null,
-  p_parada_lng numeric default null
+  p_parada_lng numeric default null,
+  p_clave_operacion uuid default null
 )
 returns table (prestamo_id bigint, fecha_devolucion_esperada date)
 language plpgsql
@@ -581,6 +588,8 @@ declare
   v_hoy date := public.hoy_chile();
   v_dias int;
   v_estado record;
+  v_previo_id bigint;
+  v_previo_vence date;
 begin
   if not public.es_personal() then
     raise exception 'Debes iniciar sesión para registrar un préstamo.' using errcode = 'P0001';
@@ -592,6 +601,28 @@ begin
   end if;
 
   perform pg_advisory_xact_lock(v_lector_id);
+
+  -- ¿Esta misma operación ya se aplicó? (031) Se comprueba DESPUÉS del
+  -- advisory lock —que serializa por lector, así que dos reintentos de la
+  -- misma operación no pueden cruzarse aquí— y ANTES de revalidar estado y
+  -- stock: una repetición no es una petición nueva, y revalidarla la
+  -- rechazaría por el préstamo que ella misma ya creó. Se filtra también
+  -- por lector: si alguna vez una clave se repitiera entre lectores
+  -- distintos, el índice único prestamos_clave_operacion_uq hace fallar el
+  -- insert en voz alta en vez de devolver el préstamo de otra persona.
+  -- Las columnas van calificadas con `p.`: esta función devuelve una tabla,
+  -- así que `fecha_devolucion_esperada` a secas sería ambiguo entre la
+  -- variable de salida y la columna (el mismo cuidado que documenta
+  -- consultar_libro() con #variable_conflict, resuelto aquí localmente).
+  if p_clave_operacion is not null then
+    select p.id, p.fecha_devolucion_esperada into v_previo_id, v_previo_vence
+    from public.prestamos p
+    where p.clave_operacion = p_clave_operacion and p.lector_id = v_lector_id;
+    if v_previo_id is not null then
+      return query select v_previo_id::bigint, v_previo_vence::date;
+      return;
+    end if;
+  end if;
 
   select * into v_estado from public.estado_lector(p_lector_rut);
   if not v_estado.puede_prestar then
@@ -617,22 +648,29 @@ begin
 
   insert into public.prestamos (
     libro_id, lector_id, fecha_prestamo, fecha_devolucion_esperada, estado,
-    parada_nombre, parada_lat, parada_lng
+    parada_nombre, parada_lat, parada_lng, clave_operacion
   )
   values (
     p_libro_id, v_lector_id, v_hoy, v_hoy + v_dias, 'activo',
-    nullif(btrim(p_parada_nombre), ''), p_parada_lat, p_parada_lng
+    nullif(btrim(p_parada_nombre), ''), p_parada_lat, p_parada_lng,
+    p_clave_operacion
   )
   returning id into v_prestamo_id;
 
   return query select v_prestamo_id::bigint, (v_hoy + v_dias)::date;
 end;
 $$;
-grant execute on function public.prestar_libro(bigint, text, text, numeric, numeric) to authenticated;
+grant execute on function public.prestar_libro(bigint, text, text, numeric, numeric, uuid) to authenticated;
 
--- ── devolver_prestamo ── (última versión: 008_perfiles_y_permisos_librero.sql)
+-- ── devolver_prestamo ── (última versión: 008_perfiles_y_permisos_librero.sql;
+-- 031_clave_operacion_idempotencia.sql suma p_clave_operacion con la misma
+-- idea que en prestar_libro: repetir LA MISMA devolución —el primer intento
+-- llegó al servidor pero el cliente no lo supo— no es un error ni debe sumar
+-- el ejemplar otra vez; solo lo es una devolución distinta sobre un préstamo
+-- ya devuelto, que sigue diciendo "ya fue devuelto".)
 drop function if exists public.devolver_prestamo(bigint);
-create or replace function public.devolver_prestamo(p_prestamo_id bigint)
+drop function if exists public.devolver_prestamo(bigint, uuid);
+create or replace function public.devolver_prestamo(p_prestamo_id bigint, p_clave_operacion uuid default null)
 returns void
 language plpgsql
 security definer
@@ -641,6 +679,7 @@ as $$
 declare
   v_libro_id bigint;
   v_estado text;
+  v_clave_devolucion uuid;
   v_filas int;
   v_promovido boolean;
 begin
@@ -648,18 +687,24 @@ begin
     raise exception 'Debes iniciar sesión para registrar una devolución.' using errcode = 'P0001';
   end if;
 
-  select libro_id, estado into v_libro_id, v_estado
+  select libro_id, estado, clave_devolucion into v_libro_id, v_estado, v_clave_devolucion
   from public.prestamos where id = p_prestamo_id for update;
 
   if v_libro_id is null then
     raise exception 'Préstamo no encontrado.' using errcode = 'P0001';
   end if;
   if v_estado = 'devuelto' then
+    -- Repetición de la misma devolución (031): ya se hizo, con esta misma
+    -- clave. No es un error y, sobre todo, no se vuelve a sumar el ejemplar.
+    if p_clave_operacion is not null and v_clave_devolucion = p_clave_operacion then
+      return;
+    end if;
     raise exception 'Este préstamo ya fue devuelto anteriormente.' using errcode = 'P0001';
   end if;
 
   update public.prestamos
-     set estado = 'devuelto', fecha_devolucion_real = public.hoy_chile()
+     set estado = 'devuelto', fecha_devolucion_real = public.hoy_chile(),
+         clave_devolucion = coalesce(p_clave_operacion, clave_devolucion)
    where id = p_prestamo_id;
 
   -- Comprobación de resultado: si por cualquier motivo la escritura no ocurre,
@@ -680,11 +725,14 @@ begin
   end if;
 end;
 $$;
-grant execute on function public.devolver_prestamo(bigint) to authenticated;
+grant execute on function public.devolver_prestamo(bigint, uuid) to authenticated;
 
--- ── renovar_prestamo ── (última versión: 008_perfiles_y_permisos_librero.sql)
+-- ── renovar_prestamo ── (última versión: 008_perfiles_y_permisos_librero.sql;
+-- 031_clave_operacion_idempotencia.sql suma p_clave_operacion: sin ella, una
+-- renovación repetida tras un timeout consumía dos renovaciones por una.)
 drop function if exists public.renovar_prestamo(bigint);
-create or replace function public.renovar_prestamo(p_prestamo_id bigint)
+drop function if exists public.renovar_prestamo(bigint, uuid);
+create or replace function public.renovar_prestamo(p_prestamo_id bigint, p_clave_operacion uuid default null)
 returns table (nueva_fecha date, renovaciones_usadas int)
 language plpgsql
 security definer
@@ -695,6 +743,7 @@ declare
   v_vence date;
   v_renovaciones int;
   v_libro_id bigint;
+  v_clave_renovacion uuid;
   v_override int;
   v_limite int := public.parametro_int('max_renovaciones', 2);
   v_dias int;
@@ -703,12 +752,20 @@ begin
     raise exception 'Debes iniciar sesión para renovar un préstamo.' using errcode = 'P0001';
   end if;
 
-  select estado, fecha_devolucion_esperada, renovaciones, libro_id
-    into v_estado, v_vence, v_renovaciones, v_libro_id
+  select estado, fecha_devolucion_esperada, renovaciones, libro_id, clave_ultima_renovacion
+    into v_estado, v_vence, v_renovaciones, v_libro_id, v_clave_renovacion
   from public.prestamos where id = p_prestamo_id for update;
 
   if v_estado is null then
     raise exception 'Préstamo no encontrado.' using errcode = 'P0001';
+  end if;
+  -- Repetición de la misma renovación (031): se devuelve el estado que ya
+  -- dejó aplicada, sin renovar de nuevo. Va antes de exigir que el préstamo
+  -- siga activo: si entremedio se devolvió, la cola sin conexión igual debe
+  -- poder dar esta operación por sincronizada, no por fallida.
+  if p_clave_operacion is not null and v_clave_renovacion = p_clave_operacion then
+    return query select v_vence, v_renovaciones;
+    return;
   end if;
   if v_estado <> 'activo' then
     raise exception 'Solo se pueden renovar préstamos activos.' using errcode = 'P0001';
@@ -730,13 +787,14 @@ begin
 
   update public.prestamos
      set fecha_devolucion_esperada = v_vence + v_dias,
-         renovaciones = renovaciones + 1
+         renovaciones = renovaciones + 1,
+         clave_ultima_renovacion = coalesce(p_clave_operacion, clave_ultima_renovacion)
    where id = p_prestamo_id;
 
   return query select (v_vence + v_dias)::date, (v_renovaciones + 1)::int;
 end;
 $$;
-grant execute on function public.renovar_prestamo(bigint) to authenticated;
+grant execute on function public.renovar_prestamo(bigint, uuid) to authenticated;
 
 -- ============================================================================
 -- RESERVAS — fila de espera cuando no hay ejemplares disponibles

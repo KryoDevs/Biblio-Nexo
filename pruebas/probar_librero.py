@@ -183,8 +183,17 @@ print('\n1. REPRODUCCIÓN DEL FALLO — funciones como estaban antes de la 008')
 # Se elimina primero la firma de 5 argumentos introducida en 027/010 para que
 # durante las secciones 1-9 (que prueban el estado histórico 007 -> 008 -> 009)
 # no convivan las dos firmas a la vez. En la sección 10 se reaplica la 010.
+# (031: las firmas vigentes suman un sexto parámetro, p_clave_operacion uuid,
+# y devolver/renovar pasan de 1 a 2. También se eliminan aquí, por el mismo
+# motivo: en el estado histórico pre-008 que esta sección simula, esas firmas
+# simplemente no existían. Sin esto, las llamadas de las secciones 1-9 quedan
+# ambiguas — "function ... is not unique" — entre la versión histórica y la
+# vigente con parámetros por omisión.)
 sql("""
 drop function if exists public.prestar_libro(bigint, text, text, numeric, numeric);
+drop function if exists public.prestar_libro(bigint, text, text, numeric, numeric, uuid);
+drop function if exists public.devolver_prestamo(bigint, uuid);
+drop function if exists public.renovar_prestamo(bigint, uuid);
 create or replace function public.prestar_libro(p_libro_id bigint, p_lector_rut text)
 returns table (prestamo_id bigint, fecha_devolucion_esperada date)
 language plpgsql set search_path = public as $f$
@@ -497,6 +506,11 @@ comprobar('el manifiesto no se encogió (55 al 2026-10-02)',
 comprobar('ninguna función está fuera de norma', not malas, texto(malas)[:300])
 
 # La prueba de fuego: ¿detecta la deriva que causó el fallo del librero?
+# A esta altura de la suite la función instalada es la de la 008 (bigint):
+# es ESA la que hay que reemplazar sin definer. (La firma (bigint, uuid) de
+# la 031 se eliminó en la sección 1 y solo vuelve al reaplicar la 010, más
+# abajo: crearla aquí sumaría una segunda y verificar_definiciones diría
+# DUPLICADA en vez de lo que esta comprobación busca.)
 sql("""create or replace function public.devolver_prestamo(p_prestamo_id bigint)
 returns void language plpgsql set search_path = public as $f$
 begin update public.prestamos set estado='devuelto' where id=p_prestamo_id; end; $f$;""")
