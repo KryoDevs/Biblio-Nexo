@@ -1,6 +1,6 @@
 // Vista Dashboard. Extraído mecánicamente de js/modules/ui.js (Fase 4).
 import { CONFIG } from '../config.js';
-import { db } from '../modules/db.js';
+import { db, colaSync, hoyEnChile } from '../modules/db.js';
 
 import { html } from '../modules/utilidades.js';
 
@@ -13,7 +13,19 @@ export default {
     const stats = await db.obtenerEstadisticas();
     // UX12: Alerta de reservas apartadas por expirar
     const reservasListas = await db.obtenerReservasApartadas();
-    
+
+    // Datos del bloque "Cierre del día": lo que el turno revisa antes de
+    // cerrar (sincronización de este equipo, avisos de vencimiento y el
+    // resumen de hoy). Van con allSettled a propósito: si una parte falla,
+    // el ítem se marca "no se pudo revisar" en vez de pintar un cero
+    // tranquilizador — la misma regla que ya siguen las cifras de arriba.
+    const hoyCierre = hoyEnChile();
+    const [colaRes, vencimientosRes, reporteRes] = await Promise.allSettled([
+      colaSync.estado(),
+      db.obtenerPendientesDeAviso(1),
+      db.obtenerReporte(hoyCierre, hoyCierre)
+    ]);
+
     // Si el usuario ya cambió de vista mientras esperábamos la respuesta, no pintamos nada
     if (this.currentView !== 'dashboard') return;
     const roleInfo = CONFIG.ROLE_LABELS[this.currentUserRole] || CONFIG.ROLE_LABELS.librero;
@@ -28,6 +40,113 @@ export default {
       const diffHoras = (venceEnMs - hoyMs) / (1000 * 60 * 60);
       return diffHoras >= 0 && diffHoras <= 24;
     });
+
+    // --- Cierre del día -----------------------------------------------------------
+    // Cada ítem dice su estado con ícono Y con texto completo (nunca solo
+    // por color). `null` significa "no se pudo revisar": se muestra tal cual,
+    // porque un "0" inventado al cerrar el turno es peor que admitir el fallo.
+    const pendientesSync = colaRes.status === 'fulfilled' && Number.isFinite(colaRes.value?.pendientes)
+      ? colaRes.value.pendientes : null;
+    const pendientesAviso = vencimientosRes.status === 'fulfilled' && Array.isArray(vencimientosRes.value)
+      ? vencimientosRes.value : null;
+    const atrasados = pendientesAviso
+      ? pendientesAviso.filter(p => p.fecha_devolucion_esperada < hoyCierre).length
+      : null;
+    const vencenPronto = pendientesAviso ? pendientesAviso.length - atrasados : null;
+    // Se exigen los tres totales como números: si la forma del reporte cambia
+    // algún día, el ítem desaparece en silencio en vez de pintar "undefined".
+    const reporteHoy = reporteRes.status === 'fulfilled' && !reporteRes.value?.faltaMigracion
+      && [reporteRes.value?.totalPrestamos, reporteRes.value?.totalDevoluciones, reporteRes.value?.totalNuevosLectores].every(Number.isFinite)
+      ? reporteRes.value : null;
+
+    const itemsCierre = [];
+    if (pendientesSync === null) {
+      itemsCierre.push({ estado: 'sin-dato', texto: 'No se pudo revisar si quedan operaciones guardadas en este equipo.' });
+    } else if (pendientesSync === 0) {
+      itemsCierre.push({ estado: 'ok', texto: 'Todo lo registrado en este equipo ya está sincronizado.' });
+    } else {
+      itemsCierre.push({
+        estado: 'pendiente',
+        texto: pendientesSync === 1
+          ? 'Queda 1 operación guardada en este equipo esperando conexión.'
+          : `Quedan ${pendientesSync} operaciones guardadas en este equipo esperando conexión.`,
+        botonSync: true
+      });
+    }
+    if (pendientesAviso === null) {
+      itemsCierre.push({ estado: 'sin-dato', texto: 'No se pudieron revisar los vencimientos de préstamos.' });
+    } else {
+      itemsCierre.push(atrasados === 0
+        ? { estado: 'ok', texto: 'Sin préstamos atrasados.' }
+        : {
+            estado: 'pendiente',
+            texto: atrasados === 1
+              ? 'Hay 1 préstamo atrasado esperando devolución.'
+              : `Hay ${atrasados} préstamos atrasados esperando devolución.`,
+            vista: 'loans', etiquetaBoton: 'Ver préstamos'
+          });
+      if (vencenPronto > 0) {
+        itemsCierre.push({
+          estado: 'pendiente',
+          texto: vencenPronto === 1
+            ? '1 préstamo vence hoy o mañana: considera enviar el recordatorio.'
+            : `${vencenPronto} préstamos vencen hoy o mañana: considera enviar los recordatorios.`,
+          vista: 'reports', etiquetaBoton: 'Ir a Reportes'
+        });
+      }
+    }
+    // Solo se lista si hay apartados por vencer: obtenerReservasApartadas()
+    // devuelve [] tanto si no hay como si la consulta falló, y no se afirma
+    // un "todo tranquilo" que no se puede distinguir de un fallo.
+    if (reservasPorVencer.length > 0) {
+      itemsCierre.push({
+        estado: 'pendiente',
+        texto: reservasPorVencer.length === 1
+          ? '1 libro apartado vence en menos de 24 horas si no lo retiran.'
+          : `${reservasPorVencer.length} libros apartados vencen en menos de 24 horas si no los retiran.`,
+        vista: 'catalog', etiquetaBoton: 'Ver en el catálogo'
+      });
+    }
+    if (reporteHoy) {
+      itemsCierre.push({
+        estado: 'info',
+        texto: `Hoy: ${reporteHoy.totalPrestamos} préstamo(s), ${reporteHoy.totalDevoluciones} devolución(es) y ${reporteHoy.totalNuevosLectores} lector(es) nuevo(s).`
+      });
+    }
+    const diaCerrado = itemsCierre.every(i => i.estado === 'ok' || i.estado === 'info');
+
+    const iconosCierre = {
+      ok: 'fa-circle-check text-patrimonio-bosque dark:text-emerald-400',
+      pendiente: 'fa-triangle-exclamation text-amber-700 dark:text-amber-400',
+      'sin-dato': 'fa-circle-question text-stone-500 dark:text-stone-400',
+      info: 'fa-circle-info text-patrimonio-lago dark:text-sky-400'
+    };
+
+    const tarjetaCierre = html`
+        <div class="mb-5 catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5">
+          <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100 mb-1">Cierre del día</h3>
+          <p class="text-xs text-stone-500 dark:text-stone-400 mb-3">Lo que conviene revisar antes de terminar el turno.</p>
+          <ul class="space-y-2.5">
+            ${itemsCierre.map(i => html`
+              <li class="flex items-start gap-2.5 text-sm text-stone-700 dark:text-stone-200">
+                <i aria-hidden="true" class="fas ${iconosCierre[i.estado]} mt-0.5 shrink-0"></i>
+                <span class="flex-1">${i.texto}</span>
+                ${i.botonSync ? html`
+                  <button type="button" id="cierre-sync-btn" class="shrink-0 text-xs font-bold text-patrimonio-lago dark:text-amber-300 hover:underline">
+                    <i aria-hidden="true" class="fas fa-rotate-right mr-1"></i>Sincronizar ahora
+                  </button>` : ''}
+                ${i.vista ? html`
+                  <button type="button" data-quick-view="${i.vista}" class="quick-action-btn shrink-0 text-xs font-bold text-patrimonio-lago dark:text-amber-300 hover:underline">
+                    ${i.etiquetaBoton}<i aria-hidden="true" class="fas fa-arrow-right ml-1"></i>
+                  </button>` : ''}
+              </li>
+            `)}
+          </ul>
+          ${diaCerrado ? html`
+            <p class="mt-3 pt-3 border-t border-stone-200 dark:border-stone-700 text-sm font-bold text-patrimonio-bosque dark:text-emerald-400">
+              Todo cerrado por hoy. Hasta mañana.
+            </p>` : ''}
+        </div>`;
 
     const cards = [
       { label: 'Préstamos activos', value: stats.prestamos, icon: 'fa-right-left', color: 'text-patrimonio-lago' },
@@ -96,6 +215,8 @@ on conflict (id) do update set rol = 'admin';</pre>
         </div>
       </div>
 
+      ${tarjetaCierre}
+
       ${isBiblio ? html`
         <div class="mb-5 catalog-card elevate-hover bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-4 md:p-5 flex flex-col sm:flex-row sm:items-center gap-4">
           <div class="w-12 h-12 rounded-2xl bg-patrimonio-lago text-white flex items-center justify-center shrink-0">
@@ -108,16 +229,6 @@ on conflict (id) do update set rol = 'admin';</pre>
           <button type="button" data-quick-view="bibliomovil" class="quick-action-btn btn-madera text-white rounded-xl px-4 py-2.5 text-sm font-bold shrink-0">
             Ir al mapa <i aria-hidden="true" class="fas fa-arrow-right ml-1"></i>
           </button>
-        </div>` : ''}
-
-      ${reservasPorVencer.length > 0 ? html`
-        <div class="mb-5 bg-sky-50 dark:bg-sky-950/40 border border-sky-300 dark:border-sky-800 rounded-xl px-4 py-3" role="alert">
-          <p class="text-sm font-bold text-sky-900 dark:text-sky-200 mb-1">
-            <i aria-hidden="true" class="fas fa-clock mr-1.5"></i>Reservas a punto de vencer
-          </p>
-          <p class="text-xs text-sky-800 dark:text-sky-300 leading-relaxed">
-            Hay <strong>${reservasPorVencer.length}</strong> reserva(s) de libros apartados que expiran en menos de 24 horas si los lectores no los retiran. Considera enviarles un recordatorio.
-          </p>
         </div>` : ''}
 
       ${stats.error ? html`
@@ -178,6 +289,14 @@ on conflict (id) do update set rol = 'admin';</pre>
     });
 
     document.getElementById('dashboard-retry-stats')?.addEventListener('click', () => {
+      this.renderDashboard();
+    });
+
+    // Botón del Cierre del día: fuerza el reintento de la cola y repinta
+    // para mostrar el resultado (quedan pendientes o ya quedó todo arriba).
+    document.getElementById('cierre-sync-btn')?.addEventListener('click', async (ev) => {
+      ev.currentTarget.disabled = true;
+      await colaSync.reintentarPendientes(true);
       this.renderDashboard();
     });
 

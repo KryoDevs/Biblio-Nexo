@@ -451,6 +451,40 @@ await prueba('Dashboard: si las cifras no se pudieron cargar, avisa en vez de mo
   }
 });
 
+await prueba('Dashboard: el Cierre del día lista los pendientes del turno y se mantiene aunque fallen las cifras', async () => {
+  ui.currentView = 'dashboard';
+  await ui.renderDashboard();
+  let cont = document.getElementById('views-container');
+  assert(cont.textContent.includes('Cierre del día'), 'falta el bloque Cierre del día');
+  // Cada ítem dice su estado en texto completo (nunca solo por color/ícono):
+  // con los datos de prueba hay atrasados y vencimientos cercanos.
+  assert(cont.textContent.includes('atrasado'),
+    'el bloque debe nombrar los préstamos atrasados pendientes');
+  assert(cont.textContent.includes('Hoy: '),
+    'el bloque debe resumir la actividad del día (préstamos/devoluciones/lectores nuevos)');
+  assert(!cont.innerHTML.includes('undefined') && !cont.innerHTML.includes('NaN'),
+    'ningún ítem del cierre puede pintar valores sin dato');
+
+  // Y sigue ahí cuando las estadísticas fallan: cerrar el turno es justo
+  // cuando menos se puede depender de que todo lo demás cargue.
+  const original = db.obtenerEstadisticas;
+  db.obtenerEstadisticas = async () => ({
+    libros: 0, lectores: 0, prestamos: 0, devueltos: 0, noDevueltos: 0,
+    enEstante: 0, paradas: [], error: true
+  });
+  try {
+    await ui.renderDashboard();
+    cont = document.getElementById('views-container');
+    assert(cont.textContent.includes('Cierre del día'),
+      'el Cierre del día debe seguir visible aunque las cifras no se puedan cargar');
+    assert(cont.textContent.includes('No se pudo revisar si quedan operaciones guardadas'),
+      'si la cola no se puede leer, el ítem lo admite en vez de afirmar que todo está sincronizado');
+  } finally {
+    db.obtenerEstadisticas = original;
+    ui.currentView = 'dashboard';
+  }
+});
+
 await prueba('Bibliomóvil renderiza el plan, los accesos de navegación y escapa los nombres locales', async () => {
   const inicializarMapa = ui._montarMapaBibliomovil;
   const descriptorStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
