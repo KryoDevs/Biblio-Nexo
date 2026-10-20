@@ -41,8 +41,11 @@ export const reportes = {
             // traerTodasLasFilas pagina sola y ya aplica su propio límite de tiempo
             // por bloque (ESPERA_RESPALDO) — un catálogo que de verdad necesite
             // varias páginas puede tardar, legítimamente, más que ESPERA.
+            // Con orden estable por id: paginar sin ORDER BY puede repetir o
+            // saltar filas si el catálogo cambia entre página y página, y
+            // aquí cada fila repetida/saltada altera la suma en silencio.
             const stockRows = await traerTodasLasFilas((desde, hasta) =>
-                supabase.from('libros').select('stock').range(desde, hasta)
+                supabase.from('libros').select('stock').order('id', { ascending: true }).range(desde, hasta)
             );
             if (stockRows.error) throw stockRows.error;
 
@@ -62,7 +65,13 @@ export const reportes = {
                 paradas: paradasData || []
             };
         } catch (e) {
-            return { libros: 0, lectores: 0, prestamos: 0, devueltos: 0, noDevueltos: 0, enEstante: 0 };
+            // Antes este catch devolvía puros ceros sin ninguna marca (y ni
+            // siquiera la misma forma: faltaba `paradas`): sin conexión, el
+            // Dashboard mostraba "0 préstamos vencidos" como si fuera el dato
+            // real — un cero tranquilizador y falso. Ahora el fallo viaja
+            // marcado con `error: true` para que la pantalla avise que las
+            // cifras no se pudieron cargar, en vez de inventarlas.
+            return { libros: 0, lectores: 0, prestamos: 0, devueltos: 0, noDevueltos: 0, enEstante: 0, paradas: [], error: true };
         }
     },
 
@@ -83,16 +92,21 @@ export const reportes = {
         // No se envuelven en un conTiempoLimite extra por fuera: cada bloque ya
         // trae su propio límite de tiempo (ESPERA_RESPALDO), y un período grande
         // que de verdad necesite varias páginas puede tardar más que ESPERA.
+        // Las tres paginan con orden estable por id: sin ORDER BY, un cambio
+        // en las tablas entre página y página puede repetir o saltar filas,
+        // y el reporte contaría un período distinto al que se pidió.
         const [prestamosRes, devolucionesRes, lectoresRes, paradasRes] = await Promise.all([
             traerTodasLasFilas((rDesde, rHasta) => supabase.from('prestamos')
                 .select('id, fecha_prestamo, fecha_devolucion_esperada, fecha_devolucion_real, estado, parada_nombre, libros(id, titulo, autor), libro_titulo_archivado, libro_autor_archivado, lectores(id, nombre, rut)')
                 .gte('fecha_prestamo', desde)
                 .lte('fecha_prestamo', hasta)
+                .order('id', { ascending: true })
                 .range(rDesde, rHasta)),
             traerTodasLasFilas((rDesde, rHasta) => supabase.from('prestamos')
                 .select('id, fecha_devolucion_real, fecha_devolucion_esperada, libros(id, titulo)')
                 .gte('fecha_devolucion_real', desde)
                 .lte('fecha_devolucion_real', hasta)
+                .order('id', { ascending: true })
                 .range(rDesde, rHasta)),
             traerTodasLasFilas((rDesde, rHasta) => supabase.from('lectores')
                 .select('id, nombre, rut, created_at')
@@ -100,6 +114,7 @@ export const reportes = {
                 // el rango cubre exactamente los días de Chile solicitados.
                 .gte('created_at', `${desde}T00:00:00${desfaseChile(desde)}`)
                 .lte('created_at', `${hasta}T23:59:59${desfaseChile(hasta)}`)
+                .order('id', { ascending: true })
                 .range(rDesde, rHasta)),
             conTiempoLimite(supabase.rpc('estadisticas_paradas'), ESPERA).catch(() => ({ data: [] }))
         ]);

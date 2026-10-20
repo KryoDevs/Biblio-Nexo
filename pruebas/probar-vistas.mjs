@@ -424,6 +424,33 @@ for (const vista of ['dashboard', 'reports', 'catalog', 'users', 'loans', 'scann
   });
 }
 
+await prueba('Dashboard: si las cifras no se pudieron cargar, avisa en vez de mostrar ceros falsos', async () => {
+  // obtenerEstadisticas() marca el fallo con `error: true` (db/reportes.js):
+  // antes devolvía puros ceros y el Dashboard los mostraba como reales —
+  // "0 préstamos vencidos" sin conexión. Aquí se fuerza justo ese desenlace.
+  const original = db.obtenerEstadisticas;
+  db.obtenerEstadisticas = async () => ({
+    libros: 0, lectores: 0, prestamos: 0, devueltos: 0, noDevueltos: 0,
+    enEstante: 0, paradas: [], error: true
+  });
+  try {
+    ui.currentView = 'dashboard';
+    await ui.renderDashboard();
+    const cont = document.getElementById('views-container');
+    assert(cont.textContent.includes('No se pudieron cargar las cifras'),
+      'falta el aviso de que las cifras no se pudieron cargar');
+    assert(cont.querySelector('#dashboard-retry-stats'), 'falta el botón Reintentar');
+    assert(!cont.textContent.includes('Préstamos vencidos'),
+      'no deben pintarse las tarjetas de cifras (mostrarían un 0 falso)');
+    assert(!cont.querySelector('#fondo-chart'), 'no deben pintarse los gráficos sin datos');
+    assert(cont.querySelector('.quick-action-btn'),
+      'los accesos rápidos deben seguir disponibles aunque fallen las cifras');
+  } finally {
+    db.obtenerEstadisticas = original;
+    ui.currentView = 'dashboard';
+  }
+});
+
 await prueba('Bibliomóvil renderiza el plan, los accesos de navegación y escapa los nombres locales', async () => {
   const inicializarMapa = ui._montarMapaBibliomovil;
   const descriptorStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');

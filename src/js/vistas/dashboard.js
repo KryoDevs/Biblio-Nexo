@@ -55,6 +55,22 @@ export default {
           { view: 'catalog', label: 'Buscar en catálogo', icon: 'fa-magnifying-glass' }
         ];
 
+    // Los accesos rápidos se arman aparte: sirven igual cuando las cifras no
+    // se pudieron cargar (stats.error), y así el camino con error no duplica
+    // este bloque ni deja al personal sin forma de seguir trabajando.
+    const tarjetaAccesos = html`
+        <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5">
+          <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100 mb-4">Accesos rápidos</h3>
+          <div class="space-y-2">
+            ${quickActions.map(a => html`
+              <button data-quick-view="${a.view}" class="quick-action-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-stone-300 dark:border-stone-600 text-sm font-bold text-stone-700 dark:text-stone-200 hover:border-patrimonio-madera hover:text-patrimonio-madera dark:hover:text-amber-400 transition">
+                <i aria-hidden="true" class="fas ${a.icon} w-4 text-center"></i>
+                <span>${a.label}</span>
+              </button>
+            `)}
+          </div>
+        </div>`;
+
     container.innerHTML = html`
       ${this.desajusteDeRol ? html`
         <div class="mb-5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-xl px-4 py-3" role="alert">
@@ -104,6 +120,22 @@ on conflict (id) do update set rol = 'admin';</pre>
           </p>
         </div>` : ''}
 
+      ${stats.error ? html`
+        <div class="mb-5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-xl px-4 py-3" role="alert">
+          <p class="text-sm font-bold text-amber-900 dark:text-amber-200 mb-1">
+            <i aria-hidden="true" class="fas fa-triangle-exclamation mr-1.5"></i>No se pudieron cargar las cifras
+          </p>
+          <p class="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+            Puede ser un problema momentáneo de conexión. El resto del sistema sigue disponible:
+            puedes prestar, devolver y buscar con los accesos de abajo mientras tanto.
+          </p>
+          <button type="button" id="dashboard-retry-stats" class="mt-2.5 text-xs font-bold text-patrimonio-lago dark:text-amber-300 hover:underline">
+            <i aria-hidden="true" class="fas fa-rotate-right mr-1"></i> Reintentar
+          </button>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+          ${tarjetaAccesos}
+        </div>` : html`
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         ${cards.map(c => html`
           <div class="catalog-card elevate-hover bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5">
@@ -137,23 +169,20 @@ on conflict (id) do update set rol = 'admin';</pre>
           <div id="prestamos-legend" class="divide-y divide-stone-100 dark:divide-stone-800"></div>
         </div>
 
-        <div class="catalog-card bg-patrimonio-card dark:bg-stone-900 rounded-2xl shadow-sm border border-stone-300 dark:border-stone-600 p-5">
-          <h3 class="font-serif font-semibold text-lg text-stone-900 dark:text-stone-100 mb-4">Accesos rápidos</h3>
-          <div class="space-y-2">
-            ${quickActions.map(a => html`
-              <button data-quick-view="${a.view}" class="quick-action-btn w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-stone-300 dark:border-stone-600 text-sm font-bold text-stone-700 dark:text-stone-200 hover:border-patrimonio-madera hover:text-patrimonio-madera dark:hover:text-amber-400 transition">
-                <i aria-hidden="true" class="fas ${a.icon} w-4 text-center"></i>
-                <span>${a.label}</span>
-              </button>
-            `)}
-          </div>
-        </div>
-      </div>
+        ${tarjetaAccesos}
+      </div>`}
     `;
 
     container.querySelectorAll('.quick-action-btn').forEach(btn => {
       btn.addEventListener('click', () => this.switchView(btn.dataset.quickView));
     });
+
+    document.getElementById('dashboard-retry-stats')?.addEventListener('click', () => {
+      this.renderDashboard();
+    });
+
+    // Sin cifras no hay gráficos que pintar: el aviso de arriba ya lo explica.
+    if (stats.error) return;
 
     // Anillo 1 — las copias son partes de un mismo total, así que la proporción
     // tiene sentido: cada ejemplar está en el estante o está prestado.
