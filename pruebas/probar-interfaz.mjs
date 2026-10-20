@@ -363,6 +363,19 @@ comprobar('asignar_rol acepta el rol bibliomóvil',
   /p_rol not in \('admin', 'librero', 'bibliomovil'\)/.test(asignarRolSql));
 const inviteTs = fs.readFileSync('supabase/functions/invitar-personal/index.ts', 'utf8');
 comprobar('invitar-personal acepta el rol bibliomóvil', /rol !== "bibliomovil"/.test(inviteTs));
+
+// El respaldo automático (Edge Function, se ejecuta en Deno — no se puede
+// correr en esta suite) leía cada tabla con un select("*") a secas: PostgREST
+// corta en 1000 filas sin avisar, así que el respaldo diario habría quedado
+// truncado en silencio en cuanto una tabla pasara de mil filas, con la
+// bitácora diciendo "ok" igual. Esta guardia estática (mismo estilo que las
+// dos de arriba, para lo que no se puede ejecutar aquí) impide que esa forma
+// de leer vuelva: toda tabla debe pasar por la lectura paginada.
+const respaldoTs = fs.readFileSync('supabase/functions/respaldo-automatico/index.ts', 'utf8');
+comprobar('el respaldo automático lee cada tabla paginando (PostgREST corta en 1000 filas en silencio)',
+  /\.range\(\s*desde/.test(respaldoTs) &&
+  /traerTablaCompleta\(supabase, tabla\)/.test(respaldoTs) &&
+  !/await supabase\.from\(tabla\)\.select\("\*"\)/.test(respaldoTs));
 comprobar('existe la migración de dominio del rol bibliomóvil',
   fs.existsSync('supabase/migrations/029_rol_bibliomovil.sql'));
 
@@ -441,9 +454,14 @@ comprobar('main.js importa colaSync desde db.js',
 comprobar('main.js reintenta la cola pendiente al iniciar sesión y en cada ciclo de sincronización',
   /iniciarSincronizacionEnSegundoPlano[\s\S]{0,400}colaSync\.reintentarPendientes\(\)/.test(mainJs));
 
-comprobar('db.js se suscribe él mismo al evento "online" para reintentar la cola ' +
-  '(no depende de que main.js se acuerde de hacerlo)',
-  /addEventListener\(\s*['"]online['"][\s\S]{0,60}colaSync\.reintentarPendientes\(\)/.test(dbJs));
+// Desde la auditoría del 2026-10-20 el reintento al volver la conexión va
+// FORZADO (`true`): sin eso, una operación cuya espera exponencial aún no
+// vencía seguía esperando hasta 30 minutos con la red ya de vuelta. La
+// comprobación sigue verificando la misma intención original (db.js se
+// suscribe solo al evento "online"), ahora con el forzado incluido.
+comprobar('db.js se suscribe él mismo al evento "online" para reintentar la cola FORZANDO el turno ' +
+  '(no depende de que main.js se acuerde de hacerlo, ni espera a que venza la espera exponencial)',
+  /addEventListener\(\s*['"]online['"][\s\S]{0,60}colaSync\.reintentarPendientes\(true\)/.test(dbJs));
 
 comprobar('la interfaz distingue el resultado "encolado" del éxito normal en los catorce lugares que ' +
   'escriben (renovar, devolver x2, prestar x2, reservar, y las cuatro altas de libro/lector — la ' +

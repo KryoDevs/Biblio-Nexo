@@ -198,7 +198,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (window.__showCriticalError) {
             window.__showCriticalError(err.message || 'Fallo crítico en el inicio. Verifique su conexión a internet.');
         } else {
-            document.body.innerHTML = '<div class="p-10 text-center text-red-600 font-bold">Fallo crítico en el inicio. Verifique la consola de red.</div>';
+            document.body.innerHTML = '<div class="p-10 text-center text-rose-700 font-bold">No se pudo iniciar el sistema. Recargue la página; si el problema sigue, avise a la persona encargada.</div>';
         }
     }
 });

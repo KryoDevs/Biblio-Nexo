@@ -10,6 +10,23 @@
 
 import { supabase, conTiempoLimite, ESPERA, hoyEnChile, traerTodasLasFilas } from './compartido.js';
 
+/**
+ * Suma días a una fecha 'YYYY-MM-DD' y devuelve otra en el mismo formato.
+ *
+ * Se calcula en UTC puro (mediodía UTC + setUTCDate) a propósito: la fecha
+ * de entrada ya viene en horario de Chile (hoyEnChile), así que lo único que
+ * falta es aritmética de calendario. La versión anterior creaba el Date en
+ * la hora LOCAL del equipo y volvía con toISOString() (UTC): en un equipo
+ * con la zona horaria mal puesta —o fuera de Chile— el límite "por vencer"
+ * se corría un día en silencio. En UTC puro el resultado no depende de
+ * cómo esté configurado el equipo del mesón.
+ */
+function sumarDiasISO(fechaISO, dias) {
+    const fecha = new Date(`${fechaISO}T12:00:00Z`);
+    fecha.setUTCDate(fecha.getUTCDate() + dias);
+    return fecha.toISOString().split('T')[0];
+}
+
 export const prestamos = {
     /**
      * Préstamos activos, filtrados y paginados.
@@ -40,9 +57,7 @@ export const prestamos = {
 
     async obtenerPrestamos(filtro = 'todos', pagina = 0, porPagina = 25, diasAviso = 3) {
         const hoy = hoyEnChile();
-        const limite = new Date(`${hoy}T12:00:00`);
-        limite.setDate(limite.getDate() + diasAviso);
-        const hastaAviso = limite.toISOString().split('T')[0];
+        const hastaAviso = sumarDiasISO(hoy, diasAviso);
 
         const campos = 'id, fecha_prestamo, fecha_devolucion_esperada, estado, renovaciones, parada_nombre, parada_lat, parada_lng, libros(id, titulo, stock), lectores(id, nombre, rut, email, telefono)';
 
@@ -95,13 +110,12 @@ export const prestamos = {
      */
     async obtenerPendientesDeAviso(diasAviso = 3) {
         const hoy = hoyEnChile();
-        const limite = new Date(`${hoy}T12:00:00`);
-        limite.setDate(limite.getDate() + diasAviso);
+        const hastaAviso = sumarDiasISO(hoy, diasAviso);
 
         const { data, error } = await conTiempoLimite(supabase.from('prestamos')
             .select('id, fecha_devolucion_esperada, renovaciones, parada_nombre, libros(id, titulo), lectores(id, nombre, rut, email, telefono)')
             .eq('estado', 'activo')
-            .lte('fecha_devolucion_esperada', limite.toISOString().split('T')[0])
+            .lte('fecha_devolucion_esperada', hastaAviso)
             .order('fecha_devolucion_esperada')
             .limit(500), ESPERA);
         if (error) throw error;

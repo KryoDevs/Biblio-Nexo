@@ -18,9 +18,15 @@ export const respaldos = {
         const tablas = ['libros', 'lectores', 'prestamos', 'reservas', 'parametros', 'usuarios'];
         const respaldo = { generado: new Date().toISOString(), version: 1, tablas: {} };
 
+        // Orden estable al paginar, como ya hace obtenerTodosActivosSinPaginar
+        // (db/prestamos.js): sin ORDER BY, Postgres no garantiza el mismo
+        // orden entre páginas si la tabla cambia mientras se exporta, y el
+        // respaldo podría repetir o saltarse filas en silencio. Todas estas
+        // tablas tienen `id` salvo `parametros`, cuya llave es `clave`.
+        const ordenDe = tabla => (tabla === 'parametros' ? 'clave' : 'id');
         for (const tabla of tablas) {
             const { data, error } = await traerTodasLasFilas((desde, hasta) =>
-                supabase.from(tabla).select('*').range(desde, hasta)
+                supabase.from(tabla).select('*').order(ordenDe(tabla), { ascending: true }).range(desde, hasta)
             );
             if (error) throw new Error(`No se pudo respaldar la tabla ${tabla}: ${error.message}`);
             respaldo.tablas[tabla] = data || [];

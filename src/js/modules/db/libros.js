@@ -73,8 +73,14 @@ export const libros = {
             if (esBibliomovil === true) q = q.eq('es_bibliomovil', true);
             else if (esBibliomovil === false) q = q.or('es_bibliomovil.is.null,es_bibliomovil.is.false');
 
-            if (filtroStock === 'disponibles') q = q.gt('ejemplares_disponibles', 0);
-            else if (filtroStock === 'prestados') q = q.eq('ejemplares_disponibles', 0);
+            // `stock`, la columna real de la tabla. Este respaldo filtraba por
+            // `ejemplares_disponibles`, que no existe como columna en ninguna
+            // migración: con un filtro de stock activo, PostgREST devolvía un
+            // error 42703 y el catálogo de respaldo fallaba entero. Es el
+            // gemelo del error que ya se corrigió en persistencia.js
+            // (buscarLibrosLocales) — quedó vivo solo en esta ruta.
+            if (filtroStock === 'disponibles') q = q.gt('stock', 0);
+            else if (filtroStock === 'prestados') q = q.eq('stock', 0);
 
             const limpia = limpiarBusqueda(busqueda);
 

@@ -1223,6 +1223,83 @@ def main():
 
             como(uid_librero)
 
+            # --- Idempotencia de circulación (031) ---
+            # La clave de operación viaja desde el primer intento y se reusa
+            # en cada reintento de la cola sin conexión (db.js). Aquí se
+            # comprueba el contrato del servidor: repetir la MISMA operación
+            # (misma clave) devuelve el resultado original sin aplicarla dos
+            # veces; una clave distinta SÍ es una operación nueva. Se siembra
+            # un libro y un lector propios para no depender del estado que
+            # dejaron las secciones anteriores.
+            print("\n  Idempotencia de circulación (clave de operación, 031):")
+
+            CLAVE_P = '11110000-1111-4111-8111-111111111111'
+            CLAVE_R = '22220000-2222-4222-8222-222222222222'
+            CLAVE_D = '33330000-3333-4333-8333-333333333333'
+            CLAVE_P2 = '44440000-4444-4444-8444-444444444444'
+            ISBN_031 = '9789560000310'
+            RUT_031 = '22222222-2'
+            LIBRO_031 = f"(select id from public.libros where isbn = '{ISBN_031}')"
+            ACTIVO_031 = (f"(select id from public.prestamos where estado = 'activo' "
+                          f"and libro_id = {LIBRO_031} order by id limit 1)")
+
+            def sembrar_idempotencia():
+                correr(srv, f"""
+                  insert into public.libros (isbn, titulo, autor, stock, copias_totales)
+                  values ('{ISBN_031}', 'Libro de la 031', 'Autor de Prueba', 2, 2);
+                  insert into public.lectores (rut, nombre, email, telefono)
+                  values ('{RUT_031}', 'Lector de la 031', 'l031@correo.cl', '56911111111');
+                """)
+            prueba("031: siembra libro y lector propios", sembrar_idempotencia)
+
+            def prestar_con_clave_no_duplica():
+                sql = (f"select prestamo_id from public.prestar_libro({LIBRO_031}, '{RUT_031}', "
+                       f"null, null, null, '{CLAVE_P}');")
+                id1 = correr(srv, sql).split('\n')[2].strip()
+                id2 = correr(srv, sql).split('\n')[2].strip()
+                assert id1 and id1 == id2, f"la repetición debió devolver el mismo préstamo ({id1} vs {id2})"
+                stock = correr(srv, f"select stock from public.libros where isbn = '{ISBN_031}';").split('\n')[2].strip()
+                assert stock == '1', f"el stock debió bajar una sola vez (2 → 1), se leyó {stock}"
+                activos = correr(srv, f"select count(*) from public.prestamos where libro_id = {LIBRO_031} and estado = 'activo';").split('\n')[2].strip()
+                assert activos == '1', f"debía haber un solo préstamo activo, se contaron {activos}"
+            prueba("031: prestar_libro() con la misma clave no crea un segundo préstamo", prestar_con_clave_no_duplica)
+
+            def renovar_con_clave_no_repite():
+                sql = f"select nueva_fecha, renovaciones_usadas from public.renovar_prestamo({ACTIVO_031}, '{CLAVE_R}');"
+                r1 = correr(srv, sql).split('\n')[2].strip()
+                r2 = correr(srv, sql).split('\n')[2].strip()
+                assert r1 == r2, f"la repetición debió devolver el mismo resultado ({r1} vs {r2})"
+                ren = correr(srv, f"select renovaciones from public.prestamos where id = {ACTIVO_031};").split('\n')[2].strip()
+                assert ren == '1', f"las renovaciones debían quedar en 1, se leyó {ren}"
+            prueba("031: renovar_prestamo() con la misma clave no renueva dos veces", renovar_con_clave_no_repite)
+
+            def devolver_con_clave_no_es_error():
+                # El id se captura UNA vez: tras la primera devolución ya no
+                # hay ningún préstamo "activo" que la subconsulta ACTIVO_031
+                # pueda encontrar para la segunda llamada (devolveria NULL y
+                # la prueba fallaría por "no encontrado", no por lo que se
+                # quiere comprobar aquí).
+                prestamo_id = correr(srv, f"select {ACTIVO_031};").split('\n')[2].strip()
+                sql = f"select public.devolver_prestamo({prestamo_id}, '{CLAVE_D}');"
+                correr(srv, sql)
+                correr(srv, sql)  # la repetición de la misma devolución no debe fallar
+                stock = correr(srv, f"select stock from public.libros where isbn = '{ISBN_031}';").split('\n')[2].strip()
+                assert stock == '2', f"el stock debió volver una sola vez (a 2), se leyó {stock}"
+                # Sin clave (o con otra), el comportamiento de siempre se conserva.
+                debe_fallar(f"select public.devolver_prestamo({prestamo_id});",
+                            "ya fue devuelto")
+            prueba("031: devolver_prestamo() con la misma clave no falla ni suma stock dos veces", devolver_con_clave_no_es_error)
+
+            def clave_distinta_es_otra_operacion():
+                correr(srv, f"select prestamo_id from public.prestar_libro({LIBRO_031}, '{RUT_031}', "
+                            f"null, null, null, '{CLAVE_P2}');")
+                stock = correr(srv, f"select stock from public.libros where isbn = '{ISBN_031}';").split('\n')[2].strip()
+                assert stock == '1', f"otra clave debía prestarse de verdad (stock 1), se leyó {stock}"
+                correr(srv, f"select public.devolver_prestamo({ACTIVO_031});")
+            prueba("031: una clave distinta sí es una operación nueva", clave_distinta_es_otra_operacion)
+
+            como(uid_librero)
+
         finally:
             if srv:
                 srv.cleanup()

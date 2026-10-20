@@ -78,7 +78,7 @@ declarar bajo la Ley 21.719. Ya existe una bitácora propia: migración 009,
     npm run build && npm run verify:build        → empaquetado Vite + verificación de manifest/recursos
     python3 pruebas/verificar_consolidacion.py   → regla de la consolidación (58 funciones)
     python3 pruebas/verificar_llamadas_rpc.py    → correspondencia entre llamadas JS y firmas SQL
-    python3 pruebas/probar-migraciones.py        → 212 comprobaciones sobre PostgreSQL real
+    python3 pruebas/probar-migraciones.py        → 232 comprobaciones sobre PostgreSQL real
     python3 pruebas/probar_librero.py            → 130 comprobaciones de circulación y RLS en PostgreSQL real
 
 Las dos últimas necesitan `pip install pgserver "psycopg[binary]"` la primera vez.
