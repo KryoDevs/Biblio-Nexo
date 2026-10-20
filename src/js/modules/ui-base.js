@@ -22,7 +22,8 @@ export function loadChartJs() {
     // Archivo local: la política de seguridad de contenido bloquea los CDN
     // externos, y así el gráfico también funciona sin depender de un tercero.
     // Se carga solo cuando se abre una vista con gráficos, no en el arranque.
-    script.src = 'vendor/js/chart.umd.js';
+    // Ruta absoluta desde la raíz, como el resto de vendor (ver scanner.js).
+    script.src = '/vendor/js/chart.umd.js';
     script.onload = () => resolve();
     script.onerror = () => reject(new Error('No se pudo cargar Chart.js'));
     document.head.appendChild(script);

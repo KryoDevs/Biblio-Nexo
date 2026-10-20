@@ -39,7 +39,11 @@ function cargarLibreria() {
   if (promesaLibreria) return promesaLibreria;
   promesaLibreria = new Promise((resolver, rechazar) => {
     const script = document.createElement('script');
-    script.src = 'vendor/js/html5-qrcode.min.js';
+    // Ruta absoluta desde la raíz, como el resto de los recursos vendor
+    // (index.html, qr.js): la relativa solo funcionaba porque las dos
+    // páginas que usan la cámara viven en la raíz; servida la app bajo
+    // cualquier subruta, la librería daría 404 y la cámara no encendería.
+    script.src = '/vendor/js/html5-qrcode.min.js';
     script.onload = () => resolver();
     script.onerror = () => {
       promesaLibreria = null; // permite reintentar

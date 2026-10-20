@@ -164,11 +164,20 @@ export async function getUserRole(user) {
     const email = typeof user === 'string' ? null : user?.email;
 
     try {
-        const { data, error } = await supabase
-            .from('usuarios')
-            .select('rol')
-            .eq('id', userId)
-            .maybeSingle(); // maybeSingle no lanza error cuando no hay fila
+        // Con tiempo límite, como el resto de este archivo: esta consulta
+        // corre durante el arranque (renderShell la espera para pintar el
+        // menú), así que un cuelgue aquí dejaba la aplicación pegada en la
+        // pantalla de carga sin ningún aviso. Si se agota el tiempo, cae al
+        // catch de abajo y sigue con el rol de menor privilegio.
+        const { data, error } = await conTiempoLimite(
+            supabase
+                .from('usuarios')
+                .select('rol')
+                .eq('id', userId)
+                .maybeSingle(), // maybeSingle no lanza error cuando no hay fila
+            15000,
+            'La consulta del rol tardó demasiado en responder.'
+        );
 
         if (error) {
             console.warn('No se pudo leer el rol desde la tabla usuarios:', error.message);

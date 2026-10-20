@@ -506,13 +506,21 @@ export default {
       };
       bellBtnM.addEventListener('click', (e) => { e.stopPropagation(); toggleNotifsM(); });
       document.getElementById('notificaciones-close-mobile')?.addEventListener('click', toggleNotifsM);
-      // Cerrar al tocar fuera
-      document.addEventListener('click', (e) => {
+      // Cerrar al tocar fuera. Igual que la versión de escritorio: el
+      // manejador se guarda y se retira antes de volver a ponerlo — esta
+      // versión agregaba uno nuevo (anónimo, imposible de retirar) en cada
+      // renderShell(), así que se iban apilando escuchadores sobre
+      // `document` apuntando a paneles ya reemplazados.
+      if (this._notifMobileOutsideClickHandler) {
+        document.removeEventListener('click', this._notifMobileOutsideClickHandler);
+      }
+      this._notifMobileOutsideClickHandler = (e) => {
         if (!notifPanelM.classList.contains('opacity-0') && !bellBtnM.contains(e.target) && !notifPanelM.contains(e.target)) {
           notifPanelM.classList.add('opacity-0', 'invisible', 'scale-95');
           notifPanelM.classList.remove('opacity-100', 'scale-100');
         }
-      });
+      };
+      document.addEventListener('click', this._notifMobileOutsideClickHandler);
     }
 
     const sidebar = document.getElementById('sidebar');
