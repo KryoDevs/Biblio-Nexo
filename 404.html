@@ -34,6 +34,12 @@
       form-action 'self';
       object-src 'none'">
 
+    <!-- `noindex` y nada más. Sin `rel="canonical"` ni etiquetas Open Graph a
+         propósito: un `canonical` le pide al buscador que indexe esta URL como
+         la versión buena de otra página, que es lo contrario de lo que dice la
+         línea de abajo, y una tarjeta para compartir invites a que la enlacen.
+         Una 404 no tiene contenido que posicionar: su trabajo es devolver a
+         alguien que ya está perdido. -->
     <meta name="robots" content="noindex">
     <meta name="description" content="La página que buscas no existe o se movió. Volvé al inicio de BiblioNexo.">
 

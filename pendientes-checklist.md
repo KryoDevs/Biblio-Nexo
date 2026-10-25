@@ -4,9 +4,19 @@ Checklist de trabajo, no documentación permanente del proyecto (esa vive en
 `PROMPT-produccion.md` y `ESTADO.md`, dentro del repo). Pensada para ir
 tachando a medida que se resuelve cada cosa.
 
-Última actualización: 22 de agosto de 2026 (sexta ronda del día) —
-terminada la división de `ui-base.js` que quedaba pendiente de la ronda
-anterior. Ver el detalle en ✅ abajo. Ronda anterior (la de la papelera):
+Última actualización: 25 de octubre de 2026 — cerradas seis de las siete
+señales públicas que encontró la auditoría «veinte señales de un sitio
+vibecodeado»: `canonical`, Open Graph con una imagen de 1200×630 propia (la
+anterior era relativa y no la cargaba ninguna red social), `robots.txt`,
+`sitemap.xml`, `llms.txt`, `<title>` distinto por vista, el `<h1>` que el área
+de trabajo no tenía y el mapa de fuentes huérfano de Chart.js. Lo único que
+sigue abierto de esa lista es el dominio propio, que no es código: ⚫ abajo.
+Cómo regenerar la imagen, las decisiones y la forma de cambiar el origen, en
+`docs/despliegue/031-senales-publicas-2026-10.md`.
+
+Ronda anterior — 22 de agosto de 2026 (sexta ronda del día): terminada la
+división de `ui-base.js` que quedaba pendiente de la ronda anterior. Ver el
+detalle en ✅ abajo. Ronda previa (la de la papelera):
 aclaraste que la idea era más específica: no eliminar el libro entero (para
 bajar de cantidad ya servía el campo "Ejemplares en total" del modal
 Editar), sino poder **restaurar un libro si se eliminó por accidente**,
@@ -35,10 +45,32 @@ quedaron resueltas hoy, ver ✅ abajo.
 
 - [ ] **Fase 2: integración con Aleph 500** — el siguiente bloque de trabajo
       real, cuando decidas empezarlo (`PROMPT-produccion.md` §7).
+- [ ] **Datos estructurados (JSON-LD)** — señal 8 de la auditoría de octubre de
+      2026: ni un solo `application/ld+json` en el proyecto. Un bloque
+      `Library` / `GovernmentOrganization` con nombre, dirección, teléfono,
+      horarios y el `sameAs` del catálogo de la Dibam, en `index.html` y
+      `privacidad.html`. Media hora, y es lo que permite que un buscador
+      responda con una ficha en vez de solo un enlace.
+- [ ] **`favicon.ico` e íconos más livianos** — señal 14. Hay PNG de 192 y 512,
+      pero el de 512 pesa 572 KB y viaja en el *precache* de la PWA; tampoco
+      hay `.ico`, así que algunos navegadores piden `/favicon.ico` y reciben
+      la 404 propia. Bajarlo a ~60 KB ahorra medio megabyte en la instalación.
+- [ ] **Consola abierta en la URL publicada** — señal 19. El build, las 34
+      pruebas y el borrado del mapa huérfano de Chart.js están verdes, pero
+      nadie ha mirado la consola del navegador en producción. Hay que hacerlo
+      una vez, con sesión iniciada y en el teléfono.
 ---
 
 ## ⚫ No es código, pero bloquea el cierre del proyecto
 
+- [ ] **Dominio propio del municipio** (señal 1 de la auditoría de octubre de
+      2026). El sistema se sigue compartiendo por el alias
+      `biblio-nexo-fuckingkrio.vercel.app`, que no cabe en un acta ni en un
+      correo institucional. Cuando esté asignado: agregarlo en Vercel,
+      apuntar su DNS y definir `VITE_ORIGEN_PUBLICO=https://<dominio>` en las
+      variables de entorno del proyecto. Nada más — el `canonical`, la imagen
+      para compartir, el `sitemap.xml` y el `robots.txt` se regeneran solos con
+      el origen nuevo (ver `docs/despliegue/031-senales-publicas-2026-10.md`).
 - [ ] Designar Delegado de Protección de Datos y Encargado de
       Ciberseguridad, y firmar el encargo de tratamiento — **antes del 1 de
       diciembre de 2026** (Ley 21.719).
@@ -49,6 +81,25 @@ quedaron resueltas hoy, ver ✅ abajo.
 
 ## ✅ Ya verificado en esta ronda (referencia, no acción)
 
+- [x] **Señales públicas del sitio** (auditoría de octubre de 2026, señales
+      5, 7, 10, 11, 12, 13, 15 y 18). Canonical y Open Graph absolutos en
+      `/` y `/privacidad.html`, con `og:image:alt`, dimensiones y
+      `twitter:card`; imagen para compartir nueva (1200×630, JPG de 132 KB
+      compuesta desde el ícono de la app). `robots.txt`, `sitemap.xml` y
+      `llms.txt` generados en el build desde `vite.config.js`, con una sola
+      constante de origen (`VITE_ORIGEN_PUBLICO`) para las siete cosas a la vez
+      y sin bloquear ni a las IA ni los `.css`/`.js`. `document.title` cambia
+      con la vista (`_tituloDocumento` en `ui-router.js`) y la franja de título
+      pasó de `<h2>` a `<h1>`. Se borró el `sourceMappingURL` que
+      `vendor/js/chart.umd.js` anunciaba sin `.map` que señalar.
+      `404.html` y `escaneo-remoto.html` quedaron sin canonical a propósito —
+      las dos con `noindex`, y la segunda con un token de un solo uso en la
+      URL; los comentarios de cada archivo lo dicen para que nadie lo «mejore»
+      después. Nueve comprobaciones nuevas en `pruebas/verificar-build.mjs` y
+      seis en `src/js/modules/__tests__/ui-router.test.js`: `npm run build`,
+      `npm run verify:build`, `npm test` (34/34), `npm run test:legacy`
+      (112 + 118 + 13 + 43 + 48 + 18) y las tres verificaciones de Python,
+      todas en verde.
 - [x] **División de `ui-base.js` terminada** — bajó de 3035 a 1626 líneas.
       Las cuatro vistas que se solapaban con `js/vistas/` (CATÁLOGO
       internamente, más lo que en realidad eran tres vistas separadas:

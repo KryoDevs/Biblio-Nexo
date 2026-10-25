@@ -54,6 +54,8 @@ Las cabeceras de producción se definen en `vercel.json`. La cámara y la ubicac
 
 Después de aplicar cambios, revisa en **Administración → Diagnóstico / Cumplimiento** y prueba las operaciones con cuentas reales de `admin` y `librero`. Los verificadores SQL y las pruebas automatizadas están documentados en [MIGRACIONES.md](MIGRACIONES.md).
 
+La página pública (`/`) y la de privacidad también declaran su dirección canónica, su vista previa para compartir y su política de rastreo (`robots.txt`, `sitemap.xml`, `llms.txt`, generados al construir). Si el sitio cambia de dominio, define `VITE_ORIGEN_PUBLICO=https://<dominio>` en las variables de entorno del proyecto en Vercel y vuelve a desplegar: no hay que editar ningún HTML. El detalle, en [docs/despliegue/031-senales-publicas-2026-10.md](docs/despliegue/031-senales-publicas-2026-10.md).
+
 ## 5. Datos configurables
 
 La dirección y el teléfono que se agregan a los avisos están en `src/js/config.js`, sección `BIBLIOTECA`; confirma que sean los datos vigentes antes de utilizar el sistema.

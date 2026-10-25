@@ -61,15 +61,45 @@
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <meta name="description" content="Sistema de gestión de préstamos de la Biblioteca Pública Municipal de Futrono.">
 
+    <!-- Dirección canónica: la URL que el buscador debe guardar como la buena
+         de esta página. Hoy `index.html` y `/` sirven lo mismo y ambas pueden
+         aparecer enlazadas desde fuera (el manifest apunta a `/index.html`);
+         sin esta etiqueta, eso son dos contenidos duplicados. La alternativa
+         —etiqueta `robots` con `noindex` en `/index.html`— cortaría de raíz el
+         acceso desde un buscador, que es justo lo que se quiere evitar, y
+         `robots.txt` no sirve para esto: un archivo bloqueado no se quita del
+         índice, solo deja de leerse.
+
+         Los tokens de estas tres líneas los sustituye `senalesPublicas()` en
+         vite.config.js al construir; ver ahí por qué el origen tiene que ser
+         absoluto y cómo se cambia cuando el municipio entregue su dominio. -->
+    <link rel="canonical" href="__ORIGEN__/">
+
     <!-- Vista previa al compartir el enlace (por ejemplo, en WhatsApp o Slack
          entre personal municipal). No afecta el buscador: eso ya lo cubre la
-         etiqueta <title> y "description" de arriba. -->
+         etiqueta <title> y "description" de arriba.
+
+         OJO: `og:url`, `og:image` y el `canonical` de arriba llevan URL
+         ABSOLUTA a propósito. Open Graph no acepta rutas relativas: con
+         `content="icono-512x512.png"` como estaba hasta octubre de 2026, la
+         tarjeta de vista previa no salía en ninguna parte — el botón de
+         compartir de WhatsApp, Slack o Facebook busca el recurso contra su
+         propio dominio, no contra el nuestro. -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="BiblioNexo">
     <meta property="og:locale" content="es_CL">
+    <meta property="og:url" content="__ORIGEN__/">
     <meta property="og:title" content="BiblioNexo — Biblioteca Municipal de Futrono">
     <meta property="og:description" content="Sistema de gestión de préstamos de la Biblioteca Pública Municipal de Futrono.">
-    <meta property="og:image" content="icono-512x512.png">
+    <meta property="og:image" content="__IMAGEN_SOCIAL__">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Tarjeta de BiblioNexo: el nombre del sistema y su resumen, «Préstamos, catálogo, reservas y Bibliomóvil, en un solo sistema», junto al ícono del libro tallado.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="BiblioNexo — Biblioteca Municipal de Futrono">
+    <meta name="twitter:description" content="Sistema de gestión de préstamos de la Biblioteca Pública Municipal de Futrono.">
+    <meta name="twitter:image" content="__IMAGEN_SOCIAL__">
+    <meta name="twitter:image:alt" content="Tarjeta de BiblioNexo: el nombre del sistema y su resumen, «Préstamos, catálogo, reservas y Bibliomóvil, en un solo sistema», junto al ícono del libro tallado.">
 
     <link rel="icon" href="icono-192x192.png" type="image/png" sizes="192x192">
     <link rel="icon" href="icono-512x512.png" type="image/png" sizes="512x512">

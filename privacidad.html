@@ -36,6 +36,34 @@
 
     <meta name="description" content="Política de privacidad y términos de uso de BiblioNexo, el sistema de la Biblioteca Pública Municipal de Futrono.">
 
+    <!-- Esta es la única página del proyecto pensada para que la lea alguien
+         que no trabaja en la biblioteca, así que es la que necesita de verdad
+         ser encontrada y citada: dirección canónica propia y su tarjeta de
+         vista previa al compartir el enlace. Los tokens los resuelve
+         `senalesPublicas()` en vite.config.js al construir — allí la
+         explicación de por qué van absolutos.
+
+         Las otras tres páginas del sitio no llevan nada de esto a propósito:
+         `404.html` y `escaneo-remoto.html` traen `noindex` (un `canonical`
+         contradice un `noindex` y además la segunda lleva un token de un solo
+         uso en la URL, que no debe terminar en el caché de ningún robot). -->
+    <link rel="canonical" href="__ORIGEN__/privacidad.html">
+
+    <meta property="og:type" content="article">
+    <meta property="og:site_name" content="BiblioNexo">
+    <meta property="og:locale" content="es_CL">
+    <meta property="og:url" content="__ORIGEN__/privacidad.html">
+    <meta property="og:title" content="Política de Privacidad y Términos — BiblioNexo">
+    <meta property="og:description" content="Qué datos personales trata BiblioNexo, con qué finalidad, por cuánto tiempo y cómo ejercer los derechos.">
+    <meta property="og:image" content="__IMAGEN_SOCIAL__">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:alt" content="Tarjeta de BiblioNexo: el nombre del sistema y su resumen, «Préstamos, catálogo, reservas y Bibliomóvil, en un solo sistema», junto al ícono del libro tallado.">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Política de Privacidad y Términos — BiblioNexo">
+    <meta name="twitter:description" content="Qué datos personales trata BiblioNexo, con qué finalidad, por cuánto tiempo y cómo ejercer los derechos.">
+    <meta name="twitter:image" content="__IMAGEN_SOCIAL__">
+
     <link rel="icon" href="icono-192x192.png" type="image/png" sizes="192x192">
     <link rel="icon" href="icono-512x512.png" type="image/png" sizes="512x512">
 

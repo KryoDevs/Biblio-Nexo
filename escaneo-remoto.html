@@ -42,6 +42,12 @@
       object-src 'none'">
 
     <meta name="referrer" content="strict-origin-when-cross-origin">
+    <!-- `noindex, nofollow` y sin `canonical` ni Open Graph, a propósito: esta
+         URL lleva en el query un token de un solo uso que autoriza escanear libros
+         sin iniciar sesión. Que un rastreador la guarde, la comparta como
+         tarjeta con vista previa o la enlaze desde otro sitio no gana nada y
+         sí expone un enlace que además vence. Ver `robots.txt`, generado en
+         vite.config.js, que la excluye también del rastreo. -->
     <meta name="robots" content="noindex, nofollow">
     <meta name="description" content="Escaneo remoto de libros — Biblioteca Pública Municipal de Futrono.">
 
