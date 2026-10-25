@@ -35,9 +35,24 @@ Sin pendientes en esta categoría — terminaste el SMTP propio hoy.
 
 ## 🟠 Ahora — barato y con impacto real
 
-Sin pendientes en esta categoría — las tres cosas de esta ronda (los dos
-bugs de Tailwind, la versión de Node en CI y `verificar_politicas()`)
-quedaron resueltas hoy, ver ✅ abajo.
+- [ ] **El paso `npm audit` de CI está rojo y no es por el código.** Desde el
+      25 de octubre de 2026, `Interfaz (jsdom)` falla en
+      «Revisar vulnerabilidades conocidas en dependencias»
+      (`npm audit --audit-level=high`) y se salta todo lo de abajo — las
+      pruebas de Vitest, las legacy, el build y `verify:build` quedan en
+      `skipped`, así que un trabajo rojo no significa que la interfaz esté
+      mal. Los avisos son de dependencias de desarrollo ya fijadas en
+      `package-lock.json` (vite 8.2.2, y de paso `undici`, `serialize-javascript`
+      y `fast-uri`): se publicaron después, no entraron con ningún envío.
+      El `npm audit fix` resuelve los seis dentro de los rangos actuales,
+      sube vite a 8.3.5 y **rompe el build**: `src/js/modules/qr.js` importa
+      `'/vendor/js/qrcode.min.js'` con ruta absoluta y las resoluciones de
+      Vite 8.3 ya no la aceptan (`UNRESOLVED_IMPORT`). O sea: no es un
+      `npm audit fix` a secas, hay que cambiar ese import a la vez (la rama
+      que lo intentó lo dejó documentado aquí). Verificado con el fix aplicado:
+      `npm test` 34/34 y las seis suites legacy en verde; solo el build falla.
+- [ ] Las tres cosas de la ronda anterior (los dos bugs de Tailwind, la versión
+      de Node en CI y `verificar_politicas()`) quedaron resueltas, ver ✅ abajo.
 
 ---
 
