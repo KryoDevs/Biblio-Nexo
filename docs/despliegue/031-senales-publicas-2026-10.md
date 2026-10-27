@@ -164,10 +164,37 @@ al instalar la PWA en el computador del mesón.
 
 ## Lo que quedó afuera de esta ronda
 
-- **Dominio propio** (señal 1). No es código; es el único punto de la lista que
-  sigue abierto y el que más pesa, porque un enlace
-  `biblio-nexo-fuckingkrio.vercel.app` es lo que hay que pegar en un acta
-  municipal.
+- **El DNS del dominio propio** (señal 1) — avanzó, pero el paso final no es de
+  este repositorio. `biblionexo.cl` **ya estaba registrado y agregado a la cuenta
+  de Vercel** (no lo estaba en el proyecto), y desde el 25/10/2026 los dos
+  hostnames están asociados al proyecto `biblio-nexo`: `biblionexo.cl` sirve la
+  producción y `www.biblionexo.cl` redirige a la punta con 308. Lo único que
+  falta es que el DNS responda, y eso se hace en el administrador de dominio que
+  figure en NIC Chile (los nameservers actuales son los por defecto del .cl:
+  `a/b/c.nic.cl`, `cl1.dnsnode.net`, `cl1-tld.d-zone.ca`, `cl-ns.anycast.pch.net`
+  — Vercel no lleva la zona, `serviceType: external`):
+
+  | Registro | Nombre | Valor |
+  |---|---|---|
+  | `A` | `@` | `216.198.79.1` (y `64.29.17.1` si el host admite dos; `76.76.21.21` es la talla anterior) |
+  | `CNAME` | `www` | `8ae70475b6de47fa.vercel-dns-017.com` |
+
+  Mientras esos dos registros no existan, `biblionexo.cl` no resuelve a ninguna
+  parte y el certificado todavía no se emite (Vercel lo saca solo en cuanto el
+  DNS apunta). Por eso **el `canonical`, la `og:url` y el `Sitemap:` siguen
+  diciendo el alias**: es lo único que de verdad responde. Son el último paso,
+  en el orden que corresponde:
+
+  1. Agregar los dos registros y comprobar con `dig biblionexo.cl` o abriéndolo
+     en el navegador.
+  2. Definir `VITE_ORIGEN_PUBLICO=https://biblionexo.cl` en *Settings →
+     Environment Variables* del proyecto, en el entorno **Production**.
+  3. Desplegar. Con eso las siete señales cambian de dominio a la vez, y la
+     prueba `pruebas/verificar-build.mjs` verifica que todas queden de acuerdo.
+
+  Si alguien define la variable antes de que el DNS responda, no se rompe nada
+  en la aplicación, pero el `canonical` apuntaría a un dominio mudo: el orden es
+  parte del arreglo.
 - **Confirmar los datos de contacto de la biblioteca** (dirección, teléfono y el
   `sameAs` del catálogo de la Dibam). `config.js` y `README.md` tienen valores
   distintos y ambos marcados como pendientes de confirmar: es un asunto de la

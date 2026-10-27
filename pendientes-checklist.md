@@ -88,14 +88,20 @@ Sin pendientes en esta categoría — terminaste el SMTP propio hoy.
 
 ## ⚫ No es código, pero bloquea el cierre del proyecto
 
-- [ ] **Dominio propio del municipio** (señal 1 de la auditoría de octubre de
-      2026). El sistema se sigue compartiendo por el alias
-      `biblio-nexo-fuckingkrio.vercel.app`, que no cabe en un acta ni en un
-      correo institucional. Cuando esté asignado: agregarlo en Vercel,
-      apuntar su DNS y definir `VITE_ORIGEN_PUBLICO=https://<dominio>` en las
-      variables de entorno del proyecto. Nada más — el `canonical`, la imagen
-      para compartir, el `sitemap.xml` y el `robots.txt` se regeneran solos con
-      el origen nuevo (ver `docs/despliegue/031-senales-publicas-2026-10.md`).
+- [ ] **Apuntar el DNS de `biblionexo.cl`** (señal 1 de la auditoría de octubre
+      de 2026). Avanzado el 25/10: el dominio ya estaba registrado y en la cuenta
+      de Vercel pero **colgando del proyecto**; ahora `biblionexo.cl` es dominio
+      de producción de `biblio-nexo` y `www.biblionexo.cl` redirige a la punta con
+      308. Falta, en el administrador de dominio de NIC Chile (Vercel no lleva la
+      zona): un `A` para `@` → `216.198.79.1` (+`64.29.17.1` si admite dos) y un
+      `CNAME` `www` → `8ae70475b6de47fa.vercel-dns-017.com`. Al verificar que
+      resuelve, definir `VITE_ORIGEN_PUBLICO=https://biblionexo.cl` en las
+      variables de entorno de **Production** y desplegar: con eso el `canonical`,
+      la imagen para compartir, el `sitemap.xml` y el `robots.txt` cambian de
+      dominio solos. No al revés: definida la variable antes de que el DNS
+      responda, el `canonical` apuntaría a un dominio que todavía no abre
+      (detalle y tabla de registros en
+      `docs/despliegue/031-senales-publicas-2026-10.md`).
 - [ ] Designar Delegado de Protección de Datos y Encargado de
       Ciberseguridad, y firmar el encargo de tratamiento — **antes del 1 de
       diciembre de 2026** (Ley 21.719).
