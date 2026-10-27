@@ -64,8 +64,45 @@
     <meta name="twitter:description" content="Qué datos personales trata BiblioNexo, con qué finalidad, por cuánto tiempo y cómo ejercer los derechos.">
     <meta name="twitter:image" content="__IMAGEN_SOCIAL__">
 
-    <link rel="icon" href="icono-192x192.png" type="image/png" sizes="192x192">
-    <link rel="icon" href="icono-512x512.png" type="image/png" sizes="512x512">
+    <!-- Íconos. Todos con ruta absoluta: en Vercel la 404 propia se sirve en
+         la URL que el visitante escribió mal, así que un `href="favicon.ico"`
+         relativo pediría /lo/que/sea/favicon.ico y daría 404 otra vez. Con
+         `base: './'` Vite deja intactas las rutas de `public/`, solo reescribe
+         los assets que bundlea. -->
+    <!--
+      La política de privacidad es la página que un vecino (o la Agencia de
+      Protección de Datos) puede necesitar citar, así que también declara lo que
+      es. Reutiliza los `@id` de la portada en vez de repetir la descripción de
+      la biblioteca: una sola fuente de la entidad, dos páginas que la nombran.
+
+      Sin dirección ni teléfono por el mismo motivo que en `index.html` — ver el
+      comentario de ahí y `pendientes-checklist.md` 🟠.
+    -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebPage",
+      "@id": "__ORIGEN__/privacidad.html",
+      "url": "__ORIGEN__/privacidad.html",
+      "name": "Política de Privacidad y Términos de Uso — BiblioNexo",
+      "inLanguage": "es-CL",
+      "isPartOf": { "@id": "__ORIGEN__/#sistema" },
+      "about": { "@id": "__ORIGEN__/#biblioteca" },
+      "mainEntity": {
+        "@type": "PrivacyPolicy",
+        "@id": "__ORIGEN__/privacidad.html#politica",
+        "name": "Política de Privacidad y Términos de Uso de BiblioNexo",
+        "inLanguage": "es-CL",
+        "url": "__ORIGEN__/privacidad.html",
+        "publisher": { "@id": "__ORIGEN__/#biblioteca" }
+      }
+    }
+    </script>
+
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/icono-192x192.png" type="image/png" sizes="192x192">
+    <link rel="icon" href="/icono-512x512.png" type="image/png" sizes="512x512">
+    <link rel="apple-touch-icon" href="/icono-192x192.png">
 
     <link rel="stylesheet" href="/vendor/css/fonts.css">
     <link rel="stylesheet" href="/vendor/css/fontawesome.min.css">

@@ -18,6 +18,8 @@
 | 12 · sin `llms.txt` | no existía | generado en cada build |
 | 13 · `robots.txt` | no existía (sin política declarada, no «bloqueando IA») | generado, con política explícita |
 | 15 · sin `sitemap.xml` | no existía | generado con las dos páginas públicas |
+| 8 · datos sin estructura | ningún `application/ld+json` en el repo | `Library` + `WebApplication` en la portada, `PrivacyPolicy` en `/privacidad.html` |
+| 14 · favicon | hay PNG de 192 y 512 pero ningún `.ico`, y el de 512 pesaba 572 KB | `/favicon.ico` con cinco tallas, íconos cuantizados y rutas absolutas |
 | 18 · *source maps* | `vendor/js/chart.umd.js` anunciaba un `.map` que no existe | se borró el anuncio |
 
 ## Cómo se resuelve el origen (y qué pasa cuando llegue el dominio)
@@ -68,6 +70,60 @@ un enlace raro.
   reenvían a un inicio de sesión se ignora igual, y mentirle al rastreador
   cuesta más de lo que rinde.
 
+## Datos estructurados, y lo que decidimos no poner
+
+`index.html` declara un `@graph` con dos nodos: la `Library` (que es también
+`GovernmentOrganization`, con la municipalidad como `parentOrganization` y
+`Futrono` como `areaServed`) y la `WebApplication` BiblioNexo, con
+`isAccessibleForFree: false` porque el contenido exige cuenta municipal.
+`/privacidad.html` no repite la ficha de la biblioteca: declara su
+`PrivacyPolicy` y **referencia los mismos `@id` absolutos**
+(`https://<origen>/#biblioteca`), así la entidad tiene una sola definición en el
+sitio y no seis copias que desincronizar.
+
+Un detalle que vale la pena saber antes de tocar el CSP: un
+`<script type="application/ld+json">` es un bloque de datos, no un script
+ejecutable. El navegador nunca lo corre y `script-src 'self'` sin
+`'unsafe-inline'` no lo bloquea — no hace falta abrir ninguna excepción.
+
+**Adentro no hay dirección, teléfono, correo ni horarios, y es deliberado.**
+`src/js/config.js` → `BIBLIOTECA` tiene `'Balmaceda 99, Futrono'` y
+`'+56 63 248 1000'`, con un comentario del propio archivo que dice «ajusta estos
+datos con los reales de la biblioteca antes de usarlo en producción»; y
+`README.md` documenta otros distintos (`Balmaceda 68`, `+56 63 248 2633`). O sea
+que son datos de ejemplo y están contradictorios entre archivos: publicado en
+datos estructurados, un buscador los repite y nadie los despublica. La prueba los
+prohíbe (`pruebas/verificar-build.mjs`, «el dato estructurado publica
+"telephone" sin confirmar con la biblioteca»). Cuando la biblioteca confirme los
+dos, se agregan al JSON-LD y esa comprobación se cambia por la que exija que
+coincidan con `CONFIG.BIBLIOTECA`. Falta también el `sameAs` del catálogo de la
+Dibam, cuyo URL no está en ningún archivo del repo: hay que pedirla.
+
+## Íconos: el `.ico` que faltaba y por qué las rutas son absolutas
+
+- `public/favicon.ico` nuevo, con las tallas 16, 24, 32, 48 y 64 en un solo
+  archivo (34 KB). Sin él, el navegador pide `/favicon.ico` por su cuenta y
+  recibe la 404 propia — ruido en la consola y en el rastreo.
+- `icono-512x512.png` pasó de 572 KB a 153 KB y `icono-192x192.png` de 70 KB a
+  26 KB: cuantizados a 256 colores con tramado (RMSE 2 %). El arte es una
+  ilustración, no una foto, y estos archivos **no se dibujan en ninguna pantalla
+  de la aplicación** — solo los consumen el manifest de la PWA y el escritorio
+  del teléfono, donde el grano del tramado no se ve. Se verificó comparando el
+  cielo y el agua a cuatro aumentos antes de quedárselos. El *precache* de la
+  PWA bajó de 2511 KB a 2090 KB (**421 KB menos** en la instalación de cada
+  computador del mesón).
+- **Todas las rutas de íconos son absolutas** (`/favicon.ico`,
+  `/icono-192x192.png`). Relativo funcionaba en `/` y en `/privacidad.html`, pero
+  la 404 propia se sirve en la URL que alguien escribió mal: en
+  `/prestamos/xd`, un `href="favicon.ico"` pide `/prestamos/favicon.ico` y da 404
+  otra vez, en la página cuyo único trabajo es explicar que no se encontró nada.
+  Con `base: './'` Vite deja intactas las rutas de `public/`; solo reescribe los
+  assets que bundlea.
+- `sizes` miente y el navegador elige mal: la prueba lee el IHDR de cada PNG (los
+  bytes 16 a 24, dos enteros de 32 bits grandes) y exige que coincida con lo que
+  declara el `<link>` y el `manifest.json`. Y del `.ico` comprueba que traiga al
+  menos tres tallas dentro.
+
 ## La imagen para compartir
 
 `public/compartir/biblionexo-social.jpg` — 1200×630, JPG de 108 KB, compuesta
@@ -112,11 +168,13 @@ al instalar la PWA en el computador del mesón.
   sigue abierto y el que más pesa, porque un enlace
   `biblio-nexo-fuckingkrio.vercel.app` es lo que hay que pegar en un acta
   municipal.
-- **Datos estructurados** (señal 8): un bloque JSON-LD `Library` /
-  `GovernmentOrganization` en `privacidad.html` y `index.html`, con
-  `name`, `address`, `telephone`, `openingHours` y el `sameAs` del
-  catálogo de la Dibam. Media hora, y es lo que convierte la página en algo
-  que un buscador puede responder con un panel en vez de un enlace.
+- **Confirmar los datos de contacto de la biblioteca** (dirección, teléfono y el
+  `sameAs` del catálogo de la Dibam). `config.js` y `README.md` tienen valores
+  distintos y ambos marcados como pendientes de confirmar: es un asunto de la
+  biblioteca, no de este repositorio. Una vez confirmados, entran en
+  `CONFIG.BIBLIOTECA`, en el JSON-LD y en la hoja de ruta impresa del
+  Bibliomóvil, y la prueba que hoy prohíbe publicarlos se cambia por la que
+  exige que las tres copias coincidan.
 - **Contenido del `view source`** (señal 2). Para una app con sesión, que el
   HTML de la portada sea un spinner es correcto: no hay texto que
   prerenderar porque no hay texto público. Solo sería un problema si el

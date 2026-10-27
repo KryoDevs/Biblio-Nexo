@@ -12,7 +12,9 @@ anterior era relativa y no la cargaba ninguna red social), `robots.txt`,
 de trabajo no tenía y el mapa de fuentes huérfano de Chart.js. Lo único que
 sigue abierto de esa lista es el dominio propio, que no es código: ⚫ abajo.
 Cómo regenerar la imagen, las decisiones y la forma de cambiar el origen, en
-`docs/despliegue/031-senales-publicas-2026-10.md`.
+`docs/despliegue/031-senales-publicas-2026-10.md`. En la misma rama se cerraron
+además las señales 8 (datos estructurados) y 14 (favicon e íconos), que estaban
+en 🟡.
 
 Ronda anterior — 22 de agosto de 2026 (sexta ronda del día): terminada la
 división de `ui-base.js` que quedaba pendiente de la ronda anterior. Ver el
@@ -35,6 +37,20 @@ Sin pendientes en esta categoría — terminaste el SMTP propio hoy.
 
 ## 🟠 Ahora — barato y con impacto real
 
+- [ ] **Confirmar con la biblioteca su dirección y su teléfono.** Hoy
+      `src/js/config.js` → `BIBLIOTECA` tiene `'Balmaceda 99, Futrono'` y
+      `'+56 63 248 1000'`, marcados en el propio archivo como «ajusta estos
+      datos con los reales antes de usarlo en producción» — y `README.md`
+      documentaba otros distintos (`Balmaceda 68`, `+56 63 248 2633`), que ya no
+      los copia. No es cosmético: esos dos valores van **al pie de cada aviso que
+      el sistema manda por WhatsApp a un vecino** (`ui-base.js` → `_textoAviso`),
+      así que si están mal la biblioteca está enviando direcciones equivocadas a
+      los lectores. Con los valores reales confirmados: se cambian en
+      `config.js`, se agregan al JSON-LD de `index.html` y `privacidad.html`, y la
+      comprobación que hoy prohíbe publicarlos en `pruebas/verificar-build.mjs` se
+      reemplaza por la que exija que las dos copias coincidan.
+- [ ] **Pedir la URL del catálogo de la Dibam** para el `sameAs` del JSON-LD (no
+      está en ningún archivo del repo y no la hay que inventar).
 - [ ] **El paso `npm audit` de CI está rojo y no es por el código.** Desde el
       25 de octubre de 2026, `Interfaz (jsdom)` falla en
       «Revisar vulnerabilidades conocidas en dependencias»
@@ -60,16 +76,10 @@ Sin pendientes en esta categoría — terminaste el SMTP propio hoy.
 
 - [ ] **Fase 2: integración con Aleph 500** — el siguiente bloque de trabajo
       real, cuando decidas empezarlo (`PROMPT-produccion.md` §7).
-- [ ] **Datos estructurados (JSON-LD)** — señal 8 de la auditoría de octubre de
-      2026: ni un solo `application/ld+json` en el proyecto. Un bloque
-      `Library` / `GovernmentOrganization` con nombre, dirección, teléfono,
-      horarios y el `sameAs` del catálogo de la Dibam, en `index.html` y
-      `privacidad.html`. Media hora, y es lo que permite que un buscador
-      responda con una ficha en vez de solo un enlace.
-- [ ] **`favicon.ico` e íconos más livianos** — señal 14. Hay PNG de 192 y 512,
-      pero el de 512 pesa 572 KB y viaja en el *precache* de la PWA; tampoco
-      hay `.ico`, así que algunos navegadores piden `/favicon.ico` y reciben
-      la 404 propia. Bajarlo a ~60 KB ahorra medio megabyte en la instalación.
+- [ ] **`purpose: "maskable"` en los íconos del manifest.** Faltó un diseño nuevo,
+      no un comando: el ícono actual lleva el letrero grabado en el canto del
+      libro y el recorte circular de Android se lo come. Lo decide quien manda el
+      ícono.
 - [ ] **Consola abierta en la URL publicada** — señal 19. El build, las 34
       pruebas y el borrado del mapa huérfano de Chart.js están verdes, pero
       nadie ha mirado la consola del navegador en producción. Hay que hacerlo
@@ -95,6 +105,25 @@ Sin pendientes en esta categoría — terminaste el SMTP propio hoy.
 ---
 
 ## ✅ Ya verificado en esta ronda (referencia, no acción)
+
+- [x] **Señales 8 y 14 de la auditoría, cerradas en la misma rama.** Datos
+      estructurados: `@graph` con `Library`/`GovernmentOrganization` +
+      `WebApplication` en `index.html`, y en `/privacidad.html` una
+      `PrivacyPolicy` que referencia los mismos `@id` absolutos en vez de
+      repetir la ficha. Sin dirección ni teléfono adentro, a propósito, mientras
+      los de `config.js` sean de ejemplo (arriba en 🟠); una prueba lo impide.
+      Que un `<script type="application/ld+json">` no choque con el CSP
+      `script-src 'self'` es por algo que conviene tener claro: no es un script
+      ejecutable sino un bloque de datos, el navegador no lo corre nunca.
+      Íconos: `/favicon.ico` nuevo (16/24/32/48/64 en 34 KB), los PNG cuantizados
+      a 256 colores (572 KB → 153 KB el de 512, 70 KB → 26 KB el de 192, RMSE
+      2 %, verificado mirando el cielo y el agua a cuatro aumentos), y **todas**
+      las rutas de ícono absolutas — relativas daban 404 en la propia página 404
+      cuando la URL mal escrita tenía subcarpetas. Cuatro comprobaciones nuevas:
+      `sizes` contra el IHDR real del PNG, cabecera y número de tallas del `.ico`,
+      JSON-LD que parsea, y referencias `@id` que resuelven a la portada. La
+      imagen para compartir se regeneró desde el ícono nuevo
+      (`python3 pruebas/generar-imagen-social.py`).
 
 - [x] **Señales públicas del sitio** (auditoría de octubre de 2026, señales
       5, 7, 10, 11, 12, 13, 15 y 18). Canonical y Open Graph absolutos en

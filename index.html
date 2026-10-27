@@ -101,9 +101,93 @@
     <meta name="twitter:image" content="__IMAGEN_SOCIAL__">
     <meta name="twitter:image:alt" content="Tarjeta de BiblioNexo: el nombre del sistema y su resumen, «Préstamos, catálogo, reservas y Bibliomóvil, en un solo sistema», junto al ícono del libro tallado.">
 
-    <link rel="icon" href="icono-192x192.png" type="image/png" sizes="192x192">
-    <link rel="icon" href="icono-512x512.png" type="image/png" sizes="512x512">
-    <link rel="apple-touch-icon" href="icono-192x192.png">
+    <!-- Íconos. Todos con ruta absoluta: en Vercel la 404 propia se sirve en
+         la URL que el visitante escribió mal, así que un `href="favicon.ico"`
+         relativo pediría /lo/que/sea/favicon.ico y daría 404 otra vez. Con
+         `base: './'` Vite deja intactas las rutas de `public/`, solo reescribe
+         los assets que bundlea. -->
+    <!--
+      Datos estructurados (señal 8 de la auditoría de octubre de 2026: no había
+      ni un `application/ld+json` en el proyecto).
+
+      Por qué esto no choca con la Política de Seguridad de Contenido de arriba:
+      un `<script type="application/ld+json">` es un bloque de datos, no un
+      script ejecutable — el navegador nunca lo corre, solo lo expone como
+      texto del documento, y por eso CSP (`script-src 'self'`, sin
+      'unsafe-inline') no lo bloquea ni tiene por qué autorizarlo. Lo leen los
+      robots que arman fichas del sitio.
+
+      Los `@id` son absolutos y comparten origen con el `canonical`: así esta
+      página y `/privacidad.html` describen la MISMA entidad (`#biblioteca`) en
+      vez de inventar dos. Cambiar de dominio no requiere tocar nada acá: los
+      tokens los resuelve `senalesPublicas()` en vite.config.js.
+
+      A propósito NO van aquí la dirección ni el teléfono. `src/js/config.js`
+      (`BIBLIOTECA`) tiene una dirección y un fono marcados en el propio
+      comentario como «ajusta estos datos con los reales antes de producción»,
+      y `README.md` documenta otros distintos — es decir: son de ejemplo.
+      Publicar un dato de contacto de ejemplo en datos estructurados es peor que
+      no publicarlo: los buscadores lo repiten y corrigen mal. Están en
+      `pendientes-checklist.md` 🟠; cuando la biblioteca confirme los dos, se
+      agregan y la prueba `pruebas/verificar-build.mjs` deja de exigir que
+      falten.
+    -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@graph": [
+        {
+          "@type": ["Library", "GovernmentOrganization"],
+          "@id": "__ORIGEN__/#biblioteca",
+          "name": "Biblioteca Pública Municipal de Futrono N° 332 «Escritor Ramón Quichiyao Figueroa»",
+          "alternateName": "Biblioteca Pública Municipal de Futrono",
+          "url": "__ORIGEN__/",
+          "logo": "__ORIGEN__/icono-512x512.png",
+          "image": "__IMAGEN_SOCIAL__",
+          "parentOrganization": {
+            "@type": "GovernmentOrganization",
+            "name": "Ilustre Municipalidad de Futrono"
+          },
+          "areaServed": {
+            "@type": "City",
+            "name": "Futrono",
+            "containedInPlace": {
+              "@type": "AdministrativeArea",
+              "name": "Región de Los Ríos"
+            }
+          }
+        },
+        {
+          "@type": "WebApplication",
+          "@id": "__ORIGEN__/#sistema",
+          "name": "BiblioNexo",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "Cualquiera con navegador web",
+          "url": "__ORIGEN__/",
+          "inLanguage": "es-CL",
+          "isAccessibleForFree": false,
+          "description": "Sistema de gestión de préstamos, catálogo, lectores, reservas y rutas del Bibliomóvil de la Biblioteca Pública Municipal de Futrono. Uso interno del personal: el contenido requiere una cuenta municipal.",
+          "featureList": [
+            "Préstamos y devoluciones con lector de código de barras",
+            "Catálogo con datos de Open Library por ISBN",
+            "Reservas y avisos de vencimiento a lectores",
+            "Planificador de rutas del Bibliomóvil",
+            "Operación de mesón sin conexión"
+          ],
+          "provider": { "@id": "__ORIGEN__/#biblioteca" },
+          "audience": {
+            "@type": "Audience",
+            "audienceType": "Personal de la Biblioteca Pública Municipal de Futrono"
+          }
+        }
+      ]
+    }
+    </script>
+
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="icon" href="/icono-192x192.png" type="image/png" sizes="192x192">
+    <link rel="icon" href="/icono-512x512.png" type="image/png" sizes="512x512">
+    <link rel="apple-touch-icon" href="/icono-192x192.png">
 
     <!-- Vite PWA inyecta un único /manifest.json durante el build. La fuente
          de verdad de su nombre, idioma, alcance e íconos está en vite.config.js. -->

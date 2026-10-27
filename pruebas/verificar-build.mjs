@@ -156,6 +156,135 @@ for (const url of [...llms.matchAll(/\]\(([^)]+)\)/g)].map(m => m[1])) {
   assert.equal(new URL(url).origin, ORIGEN, `llms.txt enlaza a otro origen: ${url}.`);
 }
 
+// Íconos: rutas absolutas y dimensiones declaradas = dimensiones reales.
+//
+// Lo absoluto no es gusto: la 404 propia la sirve Vercel en la URL que alguien
+// escribió mal, así que un `href="favicon.ico"` relativo pediría
+// `/algo/mal escrito/favicon.ico` y daría 404 otra vez, justo en la página que
+// existe para explicar que no se encontró nada. Y lo de las dimensiones porque
+// `sizes` mentiroso (un PNG de 192 declarado 512) hace que el navegador elija
+// el ícono equivocado y lo vea borroso o recortado. El alto y el ancho de un
+// PNG están en la cabecera IHDR, bytes 16 a 24, leídos como enteros grandes: no
+// hace falta ningún decodificador de imágenes.
+const dimensionesPNG = ruta => {
+  const cabecera = Buffer.alloc(24);
+  const archivo = fs.openSync(ruta, 'r');
+  try {
+    fs.readSync(archivo, cabecera, 0, 24, 0);
+  } finally {
+    fs.closeSync(archivo);
+  }
+  // Firma PNG (8 bytes) + largo del chunk (4) + tipo (4) -> "IHDR" en 12..16,
+  // y el ancho/alto son los dos enteros siguientes.
+  assert.equal(cabecera.subarray(12, 16).toString('latin1'), 'IHDR', `${ruta} no es un PNG válido.`);
+  return { ancho: cabecera.readUInt32BE(16), alto: cabecera.readUInt32BE(20) };
+};
+
+for (const [nombre, html] of sinComentarios) {
+  const enlaces = [...html.matchAll(/<link\b[^>]*rel=["'](icon|apple-touch-icon)["'][^>]*>/gi)].map(m => m[0]);
+  assert.ok(enlaces.length > 0, `dist/${nombre} no declara ningún ícono.`);
+  for (const enlace of enlaces) {
+    const href = (enlace.match(/href=["']([^"']+)["']/i) || [])[1] || '';
+    assert.ok(href.startsWith('/'), `dist/${nombre}: el ícono ${href} debe llevar ruta absoluta (la 404 se sirve en la URL mal escrita).`);
+    const ruta = path.join(DIST, href.slice(1));
+    assert.ok(fs.existsSync(ruta), `dist/${nombre}: el ícono ${href} no está en el build.`);
+
+    const declarado = (enlace.match(/sizes=["'](\d+)x(\d+)["']/i) || []);
+    if (declarado.length && ruta.endsWith('.png')) {
+      const real = dimensionesPNG(ruta);
+      assert.ok(real.ancho === Number(declarado[1]) && real.alto === Number(declarado[2]),
+        `dist/${nombre}: ${href} se declara de ${declarado[1]}×${declarado[2]} y mide ${real.ancho}×${real.alto}.`);
+    }
+  }
+  assert.ok(enlaces.some(e => /favicon\.ico/.test(e)),
+    `dist/${nombre} no declara /favicon.ico: sin él, el navegador pide esa ruta y recibe la 404.`);
+}
+
+// El .ico debe traer varias tallas dentro; una sola se ve pixelada en el atajo
+// de escritorio de Windows, que es donde más se usa un .ico.
+const rutaIco = path.join(DIST, 'favicon.ico');
+{
+  const cabecera = Buffer.alloc(6);
+  const ico = fs.openSync(rutaIco, 'r');
+  try {
+    fs.readSync(ico, cabecera, 0, 6, 0);
+  } finally {
+    fs.closeSync(ico);
+  }
+  assert.equal(cabecera.readUInt16LE(2), 1, 'public/favicon.ico no es un icono (tipo 1 en la cabecera ICO).');
+  assert.ok(cabecera.readUInt16LE(4) >= 3,
+    `favicon.ico trae ${cabecera.readUInt16LE(4)} tallas; se esperaban al menos 3 (16, 24, 32, 48, 64).`);
+}
+for (const icono of manifest.icons) {
+  const ruta = path.join(DIST, icono.src.replace(/^\//, ''));
+  if (ruta.endsWith('.png')) {
+    const real = dimensionesPNG(ruta);
+    const [ancho, alto] = icono.sizes.split('x').map(Number);
+    assert.ok(real.ancho === ancho && real.alto === alto,
+      `El manifest declara ${icono.src} de ${icono.sizes} y mide ${real.ancho}×${real.alto}.`);
+  }
+}
+
+// Datos estructurados (señal 8). Se leen como JSON de verdad, no con regex sobre
+// los valores: un `application/ld+json` mal formado no muestra ningún error en
+// la página, simplemente los robots lo ignoran en silencio.
+const bloquesJsonLd = nombre => {
+  const html = sinComentarios.get(nombre);
+  return [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)]
+    .map(bloque => bloque[1]);
+};
+for (const [nombre, bloques] of [['index.html', bloquesJsonLd('index.html')], ['privacidad.html', bloquesJsonLd('privacidad.html')]]) {
+  assert.equal(bloques.length, 1, `dist/${nombre} debe tener un único bloque de datos estructurados.`);
+  let datos;
+  try {
+    datos = JSON.parse(bloques[0]);
+  } catch (errora) {
+    assert.fail(`dist/${nombre}: el JSON-LD no parsea (${errora.message}).`);
+  }
+  const nodos = datos['@graph'] || [datos];
+  const ids = nodos.map(nodo => nodo['@id']);
+  assert.ok(ids.every(id => typeof id === 'string' && id.startsWith(`${ORIGEN}/#`) || id === `${ORIGEN}/privacidad.html` || id.startsWith(`${ORIGEN}/privacidad.html#`)),
+    `dist/${nombre}: todo @id debe llevar el mismo origen del canonical.`);
+  if (nombre === 'index.html') {
+    // La entidad se define una sola vez, acá; las demás páginas la referencian.
+    assert.ok(JSON.stringify(datos).includes('Futrono'), 'El bloque de datos no nombra a la biblioteca.');
+    assert.ok(nodos.some(nodo => (Array.isArray(nodo['@type']) ? nodo['@type'] : [nodo['@type']]).includes('Library')),
+      'El JSON-LD de la portada debe declarar la biblioteca como Library.');
+    assert.ok(JSON.stringify(datos).includes('Ilustre Municipalidad de Futrono'),
+      'Falta la dependencia municipal (parentOrganization): es quien responde por el tratamiento de datos.');
+  } else {
+    // Y acá lo que importa es que la referencia apunte a un nodo que existe.
+    const texto = JSON.stringify(datos);
+    assert.ok(texto.includes(`${ORIGEN}/#biblioteca`),
+      `dist/${nombre}: debe referenciar la entidad #biblioteca de la portada, no repetir su ficha.`);
+    const idsDeLaPortada = JSON.stringify(JSON.parse(bloquesJsonLd('index.html')[0]));
+    assert.ok(idsDeLaPortada.includes(`${ORIGEN}/#biblioteca`) && idsDeLaPortada.includes(`${ORIGEN}/#sistema`),
+      'Las referencias de privacidad.html cuelgan de @id que la portada ya no declara.');
+  }
+  // Mientras la dirección y el teléfono de `src/js/config.js` sigan siendo de
+  // ejemplo (el comentario de ahí lo dice, y README.md trae otros distintos),
+  // no van en los datos estructurados: los buscadores los repiten y no hay
+  // forma de despublicarlos. Al confirmar los reales con la biblioteca, se
+  // agregan al JSON-LD y se cambia esta comprobación por la que exija que
+  // coincidan con CONFIG.BIBLIOTECA.
+  for (const campoProhibido of ['streetAddress', 'telephone', 'email', 'openingHours']) {
+    assert.ok(!JSON.stringify(datos).includes(campoProhibido),
+      `dist/${nombre}: el dato estructurado publica "${campoProhibido}" sin confirmar con la biblioteca (ver pendientes-checklist.md 🟠).`);
+  }
+}
+for (const nombre of ['404.html', 'escaneo-remoto.html']) {
+  assert.equal(bloquesJsonLd(nombre).length, 0,
+    `dist/${nombre}: una página con noindex no necesita datos estructurados.`);
+}
+// Las URLs de logo/imagen que declara el JSON-LD tienen que existir.
+const datosInicio = JSON.parse(bloquesJsonLd('index.html')[0]);
+for (const campo of ['logo', 'image']) {
+  const valor = (datosInicio['@graph'] || [datosInicio])[0][campo];
+  assert.ok(valor && valor.startsWith(`${ORIGEN}/`), `El "${campo}" del JSON-LD debe ser una URL absoluta del propio origen.`);
+  assert.ok(fs.existsSync(path.join(DIST, new URL(valor).pathname.replace(/^\//, ''))),
+    `El "${campo}" del JSON-LD apunta a ${valor}, que no está en el build.`);
+}
+
 // Source maps anunciados pero ausentes: el comentario de un vendorizado que no
 // trae su `.map` deja un 404 colgado en la consola (pasaba con chart.umd.js).
 const pila = [DIST];
@@ -175,4 +304,4 @@ while (pila.length) {
   }
 }
 
-console.log('Señales públicas: canonical y Open Graph absolutos en un solo origen, noindex coherente, robots/sitemap/llms generados y sin source maps huérfanos.');
+console.log('Señales públicas: canonical y Open Graph absolutos en un solo origen, noindex coherente, robots/sitemap/llms generados, íconos absolutos con su talla real, JSON-LD válido y sin source maps huérfanos.');
