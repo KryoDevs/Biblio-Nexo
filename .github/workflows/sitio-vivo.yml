@@ -1,0 +1,93 @@
+name: Sitio vivo
+
+# Una comprobación EN VIVO, una vez al día.
+#
+# «Pruebas» verifica el código y el artefacto construido. Nada verificaba el
+# sitio publicado, y es otra cosa: un build impecable puede estar detrás de un
+# 404, un rewrite tocado en `vercel.json` puede dejar de devolver el `404.html`
+# propio, y —el caso que este workflow existe para cazar— un proyecto de Supabase
+# del plan Free se PAUSA a los 7 días sin actividad de base de datos y desde ese
+# momento toda su API responde HTTP 540. La app abre igual (el service worker la
+# tiene cacheada), así que el único síntoma es que no cargan los datos: justo en
+# el período en que nadie toca el repo, porque la biblioteca está cerrada.
+#
+# Cuesta cero y no tiene secretos:
+#   · las tareas programadas de GitHub Actions son gratis en repos públicos, y
+#     este job no instala dependencias (tarda segundos, no minutos);
+#   · la anon key se lee de `src/js/config.js`, donde ya es pública por diseño
+#     —cualquiera que abre el sitio la descarga—; la `service_role` no se usa.
+#
+# No es la única cosa que mantiene el proyecto despierto: las migraciones 018 y
+# 023 dejan cron internos (respaldo diario y expiración de reservas cada hora)
+# que ya generan actividad de base de datos. Este ping es redundante a propósito
+# y, sobre todo, es la ALARMA: si algo está caído, el job falla y el dueño del
+# repo recibe un correo. Sin configurar nada.
+#
+# El día que el dominio propio apunte, hay que decirle al workflow cuál es el
+# origen esperado: Settings → Secrets and variables → Actions → Variables,
+# `SITIO_URL=https://biblionexo.cl`. Hasta entonces usa el respaldo del script,
+# que es el mismo alias que `vite.config.js` escribe en el canonical.
+#
+# Aviso que conviene saber: GitHub apaga las tareas programadas de un repo
+# público tras 60 días sin ningún `push` (avisan por correo). Si el repo se
+# queda quieto en enero, volver a activar es re-corre una vez a mano desde la
+# pestaña «Actions» → «Executar workflow».
+
+on:
+  schedule:
+    # 12:17 UTC = 09:17 en Chile: temprano en la mañana de un día hábil, cuando
+    # todavía hay alguien delante de un computador para reaccionar.
+    - cron: '17 12 * * *'
+  workflow_dispatch:
+    inputs:
+      sitio_url:
+        description: 'Origen a comprobar (vacío = el predeterminado del script)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+# Dos ejecuciones programadas seguidas no aportan nada.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  vivo:
+    name: El sitio publicado responde
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SITIO_URL: ${{ inputs.sitio_url || vars.SITIO_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Ubuntu latest ya trae Node 22; se fija la versión para que la prueba no
+      # dependa de la imagen del momento (fetch/AbortSignal.timeout son los que
+      # usa el script y ambos existen desde Node 18).
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Comprobar el sitio y la base de datos
+        run: node pruebas/verificar-sitio-vivo.mjs
+
+      # El log de Actions se lee mal desde el correo; el resumen del run se lee
+      # bien, y es lo único que va a mirar quien no es quien escribió esto.
+      - name: Dejar instrucciones legibles en el resumen
+        if: failure()
+        run: |
+          {
+            echo "## El sitio publicado no pasó la comprobación diaria"
+            echo
+            echo "Origen comprobado: \`${SITIO_URL:-https://biblio-nexo-fuckingkrio.vercel.app}\`"
+            echo
+            echo 'Ver el registro de esta ejecución arriba: cada falla dice qué falla y qué hacer.'
+            echo
+            echo 'Guía de operación sin costo: `docs/despliegue/032-operar-sin-costo.md`.'
+            echo
+            echo '- Si dice **HTTP 540**: el proyecto de Supabase está pausado. Entrar al panel y pulsar «Reclaim project» (no se pierde datos).'
+            echo '- Si dice **404** en el favicon, el sitemap o el service worker: se desplegó un artefacto incompleto, o alguien tocó `vercel.json`.'
+            echo '- Si dice **canonical en otro origen**: hay que volver a desplegar con `VITE_ORIGEN_PUBLICO` definido.'
+          } >> "$GITHUB_STEP_SUMMARY"

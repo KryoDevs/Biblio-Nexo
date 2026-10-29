@@ -12,6 +12,7 @@
     "build": "vite build",
     "verify:build": "node pruebas/verificar-build.mjs",
     "preview": "vite preview",
+    "test:sitio": "node pruebas/verificar-sitio-vivo.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:legacy": "npm run test:legacy:consolidacion && npm run test:legacy:interfaz && npm run test:legacy:offline",
