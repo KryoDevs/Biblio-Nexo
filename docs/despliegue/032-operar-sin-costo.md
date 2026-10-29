@@ -257,6 +257,11 @@ como JavaScript y trae el precache; y la API de Supabase y su Auth responden (un
 consulta real con la anon key, que es pública por diseño: este workflow **no tiene
 secretos**).
 
+Un detalle que sorprende la primera vez: **GitHub solo lee los `schedule` desde la
+rama por defecto.** Si el archivo está en una rama de trabajo, el cron no corre
+aunque esté bien escrito, y `gh workflow run sitio-vivo.yml` devuelve 404 (probado).
+La alarma entra en vigencia el día que la rama se fusiona, no el día que se escribe.
+
 Correrlo a mano, cuando toque algo del despliegue:
 
 ```bash

@@ -33,6 +33,12 @@ name: Sitio vivo
 # queda quieto en enero, volver a activar es re-corre una vez a mano desde la
 # pestaña «Actions» → «Executar workflow».
 
+# Otra cosa que hay que saber de los `schedule`: GitHub los lee SOLO desde la
+# rama por defecto. Mientras este archivo viva en una rama de trabajo, el cron no
+# corre aunque esté escrito — y `gh workflow run sitio-vivo.yml` devuelve 404
+# porque la API tampoco lo ve todavía. No es un error de configuración: entra en
+# vigencia el día que se fusiona. Probado el 29/10 buscando exactamente esto.
+
 on:
   schedule:
     # 12:17 UTC = 09:17 en Chile: temprano en la mañana de un día hábil, cuando
