@@ -140,6 +140,17 @@ jobs:
         # Paso 5 — para que el documento y las migraciones no se separen.
         run: python3 pruebas/probar-despliegue-manual.py
 
+      - name: Probar que un respaldo se puede restaurar
+        # El plan Free de Supabase no trae respaldos administrados: la única copia
+        # del catálogo son los JSON que `respaldo-automatico` sube al bucket. Un
+        # respaldo que nadie restauró es una esperanza, no un respaldo — y los
+        # modos en que falla una restauración (columnas `generated always as
+        # identity`, secuencias sin alinear, el disparador de auditoría chocando
+        # contra sus propias filas restauradas) solo se ven contra un Postgres de
+        # verdad. Esta prueba restaura de punta a punta sobre las migraciones
+        # reales; ver pruebas/probar-restauracion.py.
+        run: python3 pruebas/probar-restauracion.py
+
   # ==========================================================================
   # 4. Base de datos real
   # ==========================================================================
