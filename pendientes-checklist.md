@@ -4,7 +4,21 @@ Checklist de trabajo, no documentación permanente del proyecto (esa vive en
 `PROMPT-produccion.md` y `ESTADO.md`, dentro del repo). Pensada para ir
 tachando a medida que se resuelve cada cosa.
 
-Última actualización: 25 de octubre de 2026 — cerradas seis de las siete
+Última actualización: 29 de octubre de 2026 — revisada la restricción que
+manda sobre todo lo demás: **operar con costo cero**. La cuenta completa, medida
+contra el proyecto real (16 MB de base de datos sobre 500 MB de límite, 4,5 MB de
+Storage sobre 1 GB, ~720 invocaciones de Edge Functions sobre 500 000), está en
+`docs/despliegue/032-operar-sin-costo.md`, que además nombra las cuatro trampas
+que sí pueden costar dinero o doler en marzo: la renovación anual del `.cl`, la
+cláusula «uso personal, no comercial» de Vercel Hobby con sus dos planes B
+gratuitos, la pausa del plan Free de Supabase a los 7 días sin actividad y el
+slug del equipo dentro de la URL pública. En la misma ronda: se cerró el rojo de
+CI (vite 8.3.5 + `qrcode.min.js` movido al grafo de módulos), se agregó
+`pruebas/verificar-sitio-vivo.mjs` con su alarma diaria en GitHub Actions
+(`npm run test:sitio`), y el respaldo automático ganó retención y un restaurador
+probado contra Postgres real.
+
+Ronda anterior — 25 de octubre de 2026 — cerradas seis de las siete
 señales públicas que encontró la auditoría «veinte señales de un sitio
 vibecodeado»: `canonical`, Open Graph con una imagen de 1200×630 propia (la
 anterior era relativa y no la cargaba ninguna red social), `robots.txt`,
@@ -51,22 +65,24 @@ Sin pendientes en esta categoría — terminaste el SMTP propio hoy.
       reemplaza por la que exija que las dos copias coincidan.
 - [ ] **Pedir la URL del catálogo de la Dibam** para el `sameAs` del JSON-LD (no
       está en ningún archivo del repo y no la hay que inventar).
-- [ ] **El paso `npm audit` de CI está rojo y no es por el código.** Desde el
-      25 de octubre de 2026, `Interfaz (jsdom)` falla en
-      «Revisar vulnerabilidades conocidas en dependencias»
-      (`npm audit --audit-level=high`) y se salta todo lo de abajo — las
-      pruebas de Vitest, las legacy, el build y `verify:build` quedan en
-      `skipped`, así que un trabajo rojo no significa que la interfaz esté
-      mal. Los avisos son de dependencias de desarrollo ya fijadas en
-      `package-lock.json` (vite 8.2.2, y de paso `undici`, `serialize-javascript`
-      y `fast-uri`): se publicaron después, no entraron con ningún envío.
-      El `npm audit fix` resuelve los seis dentro de los rangos actuales,
-      sube vite a 8.3.5 y **rompe el build**: `src/js/modules/qr.js` importa
-      `'/vendor/js/qrcode.min.js'` con ruta absoluta y las resoluciones de
-      Vite 8.3 ya no la aceptan (`UNRESOLVED_IMPORT`). O sea: no es un
-      `npm audit fix` a secas, hay que cambiar ese import a la vez (la rama
-      que lo intentó lo dejó documentado aquí). Verificado con el fix aplicado:
-      `npm test` 34/34 y las seis suites legacy en verde; solo el build falla.
+- [ ] **Desplegar la retención del respaldo.** `supabase/functions/respaldo-automatico/index.ts`
+      ahora borra sus propios JSON viejos (30 días o 300 MB, lo que ocurra
+      primero) y anota el resultado en `respaldos_log.mensaje`. El código está en
+      el repo; la nube sigue corriendo la versión sin retención. Falta:
+      `supabase functions deploy respaldo-automatico` y, al día siguiente,
+      `select ok, archivo, bytes, mensaje from public.respaldos_log order by id desc limit 3;`.
+      Sin esto, el día que el catálogo sea grande el bucket `respaldos` se llena
+      contra el límite de 1 GB del plan Free y lo que deja de funcionar es la
+      copia de seguridad, no la app — o sea: falla justo cuando alguien la necesita.
+- [ ] **Correr el simulacro de restauración una vez.** Hay 62 respaldos en el
+      bucket y nadie restauró ninguno: `SUPABASE-PASO-A-PASO.md` tiene esa casilla
+      sin marcar desde hace meses. Ya existe la herramienta
+      (`node pruebas/restaurar-respaldo.mjs respaldo-….json`) y ya hay una prueba
+      que la verifica contra Postgres real en CI
+      (`pruebas/probar-restauracion.py`), pero la prueba verifica el *mecanismo*:
+      el simulacro contra un respaldo real, en un segundo proyecto gratuito, lo
+      tiene que hacer una persona. Los siete pasos están en
+      `docs/despliegue/032-operar-sin-costo.md`.
 - [ ] Las tres cosas de la ronda anterior (los dos bugs de Tailwind, la versión
       de Node en CI y `verificar_politicas()`) quedaron resueltas, ver ✅ abajo.
 
@@ -102,6 +118,18 @@ Sin pendientes en esta categoría — terminaste el SMTP propio hoy.
       responda, el `canonical` apuntaría a un dominio que todavía no abre
       (detalle y tabla de registros en
       `docs/despliegue/031-senales-publicas-2026-10.md`).
+      Dos cosas que esta ronda aclaró y que cambian la decisión:
+        · **el `.cl` se paga todos los años**. Es el único costo recurrente que
+          puede tener este sistema, y no sale de este repositorio: lo decide el
+          presupuesto municipal. Si no se presupuesta, la vía realmente gratis es
+          quedarse en el alias de Vercel, que ya funciona con HTTPS.
+        · y por eso, **si algún día se deja de pagar la renovación hay que borrar
+          `VITE_ORIGEN_PUBLICO` y volver a desplegar**, más `SITIO_URL` en
+          Settings → Secrets and variables → Actions → Variables para que la
+          alarma diaria (`Sitio vivo`) deje de pedir un origen que ya no existe.
+          Si se queda, canonical/sitemap/og:image seguirán citando un dominio
+          muerto mientras la app funciona perfectamente: nadie lo va a notar
+          desde el mesón.
 - [ ] Designar Delegado de Protección de Datos y Encargado de
       Ciberseguridad, y firmar el encargo de tratamiento — **antes del 1 de
       diciembre de 2026** (Ley 21.719).
@@ -111,6 +139,37 @@ Sin pendientes en esta categoría — terminaste el SMTP propio hoy.
 ---
 
 ## ✅ Ya verificado en esta ronda (referencia, no acción)
+
+- [x] **El rojo de CI (`npm audit`) estaba en lo de arriba y se cerró.** El
+      bloqueo real no era la vulnerabilidad sino el arreglo: Vite 8.3 no respeta
+      `/* @vite-ignore */` en un `import()` de ruta absoluta, y así estaba
+      `src/js/modules/qr.js` para cargar `public/vendor/js/qrcode.min.js`. Como el
+      archivo vendorizado ya era un módulo ES de verdad (`export default`), lo
+      correcto dejó de ser el truco: se movió a `src/js/vendor/qrcode.min.js` y se
+      importa por ruta relativa (`import('../vendor/qrcode.min.js')`), con lo que
+      entra al grafo de módulos, Vite lo code-split como chunk perezoso con hash
+      y la bifurcación especial para Node desapareció. Verificado: `npm audit
+      --audit-level=high` sale 0 (quedan 4 avisos **low** de desarrollo, todos por
+      `vite-plugin-pwa → workbox-build → @rollup/plugin-node-resolve → deepmerge`;
+      el fix que ofrece npm es degradar el plugin del PWA a 0.2.1, así que se
+      aceptan y quedan escritos), el chunk `qrcode.min-*.js` se sirve como
+      `text/javascript`, `verify:build`, `npm test` 34/34, `npm run test:legacy`
+      (112 + 13 + 43 + 48 + 18 comprobaciones) y `test:legacy:contraste` en verde.
+      Las otras dos librerías vendorizadas (`html5-qrcode`, Chart.js) siguen en
+      `public/vendor/` a propósito: son UMD que cuelgan un global, otro mecanismo.
+- [x] **El sitio publicado tiene alarma diaria, sin secretos ni costo.** Nuevo
+      trabajo `.github/workflows/sitio-vivo.yml` (cron 12:17 UTC = 09:17 Chile, y
+      ejecutable a mano con un origen cualquiera) que corre
+      `pruebas/verificar-sitio-vivo.mjs`: 16 comprobaciones contra el despliegue
+      real — canonical/OG en un solo origen, imagen social descargable, ICO con
+      sus 5 tamaños, IHDR de los PNG leído de los bytes, `robots.txt`↔`sitemap.xml`
+      de acuerdo, `noindex` del escaneo remoto, `sw.js` con su precache, 404
+      propio, y una consulta real a Supabase para cazar el HTTP 540 del proyecto
+      pausado. La anon key se lee de `src/js/config.js` (es pública por diseño), no
+      hay secretos en el workflow. Corrido contra `vite preview`: 16/16; corrido
+      contra un `dist/` sabotajeado (favicon truncado, `sw.js` y `llms.txt`
+      borrados): 5 fallos detectados y salida 5. También se puede correr a mano:
+      `npm run test:sitio`.
 
 - [x] **Señales 8 y 14 de la auditoría, cerradas en la misma rama.** Datos
       estructurados: `@graph` con `Library`/`GovernmentOrganization` +

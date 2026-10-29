@@ -194,7 +194,15 @@ al instalar la PWA en el computador del mesón.
 
   Si alguien define la variable antes de que el DNS responda, no se rompe nada
   en la aplicación, pero el `canonical` apuntaría a un dominio mudo: el orden es
-  parte del arreglo.
+  parte del arreglo. Después de desplegar, `npm run test:sitio` verifica en vivo
+  que los siete puntos digan el origen nuevo — es exactamente la comprobación
+  que falta cuando alguien cambia el DNS y olvida la variable, o al revés.
+
+  Y antes de decidir si el dominio propio conviene: la renovación del `.cl` se
+  paga todos los años, y es el único costo recurrente que puede tener este
+  sistema. La cuenta completa, con los límites medidos contra el proyecto real y
+  los dos planes B gratuitos para el hosting, está en
+  [`032-operar-sin-costo.md`](032-operar-sin-costo.md).
 - **Confirmar los datos de contacto de la biblioteca** (dirección, teléfono y el
   `sameAs` del catálogo de la Dibam). `config.js` y `README.md` tienen valores
   distintos y ambos marcados como pendientes de confirmar: es un asunto de la
@@ -207,12 +215,24 @@ al instalar la PWA en el computador del mesón.
   prerenderar porque no hay texto público. Solo sería un problema si el
   catálogo se abriera al público — ahí haría falta una página de búsqueda
   pública renderizada en el servidor, no un `npm i prerender`.
-- **`favicon.ico` y compresión de los íconos** (señal 14). El de 512 pesa
-  572 KB para ser un ícono; se sirve en el *precache* de la PWA. Reducirlo a
-  ~60 KB ahorraría medio megabyte en la instalación, pero hay que tocar
-  `manifest.json` y volver a verificar las rutas de los íconos.
+- ~~**`favicon.ico` y compresión de los íconos** (señal 14)~~ — **cerrada en la
+  misma rama**: `public/favicon.ico` es ahora un contenedor real de 34 KB con
+  cinco tamaños (antes había un PNG de un solo tamaño servido con ese nombre), el
+  de 512 bajó de 572 KB a 153 KB y el de 192 de 70 KB a 26 KB, cuantizados con
+  ImageMagick y verificados contra el original con RMSE (no con `AE`, que asusta
+  sin informar). `verify:build` comprueba las tallas leídas de los bytes IHDR y el
+  `sizes` declarado en el manifest, y los cuatro HTML pasaron a rutas absolutas
+  (`/favicon.ico`, `/icono-192x192.png`) porque con `base: './'` una ruta relativa
+  desde una ruta profunda no resuelve. En la ronda del 29/10 los `<link>` del `.ico`
+  perdieron el `sizes="any"`, que es semántica de vector: el contenedor ya trae
+  sus tallas dentro.
 - **Errores de consola en producción** (señal 19). Verificado estáticamente:
   build limpio, 34 pruebas en verde, seis `console.error` que solo suenan en
   caminos de fallo reales, y el 404 del mapa de Chart.js ya no existe. Falta
   abrir la URL publicada con las herramientas de desarrollo y confirmarlo en
-  vivo — eso lo hace una persona, no este entorno.
+  vivo — eso lo hace una persona, no este entorno. La alarma diaria
+  (`Sitio vivo`, ver `032-operar-sin-costo.md`) revisa las señales públicas del
+  despliegue pero **no** la consola: abrir un navegador de verdad en el job
+  cada mañana añadiría un paso que se cae solo (descarga de un navegador, una
+  red lenta), y una alarma que miente una vez por semana deja de leerse el
+  lunes. Esa es la razón de dejarla en manos de una persona.
