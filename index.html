@@ -184,7 +184,9 @@
     }
     </script>
 
-    <link rel="icon" href="/favicon.ico" sizes="any">
+    <!-- Sin `sizes` ni `type`: el .ico trae sus tallas dentro (16/24/32/48/64)
+    y el navegador elige; `sizes="any"` es semántica de vector. -->
+    <link rel="icon" href="/favicon.ico">
     <link rel="icon" href="/icono-192x192.png" type="image/png" sizes="192x192">
     <link rel="icon" href="/icono-512x512.png" type="image/png" sizes="512x512">
     <link rel="apple-touch-icon" href="/icono-192x192.png">
