@@ -90,6 +90,27 @@ Sin pendientes en esta categoría — terminaste el SMTP propio hoy.
 
 ## 🟡 Después — más esfuerzo, sigue siendo importante
 
+- [ ] **Mirar el Realtime de Supabase, que el escaneo remoto depende de él.** El
+      29/10, la comprobación de estado del proyecto (`ACTIVE_HEALTHY` en general)
+      reportó `realtime: UNHEALTHY — Service health check failed`. No es decorativo:
+      `src/js/escaneo-remoto.js:52` abre un canal Broadcast
+      (`supabaseRealtime.channel(canalEscaneo(token))`) para que el escaneo que
+      hace una vecina desde su celular llegue a la pantalla del mesón, y el
+      comentario de `src/js/modules/utilidades.js:102` explica que se eligió
+      Broadcast precisamente porque no hay filas que cambien. Puede ser un
+      descuido transitorio del plan Free o puede estar roto el flujo desde hace
+      semanas; no hay forma de saberlo desde este entorno (el sandbox no tiene
+      salida a `*.supabase.co` ni a `*.vercel.app`). Falta: abrir un enlace de
+      escaneo real desde un teléfono, mirar si el mesón recibe el código, y
+      reactivar o reportar según eso. Si se comprueba roto, la alternativa sin Realtime
+      es que el mesón vuelva a consultar (polling corto) — más burdo, cero
+      dependencia de un servicio aparte.
+- [ ] **`verify_jwt` de `invitar-personal`: el comentario y la nube no coinciden.**
+      El encabezado del archivo dice que se despliega con `verify_jwt = true`, y el
+      proyecto desplegado reporta `verify_jwt: false` (medido el 29/10 con la API
+      de proyectos). La función no está abierta: exige sesión y comprueba que el
+      rol sea `admin` antes de mandar nada, así que el riesgo es bajo y por eso va
+      acá y no arriba. Es una bandera de despliegue.
 - [ ] **Fase 2: integración con Aleph 500** — el siguiente bloque de trabajo
       real, cuando decidas empezarlo (`PROMPT-produccion.md` §7).
 - [ ] **`purpose: "maskable"` en los íconos del manifest.** Faltó un diseño nuevo,
