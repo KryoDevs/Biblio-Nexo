@@ -36,9 +36,13 @@ npm run test:legacy
 npm run test:legacy:contraste
 npm run build
 npm run verify:build
+npm run preview          # en otra terminal
+npm run test:sitio       # contra http://127.0.0.1:4173
 ```
 
-Las pruebas de PostgreSQL (`python3 pruebas/probar-migraciones.py` y `python3 pruebas/probar_librero.py`) necesitan `pgserver` y `psycopg`, o una base de prueba indicada mediante `DATABASE_URL`. No ejecutes las pruebas que crean datos contra la base de producción. Los cinco jobs del CI están descritos en `.github/workflows/pruebas.yml`.
+Las pruebas de PostgreSQL (`python3 pruebas/probar-migraciones.py`, `python3 pruebas/probar_librero.py` y `python3 pruebas/probar-restauracion.py`) necesitan `pgserver` y `psycopg`, o una base de prueba indicada mediante `DATABASE_URL`. No ejecutes las pruebas que crean datos contra la base de producción. Los cinco jobs del CI están descritos en `.github/workflows/pruebas.yml`.
+
+`npm run test:sitio` es otra cosa: no prueba el código, prueba **el sitio publicado** (canonical e íconos absolutos, `robots.txt`↔`sitemap.xml` de acuerdo, `sw.js` con su precache, el 404 propio, y una consulta real a Supabase para detectar el proyecto pausado — HTTP 540). Sin `SITIO_URL` usa el alias de producción. Corre todos los días desde `.github/workflows/sitio-vivo.yml`, y correrlo a mano tiene sentido después de tocar `vercel.json`, los íconos o el dominio. Requiere `SIN_NUBE=1` si la red está cerrada, y tres de sus comprobaciones se saltan solas contra un servidor local.
 
 ## 3. Configurar autenticación y usuarios
 
@@ -53,6 +57,8 @@ En Supabase → **Authentication**:
 Las cabeceras de producción se definen en `vercel.json`. La cámara y la ubicación del Bibliomóvil requieren un contexto seguro (HTTPS) y permiso del navegador. Las políticas RLS de Supabase son la barrera real de autorización; ocultar botones en la interfaz no sustituye la revisión de RLS.
 
 Después de aplicar cambios, revisa en **Administración → Diagnóstico / Cumplimiento** y prueba las operaciones con cuentas reales de `admin` y `librero`. Los verificadores SQL y las pruebas automatizadas están documentados en [MIGRACIONES.md](MIGRACIONES.md).
+
+La página pública (`/`) y la de privacidad también declaran su dirección canónica, su vista previa para compartir y su política de rastreo (`robots.txt`, `sitemap.xml`, `llms.txt`, generados al construir). Si el sitio cambia de dominio, define `VITE_ORIGEN_PUBLICO=https://<dominio>` en las variables de entorno del proyecto en Vercel y vuelve a desplegar: no hay que editar ningún HTML. (`biblionexo.cl` ya está asociado al proyecto; falta el DNS — los dos pasos y su orden, en el documento.) El detalle, en [docs/despliegue/031-senales-publicas-2026-10.md](docs/despliegue/031-senales-publicas-2026-10.md).
 
 ## 5. Datos configurables
 

@@ -42,12 +42,26 @@
       object-src 'none'">
 
     <meta name="referrer" content="strict-origin-when-cross-origin">
+    <!-- `noindex, nofollow` y sin `canonical` ni Open Graph, a propósito: esta
+         URL lleva en el query un token de un solo uso que autoriza escanear libros
+         sin iniciar sesión. Que un rastreador la guarde, la comparta como
+         tarjeta con vista previa o la enlaze desde otro sitio no gana nada y
+         sí expone un enlace que además vence. Ver `robots.txt`, generado en
+         vite.config.js, que la excluye también del rastreo. -->
     <meta name="robots" content="noindex, nofollow">
     <meta name="description" content="Escaneo remoto de libros — Biblioteca Pública Municipal de Futrono.">
 
-    <link rel="icon" href="icono-192x192.png" type="image/png" sizes="192x192">
-    <link rel="icon" href="icono-512x512.png" type="image/png" sizes="512x512">
-    <link rel="apple-touch-icon" href="icono-192x192.png">
+    <!-- Íconos. Todos con ruta absoluta: en Vercel la 404 propia se sirve en
+         la URL que el visitante escribió mal, así que un `href="favicon.ico"`
+         relativo pediría /lo/que/sea/favicon.ico y daría 404 otra vez. Con
+         `base: './'` Vite deja intactas las rutas de `public/`, solo reescribe
+         los assets que bundlea. -->
+    <!-- Sin `sizes` ni `type`: el .ico trae sus tallas dentro (16/24/32/48/64)
+    y el navegador elige; `sizes="any"` es semántica de vector. -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="icon" href="/icono-192x192.png" type="image/png" sizes="192x192">
+    <link rel="icon" href="/icono-512x512.png" type="image/png" sizes="512x512">
+    <link rel="apple-touch-icon" href="/icono-192x192.png">
 
     <link rel="stylesheet" href="/vendor/css/tailwind.css">
     <link rel="stylesheet" href="/vendor/css/fonts.css">

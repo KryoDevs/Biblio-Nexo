@@ -250,6 +250,11 @@ export default {
     if (title) title.textContent = viewDef?.label || 'Dashboard';
     if (kicker) kicker.textContent = viewDef?.section || '';
 
+    // El <title> de la pestaña cambia con la vista. Es la misma etiqueta que ya
+    // se saca de CONFIG.VIEWS_BY_ROLE para el menú y la franja, así que no hay
+    // una cuarta lista que mantener en sincronía.
+    document.title = this._tituloDocumento(viewDef);
+
     // Loader mientras busca en BD
     const container = this._container();
       if(container) container.innerHTML = this._skeletonLoader(viewName);
@@ -286,6 +291,23 @@ export default {
           </div>`;
         document.getElementById('retry-view-btn')?.addEventListener('click', () => this.switchView(viewName));
     }
+  },
+
+  /**
+   * Título de la pestaña para una vista. El Dashboard deja el título de la
+   * portada sin sufijo — "Dashboard — BiblioNexo" describe peor esa pantalla
+   * que el nombre del propio sistema.
+   *
+   * Existe porque antes `document.title` no se tocaba nunca: las nueve vistas
+   * del panel eran indistinguibles en la barra de pestañas, en el administrador
+   * de ventanas del teléfono y en el historial del navegador, que guardaba
+   * nueve entradas con el mismo texto.
+   */
+  _tituloDocumento(viewDef) {
+    const BASE = 'BiblioNexo — Biblioteca Municipal de Futrono';
+    const etiqueta = (viewDef?.label || '').trim();
+    if (!etiqueta || viewDef?.id === 'dashboard') return BASE;
+    return `${etiqueta} — BiblioNexo`;
   },
 
   _momentoDelDia() {
@@ -384,7 +406,19 @@ export default {
             <span class="w-1.5 h-8 bg-patrimonio-madera rounded-sm hidden sm:block"></span>
             <div class="min-w-0">
               <p id="page-kicker" class="text-[10px] font-black uppercase tracking-widest text-stone-500 dark:text-stone-400 leading-none mb-0.5">Panel</p>
-              <h2 id="page-title" class="font-serif font-semibold text-stone-800 dark:text-stone-200 text-base leading-tight">Dashboard</h2>
+              <!-- H1 del documento, no H2: las nueve vistas del panel viven
+                   dentro de este mismo HTML y antes la jerarquía empezaba en
+                   H2, así que la aplicación completa no tenía ningún encabezado
+                   de nivel 1 (señal 10 de la auditoría de octubre de 2026). El
+                   tamaño y la tipografía los siguen dando las clases utilitarias
+                   de la línea de abajo, no la etiqueta; y en impresión la franja
+                   se oculta con su regla de @media print en styles.css, de modo
+                   que la hoja de ruta del Bibliomóvil conserva su único H1 sin
+                   competir con este.
+
+                   Nada de backticks dentro de este comentario, a propósito: está
+                   dentro de una plantilla de texto y un backtick la cerraría. -->
+              <h1 id="page-title" class="font-serif font-semibold text-stone-800 dark:text-stone-200 text-base leading-tight">Dashboard</h1>
             </div>
             <div class="ml-auto flex items-center gap-4 relative">
               <div class="relative">

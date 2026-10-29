@@ -1405,6 +1405,23 @@ en la tabla nueva `public.respaldos_log` — con RLS: solo un administrador
 puede leerla, y nadie fuera del propio Edge Function (que usa la
 service_role key) puede escribirla.
 
+**Retención (agregada el 29 de octubre de 2026, pendiente de desplegar).** El
+flujo original subía un JSON por día y no borraba nunca nada, así que el tamaño
+del bucket crecía monótono contra los 1 GB de Storage del plan Free: el día que
+se llenan, lo que deja de funcionar es el respaldo —en silencio, porque la app
+sigue abriendo— y no la app. `index.ts` ahora, después de subir y antes de
+anotar, borra los archivos propios (`respaldo-*`) con `created_at` más antiguo
+que `DIAS_CONSERVAR = 30` días y guarda un resumen en `respaldos_log.mensaje`.
+Tres decisiones de esa línea de código: va después de la subida y con su propio
+`try/catch` (una retención que falla es una nota, jamás un respaldo perdido),
+compara por `created_at` y no por el nombre (la fecha embebida en el nombre trae
+los `:` cambiados por `-`, y reconstruirla para comparar es una forma creativa de
+borrar lo que no había que borrar), y filtra por prefijo `respaldo-` para no
+tocar lo que una persona hubiera podido dejar en el bucket. Este cambio **no está
+desplegado**: el archivo del repo no se aplica solo, hace falta
+`supabase functions deploy respaldo-automatico` (o el despliegue desde el panel)
+y mirar al día siguiente el `mensaje` de `respaldos_log`.
+
 Autenticación de la llamada de `pg_cron` al Edge Function: un secreto
 ALEATORIO nuevo, generado dentro de la propia migración con
 `encode(gen_random_bytes(32), 'hex')` y guardado en Vault

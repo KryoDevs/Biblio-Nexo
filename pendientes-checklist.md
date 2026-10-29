@@ -4,9 +4,35 @@ Checklist de trabajo, no documentación permanente del proyecto (esa vive en
 `PROMPT-produccion.md` y `ESTADO.md`, dentro del repo). Pensada para ir
 tachando a medida que se resuelve cada cosa.
 
-Última actualización: 22 de agosto de 2026 (sexta ronda del día) —
-terminada la división de `ui-base.js` que quedaba pendiente de la ronda
-anterior. Ver el detalle en ✅ abajo. Ronda anterior (la de la papelera):
+Última actualización: 29 de octubre de 2026 — revisada la restricción que
+manda sobre todo lo demás: **operar con costo cero**. La cuenta completa, medida
+contra el proyecto real (16 MB de base de datos sobre 500 MB de límite, 4,5 MB de
+Storage sobre 1 GB, ~720 invocaciones de Edge Functions sobre 500 000), está en
+`docs/despliegue/032-operar-sin-costo.md`, que además nombra las cuatro trampas
+que sí pueden costar dinero o doler en marzo: la renovación anual del `.cl`, la
+cláusula «uso personal, no comercial» de Vercel Hobby con sus dos planes B
+gratuitos, la pausa del plan Free de Supabase a los 7 días sin actividad y el
+slug del equipo dentro de la URL pública. En la misma ronda: se cerró el rojo de
+CI (vite 8.3.5 + `qrcode.min.js` movido al grafo de módulos), se agregó
+`pruebas/verificar-sitio-vivo.mjs` con su alarma diaria en GitHub Actions
+(`npm run test:sitio`), y el respaldo automático ganó retención y un restaurador
+probado contra Postgres real.
+
+Ronda anterior — 25 de octubre de 2026 — cerradas seis de las siete
+señales públicas que encontró la auditoría «veinte señales de un sitio
+vibecodeado»: `canonical`, Open Graph con una imagen de 1200×630 propia (la
+anterior era relativa y no la cargaba ninguna red social), `robots.txt`,
+`sitemap.xml`, `llms.txt`, `<title>` distinto por vista, el `<h1>` que el área
+de trabajo no tenía y el mapa de fuentes huérfano de Chart.js. Lo único que
+sigue abierto de esa lista es el dominio propio, que no es código: ⚫ abajo.
+Cómo regenerar la imagen, las decisiones y la forma de cambiar el origen, en
+`docs/despliegue/031-senales-publicas-2026-10.md`. En la misma rama se cerraron
+además las señales 8 (datos estructurados) y 14 (favicon e íconos), que estaban
+en 🟡.
+
+Ronda anterior — 22 de agosto de 2026 (sexta ronda del día): terminada la
+división de `ui-base.js` que quedaba pendiente de la ronda anterior. Ver el
+detalle en ✅ abajo. Ronda previa (la de la papelera):
 aclaraste que la idea era más específica: no eliminar el libro entero (para
 bajar de cantidad ya servía el campo "Ejemplares en total" del modal
 Editar), sino poder **restaurar un libro si se eliminó por accidente**,
@@ -25,20 +51,106 @@ Sin pendientes en esta categoría — terminaste el SMTP propio hoy.
 
 ## 🟠 Ahora — barato y con impacto real
 
-Sin pendientes en esta categoría — las tres cosas de esta ronda (los dos
-bugs de Tailwind, la versión de Node en CI y `verificar_politicas()`)
-quedaron resueltas hoy, ver ✅ abajo.
+- [ ] **Confirmar con la biblioteca su dirección y su teléfono.** Hoy
+      `src/js/config.js` → `BIBLIOTECA` tiene `'Balmaceda 99, Futrono'` y
+      `'+56 63 248 1000'`, marcados en el propio archivo como «ajusta estos
+      datos con los reales antes de usarlo en producción» — y `README.md`
+      documentaba otros distintos (`Balmaceda 68`, `+56 63 248 2633`), que ya no
+      los copia. No es cosmético: esos dos valores van **al pie de cada aviso que
+      el sistema manda por WhatsApp a un vecino** (`ui-base.js` → `_textoAviso`),
+      así que si están mal la biblioteca está enviando direcciones equivocadas a
+      los lectores. Con los valores reales confirmados: se cambian en
+      `config.js`, se agregan al JSON-LD de `index.html` y `privacidad.html`, y la
+      comprobación que hoy prohíbe publicarlos en `pruebas/verificar-build.mjs` se
+      reemplaza por la que exija que las dos copias coincidan.
+- [ ] **Pedir la URL del catálogo de la Dibam** para el `sameAs` del JSON-LD (no
+      está en ningún archivo del repo y no la hay que inventar).
+- [ ] **Desplegar la retención del respaldo.** `supabase/functions/respaldo-automatico/index.ts`
+      ahora borra sus propios JSON viejos (30 días o 300 MB, lo que ocurra
+      primero) y anota el resultado en `respaldos_log.mensaje`. El código está en
+      el repo; la nube sigue corriendo la versión sin retención. Falta:
+      `supabase functions deploy respaldo-automatico` y, al día siguiente,
+      `select ok, archivo, bytes, mensaje from public.respaldos_log order by id desc limit 3;`.
+      Sin esto, el día que el catálogo sea grande el bucket `respaldos` se llena
+      contra el límite de 1 GB del plan Free y lo que deja de funcionar es la
+      copia de seguridad, no la app — o sea: falla justo cuando alguien la necesita.
+- [ ] **Correr el simulacro de restauración una vez.** Hay 62 respaldos en el
+      bucket y nadie restauró ninguno: `SUPABASE-PASO-A-PASO.md` tiene esa casilla
+      sin marcar desde hace meses. Ya existe la herramienta
+      (`node pruebas/restaurar-respaldo.mjs respaldo-….json`) y ya hay una prueba
+      que la verifica contra Postgres real en CI
+      (`pruebas/probar-restauracion.py`), pero la prueba verifica el *mecanismo*:
+      el simulacro contra un respaldo real, en un segundo proyecto gratuito, lo
+      tiene que hacer una persona. Los siete pasos están en
+      `docs/despliegue/032-operar-sin-costo.md`.
+- [ ] Las tres cosas de la ronda anterior (los dos bugs de Tailwind, la versión
+      de Node en CI y `verificar_politicas()`) quedaron resueltas, ver ✅ abajo.
 
 ---
 
 ## 🟡 Después — más esfuerzo, sigue siendo importante
 
+- [ ] **Mirar el Realtime de Supabase, que el escaneo remoto depende de él.** El
+      29/10, la comprobación de estado del proyecto (`ACTIVE_HEALTHY` en general)
+      reportó `realtime: UNHEALTHY — Service health check failed`. No es decorativo:
+      `src/js/escaneo-remoto.js:52` abre un canal Broadcast
+      (`supabaseRealtime.channel(canalEscaneo(token))`) para que el escaneo que
+      hace una vecina desde su celular llegue a la pantalla del mesón, y el
+      comentario de `src/js/modules/utilidades.js:102` explica que se eligió
+      Broadcast precisamente porque no hay filas que cambien. Puede ser un
+      descuido transitorio del plan Free o puede estar roto el flujo desde hace
+      semanas; no hay forma de saberlo desde este entorno (el sandbox no tiene
+      salida a `*.supabase.co` ni a `*.vercel.app`). Falta: abrir un enlace de
+      escaneo real desde un teléfono, mirar si el mesón recibe el código, y
+      reactivar o reportar según eso. Si se comprueba roto, la alternativa sin Realtime
+      es que el mesón vuelva a consultar (polling corto) — más burdo, cero
+      dependencia de un servicio aparte.
+- [ ] **`verify_jwt` de `invitar-personal`: el comentario y la nube no coinciden.**
+      El encabezado del archivo dice que se despliega con `verify_jwt = true`, y el
+      proyecto desplegado reporta `verify_jwt: false` (medido el 29/10 con la API
+      de proyectos). La función no está abierta: exige sesión y comprueba que el
+      rol sea `admin` antes de mandar nada, así que el riesgo es bajo y por eso va
+      acá y no arriba. Es una bandera de despliegue.
 - [ ] **Fase 2: integración con Aleph 500** — el siguiente bloque de trabajo
       real, cuando decidas empezarlo (`PROMPT-produccion.md` §7).
+- [ ] **`purpose: "maskable"` en los íconos del manifest.** Faltó un diseño nuevo,
+      no un comando: el ícono actual lleva el letrero grabado en el canto del
+      libro y el recorte circular de Android se lo come. Lo decide quien manda el
+      ícono.
+- [ ] **Consola abierta en la URL publicada** — señal 19. El build, las 34
+      pruebas y el borrado del mapa huérfano de Chart.js están verdes, pero
+      nadie ha mirado la consola del navegador en producción. Hay que hacerlo
+      una vez, con sesión iniciada y en el teléfono.
 ---
 
 ## ⚫ No es código, pero bloquea el cierre del proyecto
 
+- [ ] **Apuntar el DNS de `biblionexo.cl`** (señal 1 de la auditoría de octubre
+      de 2026). Avanzado el 25/10: el dominio ya estaba registrado y en la cuenta
+      de Vercel pero **colgando del proyecto**; ahora `biblionexo.cl` es dominio
+      de producción de `biblio-nexo` y `www.biblionexo.cl` redirige a la punta con
+      308. Falta, en el administrador de dominio de NIC Chile (Vercel no lleva la
+      zona): un `A` para `@` → `216.198.79.1` (+`64.29.17.1` si admite dos) y un
+      `CNAME` `www` → `8ae70475b6de47fa.vercel-dns-017.com`. Al verificar que
+      resuelve, definir `VITE_ORIGEN_PUBLICO=https://biblionexo.cl` en las
+      variables de entorno de **Production** y desplegar: con eso el `canonical`,
+      la imagen para compartir, el `sitemap.xml` y el `robots.txt` cambian de
+      dominio solos. No al revés: definida la variable antes de que el DNS
+      responda, el `canonical` apuntaría a un dominio que todavía no abre
+      (detalle y tabla de registros en
+      `docs/despliegue/031-senales-publicas-2026-10.md`).
+      Dos cosas que esta ronda aclaró y que cambian la decisión:
+        · **el `.cl` se paga todos los años**. Es el único costo recurrente que
+          puede tener este sistema, y no sale de este repositorio: lo decide el
+          presupuesto municipal. Si no se presupuesta, la vía realmente gratis es
+          quedarse en el alias de Vercel, que ya funciona con HTTPS.
+        · y por eso, **si algún día se deja de pagar la renovación hay que borrar
+          `VITE_ORIGEN_PUBLICO` y volver a desplegar**, más `SITIO_URL` en
+          Settings → Secrets and variables → Actions → Variables para que la
+          alarma diaria (`Sitio vivo`) deje de pedir un origen que ya no existe.
+          Si se queda, canonical/sitemap/og:image seguirán citando un dominio
+          muerto mientras la app funciona perfectamente: nadie lo va a notar
+          desde el mesón.
 - [ ] Designar Delegado de Protección de Datos y Encargado de
       Ciberseguridad, y firmar el encargo de tratamiento — **antes del 1 de
       diciembre de 2026** (Ley 21.719).
@@ -49,6 +161,75 @@ quedaron resueltas hoy, ver ✅ abajo.
 
 ## ✅ Ya verificado en esta ronda (referencia, no acción)
 
+- [x] **El rojo de CI (`npm audit`) estaba en lo de arriba y se cerró.** El
+      bloqueo real no era la vulnerabilidad sino el arreglo: Vite 8.3 no respeta
+      `/* @vite-ignore */` en un `import()` de ruta absoluta, y así estaba
+      `src/js/modules/qr.js` para cargar `public/vendor/js/qrcode.min.js`. Como el
+      archivo vendorizado ya era un módulo ES de verdad (`export default`), lo
+      correcto dejó de ser el truco: se movió a `src/js/vendor/qrcode.min.js` y se
+      importa por ruta relativa (`import('../vendor/qrcode.min.js')`), con lo que
+      entra al grafo de módulos, Vite lo code-split como chunk perezoso con hash
+      y la bifurcación especial para Node desapareció. Verificado: `npm audit
+      --audit-level=high` sale 0 (quedan 4 avisos **low** de desarrollo, todos por
+      `vite-plugin-pwa → workbox-build → @rollup/plugin-node-resolve → deepmerge`;
+      el fix que ofrece npm es degradar el plugin del PWA a 0.2.1, así que se
+      aceptan y quedan escritos), el chunk `qrcode.min-*.js` se sirve como
+      `text/javascript`, `verify:build`, `npm test` 34/34, `npm run test:legacy`
+      (112 + 13 + 43 + 48 + 18 comprobaciones) y `test:legacy:contraste` en verde.
+      Las otras dos librerías vendorizadas (`html5-qrcode`, Chart.js) siguen en
+      `public/vendor/` a propósito: son UMD que cuelgan un global, otro mecanismo.
+- [x] **El sitio publicado tiene alarma diaria, sin secretos ni costo.** Nuevo
+      trabajo `.github/workflows/sitio-vivo.yml` (cron 12:17 UTC = 09:17 Chile, y
+      ejecutable a mano con un origen cualquiera) que corre
+      `pruebas/verificar-sitio-vivo.mjs`: 16 comprobaciones contra el despliegue
+      real — canonical/OG en un solo origen, imagen social descargable, ICO con
+      sus 5 tamaños, IHDR de los PNG leído de los bytes, `robots.txt`↔`sitemap.xml`
+      de acuerdo, `noindex` del escaneo remoto, `sw.js` con su precache, 404
+      propio, y una consulta real a Supabase para cazar el HTTP 540 del proyecto
+      pausado. La anon key se lee de `src/js/config.js` (es pública por diseño), no
+      hay secretos en el workflow. Corrido contra `vite preview`: 16/16; corrido
+      contra un `dist/` sabotajeado (favicon truncado, `sw.js` y `llms.txt`
+      borrados): 5 fallos detectados y salida 5. También se puede correr a mano:
+      `npm run test:sitio`.
+
+- [x] **Señales 8 y 14 de la auditoría, cerradas en la misma rama.** Datos
+      estructurados: `@graph` con `Library`/`GovernmentOrganization` +
+      `WebApplication` en `index.html`, y en `/privacidad.html` una
+      `PrivacyPolicy` que referencia los mismos `@id` absolutos en vez de
+      repetir la ficha. Sin dirección ni teléfono adentro, a propósito, mientras
+      los de `config.js` sean de ejemplo (arriba en 🟠); una prueba lo impide.
+      Que un `<script type="application/ld+json">` no choque con el CSP
+      `script-src 'self'` es por algo que conviene tener claro: no es un script
+      ejecutable sino un bloque de datos, el navegador no lo corre nunca.
+      Íconos: `/favicon.ico` nuevo (16/24/32/48/64 en 34 KB), los PNG cuantizados
+      a 256 colores (572 KB → 153 KB el de 512, 70 KB → 26 KB el de 192, RMSE
+      2 %, verificado mirando el cielo y el agua a cuatro aumentos), y **todas**
+      las rutas de ícono absolutas — relativas daban 404 en la propia página 404
+      cuando la URL mal escrita tenía subcarpetas. Cuatro comprobaciones nuevas:
+      `sizes` contra el IHDR real del PNG, cabecera y número de tallas del `.ico`,
+      JSON-LD que parsea, y referencias `@id` que resuelven a la portada. La
+      imagen para compartir se regeneró desde el ícono nuevo
+      (`python3 pruebas/generar-imagen-social.py`).
+
+- [x] **Señales públicas del sitio** (auditoría de octubre de 2026, señales
+      5, 7, 10, 11, 12, 13, 15 y 18). Canonical y Open Graph absolutos en
+      `/` y `/privacidad.html`, con `og:image:alt`, dimensiones y
+      `twitter:card`; imagen para compartir nueva (1200×630, JPG de 132 KB
+      compuesta desde el ícono de la app). `robots.txt`, `sitemap.xml` y
+      `llms.txt` generados en el build desde `vite.config.js`, con una sola
+      constante de origen (`VITE_ORIGEN_PUBLICO`) para las siete cosas a la vez
+      y sin bloquear ni a las IA ni los `.css`/`.js`. `document.title` cambia
+      con la vista (`_tituloDocumento` en `ui-router.js`) y la franja de título
+      pasó de `<h2>` a `<h1>`. Se borró el `sourceMappingURL` que
+      `vendor/js/chart.umd.js` anunciaba sin `.map` que señalar.
+      `404.html` y `escaneo-remoto.html` quedaron sin canonical a propósito —
+      las dos con `noindex`, y la segunda con un token de un solo uso en la
+      URL; los comentarios de cada archivo lo dicen para que nadie lo «mejore»
+      después. Nueve comprobaciones nuevas en `pruebas/verificar-build.mjs` y
+      seis en `src/js/modules/__tests__/ui-router.test.js`: `npm run build`,
+      `npm run verify:build`, `npm test` (34/34), `npm run test:legacy`
+      (112 + 118 + 13 + 43 + 48 + 18) y las tres verificaciones de Python,
+      todas en verde.
 - [x] **División de `ui-base.js` terminada** — bajó de 3035 a 1626 líneas.
       Las cuatro vistas que se solapaban con `js/vistas/` (CATÁLOGO
       internamente, más lo que en realidad eran tres vistas separadas:

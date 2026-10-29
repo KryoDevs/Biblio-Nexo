@@ -34,12 +34,26 @@
       form-action 'self';
       object-src 'none'">
 
+    <!-- `noindex` y nada más. Sin `rel="canonical"` ni etiquetas Open Graph a
+         propósito: un `canonical` le pide al buscador que indexe esta URL como
+         la versión buena de otra página, que es lo contrario de lo que dice la
+         línea de abajo, y una tarjeta para compartir invites a que la enlacen.
+         Una 404 no tiene contenido que posicionar: su trabajo es devolver a
+         alguien que ya está perdido. -->
     <meta name="robots" content="noindex">
     <meta name="description" content="La página que buscas no existe o se movió. Volvé al inicio de BiblioNexo.">
 
-    <link rel="icon" href="icono-192x192.png" type="image/png" sizes="192x192">
-    <link rel="icon" href="icono-512x512.png" type="image/png" sizes="512x512">
-    <link rel="apple-touch-icon" href="icono-192x192.png">
+    <!-- Íconos. Todos con ruta absoluta: en Vercel la 404 propia se sirve en
+         la URL que el visitante escribió mal, así que un `href="favicon.ico"`
+         relativo pediría /lo/que/sea/favicon.ico y daría 404 otra vez. Con
+         `base: './'` Vite deja intactas las rutas de `public/`, solo reescribe
+         los assets que bundlea. -->
+    <!-- Sin `sizes` ni `type`: el .ico trae sus tallas dentro (16/24/32/48/64)
+    y el navegador elige; `sizes="any"` es semántica de vector. -->
+    <link rel="icon" href="/favicon.ico">
+    <link rel="icon" href="/icono-192x192.png" type="image/png" sizes="192x192">
+    <link rel="icon" href="/icono-512x512.png" type="image/png" sizes="512x512">
+    <link rel="apple-touch-icon" href="/icono-192x192.png">
 
     <link rel="stylesheet" href="/vendor/css/tailwind.css">
     <link rel="stylesheet" href="/vendor/css/fonts.css">
