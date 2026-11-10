@@ -37,10 +37,34 @@
 
 html {
     font-size: calc(16px * var(--escala-fuente));
+    /* Sin esto, Safari de iPhone agranda el texto por su cuenta cuando el
+       dispositivo está en horizontal («font inflation»: multiplica el tamaño
+       según el ratio ancho/alto, no según lo que uno declaró) y con ello
+       revienta cualquier layout medido. `100%` —no `none`— deja intacta la
+       accesibilidad: quien sube la letra desde Ajustes del sistema sigue
+       escalando todo, porque la tipografía se define en `rem` sobre
+       `--escala-fuente`. */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+    /* Le dice al navegador cómo pintar lo que él controla: los controles de
+       formulario nativos (el botón de limpiar un `search`, el `select`), la
+       barra de desplazamiento y el color del rebote del scroll. Sin esto, en
+       modo oscuro los `input` salen con fondo blanco — en un teléfono a las
+       ocho de la tarde eso es literalmente un flash. */
+    color-scheme: light;
 }
 
 body {
     line-height: 1.6;
+    /* El gesto de tirar hacia abajo para actualizar del navegador compite con
+       el drawer y con el arrastre de las listas: con `contain` el gesto queda
+       para la app. `overscroll-behavior` sin prefijo está disponible en todo
+       lo que soporta `dvh`, que ya se usa acá. */
+    overscroll-behavior-y: contain;
+}
+
+.dark {
+    color-scheme: dark;
 }
 
 /* Animaciones */
@@ -257,8 +281,24 @@ tbody tr:hover {
     100% { transform: rotate(360deg); }
 }
 
-/* Responsive — versión distinta para teléfono */
-@media (max-width: 768px) {
+/* Responsive — versión distinta para teléfono.
+ *
+ * La consulta se repite en cada bloque de este archivo (CSS no tiene
+ * `@custom-media` sin PostCSS) y la misma condición vive en
+ * `src/js/modules/movil.js`, de la que se sirve `ui-router.js` para decidir
+ * drawer/FAB/rotación. Que sean una sola idea en dos lenguajes la sostiene
+ * `pruebas/probar-movil.mjs`: si alguien agrega un `@media (max-width:768px)`
+ * suelto, el teléfono en horizontal vuelve a quedarse con el escritorio — que
+ * es exactamente el defecto que este bloque arregló el 29/10/2026 y el que más
+ * fácil es reintroducir sin querer, porque en el emulador en vertical se ve
+ * perfecto.
+ *
+ * Por qué `max-height` y no solo `orientation`: un teléfono apaisado es bajo
+ * (390–430 px de alto) y una ventana de escritorio chica no tiene por qué
+ * volverse móvil. 480 px es el corte: deja los teléfonos apaisados adentro y
+ * afuera cualquier ventana utilizable de escritorio.
+ */
+@media (max-width: 768px), (max-height: 480px) and (orientation: landscape) {
     #sidebar {
         position: fixed;
         left: 0;
@@ -272,6 +312,8 @@ tbody tr:hover {
         transition: transform 0.32s cubic-bezier(0.22,1,0.36,1);
         will-change: transform;
         padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
         overflow-y: auto;
         overscroll-behavior: contain;
     }
@@ -296,8 +338,16 @@ tbody tr:hover {
 
     /* Header móvil y navegación inferior ocupan espacio real: el contenido
        no debe quedar debajo de ellos */
+    /* 88 px a mano eran «más o menos la barra»; con la barra en 72 px y el
+       aviso de conexión arriba, el número quedaba corto en cuanto algo crecía
+       (letra grande, tres líneas de toast). Se calcula con las mismas
+       variables que usa la barra, así que achicar la barra en horizontal
+       achica también este hueco — es la única forma de que no se muevan
+       independiente. */
     #views-container {
-        padding-bottom: calc(88px + env(safe-area-inset-bottom));
+        padding-bottom: calc(var(--mobile-nav-height) + 1rem + env(safe-area-inset-bottom));
+        /* `1rem`, no `16px`: con la letra grande del perfil el hueco crece con
+           el resto y la última fila no queda pegada a la barra. */
         -webkit-overflow-scrolling: touch;
         overscroll-behavior-y: contain;
     }
@@ -322,16 +372,32 @@ tbody tr:hover {
     #add-user-form {
         grid-template-columns: 1fr !important;
     }
-    #add-book-form input,
-    #add-user-form input,
-    #catalog-search-input,
-    #user-search-input,
-    #bibliomovil-search-input,
-    #bibliomovil-stop-name,
-    #bibliomovil-origin-name,
-    #manual-scan-input {
+    /* Antes esto era una lista de ids (`#catalog-search-input, #user-search-input,
+       …`) y cada campo nuevo había que acordarse de agregarla. Dos errores de
+       esa forma de trabajar, ambos con consecuencia en el teléfono: iOS hace
+       zoom en toda la página cuando un campo se enfoca con letra de menos de
+       16px — y después nadie logra entender dónde quedó el formulario —, y un
+       campo de 30 px de alto no es un blanco táctil (las pautas piden 44 px, y
+       la norma técnica del Decreto 1/2015 es peor: ahí el dedo gordo de un
+       adulto mayor llega a 50). La regla global no se puede olvidar al alta del
+       día siguiente, que es la única ventaja real.
+       `max(1rem, 16px)` y no `16px`: quien eligió letra grande en «Mi perfil»
+       sigue subiendo el campo, pero nadie baja nunca de los 16 px que iOS exige
+       para no acercarse. */
+    input,
+    select,
+    textarea {
         min-height: 44px;
-        font-size: 16px; /* evita zoom automático en iOS */
+        font-size: max(1rem, 16px);
+    }
+    /* Excepción justificada: el `checkbox`/`radio` nativo se achica si se le
+       aplica un mínimo de 44 px de alto (deja de parecer un cuadrito). Su
+       blanco táctil lo da la etiqueta que lo acompaña, que acá es grande. */
+    input[type="checkbox"],
+    input[type="radio"] {
+        min-height: 0;
+        width: 20px;
+        height: 20px;
     }
     button,
     a {
@@ -1082,6 +1148,29 @@ html.dark {
     z-index: 30;
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+}
+/* En horizontal el notch queda a un lado: sin esto el botón del menú se pinta
+   medio debajo de la cámara y el primer toque lo pierde. */
+#mobile-header button,
+#mobile-header a {
+    min-height: 44px;
+    min-width: 44px;
+    touch-action: manipulation;
+}
+#mobile-bottom-nav button {
+    touch-action: manipulation;
+}
+/* El título va en la línea que sobra, no empujando a los botones: un nombre de
+   pila largo en un teléfono de 320 px de ancho (iPhone SE de primera generación,
+   Galaxy J2, los que todavía andan en el mesón) antes se comía el botón de
+   notificaciones. */
+#mobile-page-title {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* Navegación inferior — la “versión distinta” que pide el usuario:
@@ -1096,7 +1185,13 @@ html.dark {
     align-items: stretch;
     justify-content: space-around;
     gap: 2px;
-    padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
+    padding: 6px calc(4px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom));
+    padding-left: calc(4px + env(safe-area-inset-left));
+    /* `env()` sin `viewport-fit=cover` en el <meta viewport> vale 0 siempre.
+       Por eso los cuatro HTML del proyecto llevan ahora el mismo viewport: el
+       día que alguien copie el bloque de íconos de un archivo a otro sin esa
+       línea, los márgenes del notch desaparecen en silencio — `probar-movil.mjs`
+       lo comprueba. */
     background: rgba(255,255,255,0.96);
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
@@ -1112,6 +1207,7 @@ html.dark {
     flex: 1 1 0;
     min-width: 0;
     max-width: 96px;
+    min-height: 44px;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -1120,7 +1216,11 @@ html.dark {
     padding: 6px 4px 4px;
     border-radius: 14px;
     color: #57534e;
-    font-size: 10px;
+    /* En `rem`, no en `10px` fijo: la letra de la barra inferior era la única
+       que no escalaba con «Mi perfil → tamaño de letra», así que a quien sube
+       la tipografía por vista cansada le quedaba justo lo único que tiene que
+       leer con el pulgar encima, en el mismo tamaño. 0.6875rem = 11 px al 100%. */
+    font-size: max(0.6875rem, 11px);
     font-weight: 800;
     letter-spacing: 0.02em;
     line-height: 1;
@@ -1153,14 +1253,17 @@ html.dark {
 
 /* Indicador de conexión en móvil — compacto para no romper el header */
 #estado-conexion-mobile {
-    font-size: 10px;
+    /* Era `10px` fijo: el aviso de «sin conexión» es justo el texto que alguien
+       con la letra grande del sistema necesita leer, y en px no escalaba con
+       `--escala-fuente`. Ahora escala, pero nunca baja de 11 px. */
+    font-size: max(0.6875rem, 11px);
     padding: 4px 8px;
     border-radius: 999px;
     line-height: 1;
 }
 
 /* Ocultar franja de título en móvil (el header ya da contexto + bottom nav) */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 480px) and (orientation: landscape) {
     .franja-titulo {
         display: none !important;
     }
@@ -1169,7 +1272,7 @@ html.dark {
         display: flex !important;
     }
 }
-@media (min-width: 769px) {
+@media (min-width: 769px) and (min-height: 481px) {
     #mobile-header,
     #mobile-bottom-nav {
         display: none !important;
@@ -1178,7 +1281,7 @@ html.dark {
 
 /* Tarjetas de catálogo y préstamos — en móvil ocupan todo el ancho sin
    bordes laterales desperdiciados y con sombra más suave */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 480px) and (orientation: landscape) {
     .catalog-card {
         border-radius: 1.25rem;
         margin-left: -2px;
@@ -1195,7 +1298,7 @@ html.dark {
 .lectores-card-mobile {
     display: none;
 }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 480px) and (orientation: landscape) {
     .lectores-tabla-desktop {
         display: none !important;
     }
@@ -1215,7 +1318,7 @@ html.dark {
 /* Botón flotante de Mesón para teléfono — acción primaria siempre visible */
 .mobile-fab-meson {
     position: fixed;
-    right: 16px;
+    right: calc(16px + env(safe-area-inset-right));
     bottom: calc(var(--mobile-nav-height) + 16px + env(safe-area-inset-bottom));
     z-index: 35;
     width: 56px;
@@ -1233,17 +1336,17 @@ html.dark {
 .mobile-fab-meson:active {
     transform: scale(0.96);
 }
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 480px) and (orientation: landscape) {
     .mobile-fab-meson.is-visible {
         display: flex;
     }
 }
 
 /* Toast encima de la nav inferior, centrado en móvil */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 480px) and (orientation: landscape) {
     #toast-container {
-        left: 12px !important;
-        right: 12px !important;
+        left: calc(12px + env(safe-area-inset-left)) !important;
+        right: calc(12px + env(safe-area-inset-right)) !important;
         bottom: calc(var(--mobile-nav-height) + 12px + env(safe-area-inset-bottom)) !important;
         align-items: stretch;
     }
@@ -1256,7 +1359,7 @@ html.dark {
 }
 
 /* View canvas: quitar brillo radial en móvil para rendimiento */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 480px) and (orientation: landscape) {
     .view-canvas {
         background-image: none;
         background: #F7F4EB;
@@ -1264,4 +1367,95 @@ html.dark {
     .dark .view-canvas {
         background: #1c1917;
     }
+}
+
+/* ===========================================================
+   Teléfono en horizontal — el caso que faltaba (29/10/2026)
+   ===========================================================
+   No es un detalle de gusto: un teléfono apaisado tiene 390–430 px de alto
+   totales. Con la barra inferior de 72 px, el header de 56 y un modal a
+   92 dvh, lo que quedaba para el formulario eran ~120 px — o sea, dos campos y
+   nada más, con el teclado encima. Aquí se compacta la carcasa, no se cambia el
+   contenido: la misma información, con las barras fuera del camino.
+   Todo esto vive en `(max-height: 480px) and (orientation: landscape)` y no en
+   el bloque general de móvil, para que un teléfono en vertical conserve la barra
+   con etiquetas (que es como se lee de un brazo estirado). */
+@media (max-height: 480px) and (orientation: landscape) {
+    :root {
+        --mobile-nav-height: 56px;
+        --mobile-header-height: 44px;
+    }
+
+    /* La etiqueta de 11 px bajo cada ícono ya no cabe: se guarda de accesible
+       (`aria-label` sigue en el botón, y el título en `title` para la consulta
+       rápida) y la barra pasa a ser de íconos, con el doble de superficie útil
+       por dedo al caber cinco accesos en menos ancho. */
+    .mobile-nav-btn span {
+        display: none;
+    }
+    .mobile-nav-btn {
+        gap: 0;
+        padding: 8px 4px;
+    }
+    .mobile-nav-btn i {
+        font-size: 21px;
+    }
+
+    #mobile-header {
+        min-height: var(--mobile-header-height);
+        padding-top: 2px;
+        padding-bottom: 2px;
+    }
+
+    /* El FAB taparía media pantalla en horizontal; su acción sigue
+       disponible por la navegación inferior y por el propio Mesón. */
+    .mobile-fab-meson.is-visible {
+        display: none;
+    }
+
+    /* El modal se centra en vez de apoyarse abajo: a 390 px de alto, una hoja
+       inferior deja dos campos visibles. `100dvh` con `dvh` ya resuelto — con
+       el teclado abierto el viewport visible es otro, y ahí entra el script. */
+    .fixed.inset-0.z-\[10000\] {
+        align-items: center;
+        padding: 8px calc(8px + env(safe-area-inset-right)) 8px calc(8px + env(safe-area-inset-left));
+    }
+    .fixed.inset-0.z-\[10000\] > .ui-dialog,
+    .fixed.inset-0.z-\[10000\] > div[class*="rounded-2xl"] {
+        max-height: calc(100dvh - 16px);
+        margin-bottom: 0;
+        border-radius: 1.25rem;
+    }
+
+    /* Las tablas de Administración y Reportes, en 390 px de alto, se leen con
+       menos aire por celda y con el encabezado pegado: 0.75/0.5 → 0.4/0.5. */
+    th,
+    td {
+        padding: 0.4rem 0.5rem;
+    }
+
+    /* `md:p-7` (Tailwind, 28 px) gana por clase en cuanto el ancho pasa de
+       768, que es justo el caso de un teléfono apaisado: se anula acá, que se
+       evalúa después, para no perder 56 px de ancho en márgenes. */
+    .view-canvas {
+        padding: 0.75rem !important;
+    }
+}
+
+/* Teclado abierto. En Android el viewport se encoge y las barras se acomodan
+   solas; en iOS NO: la barra inferior queda flotando sobre el teclado y tapa el
+   campo que se está escribiendo, que es la queja móvil más antigua que existe.
+   `ui-router.js` pone y saca `body.entrada-activa` al enfocar y desenfocar un
+   campo de texto; acá solo se describe el efecto, con reserva para navegadores
+   que no sepan `dvh` (una línea abajo la propiedad se ignora y no pasa nada). */
+body.entrada-activa #mobile-bottom-nav {
+    transform: translateY(140%);
+    box-shadow: none;
+}
+#mobile-bottom-nav {
+    transition: transform 0.18s ease;
+}
+body.entrada-activa .mobile-fab-meson.is-visible {
+    opacity: 0;
+    pointer-events: none;
 }

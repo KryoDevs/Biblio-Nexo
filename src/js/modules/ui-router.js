@@ -3,6 +3,7 @@ import { escapeHtml } from './utilidades.js';
 import { CONFIG } from '../config.js';
 import * as auth from './auth.js';
 import registroErrores from './errores.js';
+import { esMovil, escucharMovil, vigilarTeclado } from './movil.js';
 
 export default {
   renderNavMenu() {
@@ -462,12 +463,15 @@ export default {
     // En móvil, el sidebar real es el drawer; en escritorio es el lateral
     // Para simplificar, en móvil convertimos #sidebar en drawer visible
     if (desktopSidebar) {
-      // En móvil, hacerlo visible como drawer
-      const mq = (typeof window.matchMedia === 'function')
-        ? window.matchMedia('(max-width: 768px)')
-        : { matches: false, addEventListener() {}, addListener() {} };
+      // En móvil, hacerlo visible como drawer. La condición NO se escribe acá:
+      // viene de `movil.js`, que es la misma cadena que usan los `@media` del CSS
+      // (y la que verifica `pruebas/probar-movil.mjs`). Antes era un
+      // `matchMedia('(max-width: 768px)')` local, así que en un teléfono
+      // apaisado el CSS tampoco aplicaba y el `#sidebar` quedaba como riel de
+      // escritorio sobre una pantalla de 390 px de alto: sin drawer, con la
+      // franja de título y sin navegación inferior.
       const applySidebarMode = () => {
-        if (mq.matches) {
+        if (esMovil()) {
           desktopSidebar.classList.remove('hidden');
           desktopSidebar.style.display = 'flex';
           activeSidebar = desktopSidebar;
@@ -482,7 +486,10 @@ export default {
         }
       };
       applySidebarMode();
-      mq.addEventListener('change', applySidebarMode);
+      // `renderShell()` corre en cada inicio de sesión y en cada cambio de rol:
+      // el unsubscribe se guarda por si acaso, no porque alguien lo llame hoy.
+      this._dejarDeEscucharMovil?.();
+      this._dejarDeEscucharMovil = escucharMovil(() => applySidebarMode());
       // Guardar referencia para toggle
       this._applySidebarMode = applySidebarMode;
     }
@@ -581,6 +588,15 @@ export default {
 
     registroErrores.iniciar(() => this.currentView);
     this._vigilarPortadas();
+
+    // Teclado abierto: en iOS el viewport NO se encoge y la barra inferior queda
+    // flotando sobre el campo que se está escribiendo. La clase `body.entrada-activa`
+    // la pone y la saca este watcher (en `movil.js`); el efecto lo describe el CSS.
+    // Va acá, y no dentro del bloque del sidebar, porque el escáner y los
+    // formularios existen aunque el sidebar no. Es idempotente: `renderShell()`
+    // corre en cada inicio de sesión y en cada cambio de rol.
+    this._dejarDeVigilarTeclado?.();
+    this._dejarDeVigilarTeclado = vigilarTeclado();
 
     this._detenerEstadoConexion?.();
     this._detenerEstadoConexion = estadoConexion.suscribir(estado => this._renderIndicadorConexion(estado));
