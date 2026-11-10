@@ -245,6 +245,39 @@ export default defineConfig({
     cors: true
   },
   build: {
+    /**
+     * Piso de compatibilidad del CSS construido — y el motivo por el que esta
+     * línea existe es un fallo silencioso que ni el build ni las pruebas de
+     * siempre alcanzaban a ver.
+     *
+     * Con `target: 'esnext'` (y `cssTarget` sin fijar, que heredaba de él), el
+     * minificador de CSS de Vite 8 reescribe las consultas a la sintaxis de rango
+     * de Media Queries 4: `@media (max-width: 768px)` salía de acá como
+     * `@media (width<=768px)`. Válido en navegadores de fines de 2022 en
+     * adelante. En Chrome/WebView anteriores a 104 y Safari anteriores a 16.4 esa
+     * línea es un error de sintaxis y el navegador descarta el bloque entero: el
+     * teléfono se queda sin drawer, sin barra inferior, sin los targets de 44 px,
+     * sin la regla de 16 px que impide que iOS haga zoom al enfocar, y sin media
+     * `md:` de Tailwind — todo el shell móvil y el breakpoint de escritorio, sin
+     * una sola palabra en la consola. Un celular de hace seis años cae adentro de
+     * ese grupo, y es justamente el que abre desde el bolsillo la página de escaneo
+     * remoto de la vecina.
+     *
+     * El JS se queda en `esnext` a propósito: ahí un navegador viejo falla
+     * ruidosamente (pantalla en blanco), no en silencio.
+     *
+     * Dos advertencias para quien mueva esto:
+     *  · `css.lightningcss.targets` NO sirve acá — `build.cssTarget` tiene
+     *    preferencia en el paso de minificado (lo dice el tipo de Vite), y
+     *    `css.cssTarget` lo escucha solo el minificador de esbuild, que en Vite 8
+     *    ni viene instalado. La primera versión del arreglo fue una de esas dos y
+     *    el archivo construido salió byte por byte igual: así se descubrió.
+     *  · que el piso sea viejo lo sostiene `npm run verify:build`, que busca la
+     *    sintaxis de rango en `dist/`. Sin esa comprobación, basta con que alguien
+     *    «limpie» esta línea para que el teléfono vuelva a quedar a cero, y todo
+     *    siga verde.
+     */
+    cssTarget: 'chrome61',
     target: 'esnext',
     outDir: 'dist',
     rollupOptions: {

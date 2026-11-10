@@ -304,4 +304,47 @@ while (pila.length) {
   }
 }
 
+// ── El CSS que llega al teléfono, después del minificador ──────────────────
+//
+// Las comprobaciones de arriba miran el empaquetado; esta mira el RESULTADO de
+// minificar, porque el único daño que sufrió la interfaz móvil en toda su
+// historia no estaba en el fuente: Vite 8 minifica el CSS con lightningcss y, con
+// el objetivo por defecto (`build.target`), reescribe `@media (max-width: 768px)`
+// a la sintaxis de rango de Media Queries 4 (`(width<=768px)`). En Chrome o
+// WebView anteriores a 104, o Safari anteriores a 16.4, esa línea es un error de
+// sintaxis y el navegador tira el bloque entero: ni shell móvil ni `md:` de
+// Tailwind. El fuente estaba impecable, `npm test` verde, y el celular seguía sin
+// nada. Se audita sobre `dist/` porque es el único sitio donde ese daño existe.
+const hojasCSS = [];
+const pilaCSS = [DIST];
+while (pilaCSS.length) {
+  const carpeta = pilaCSS.pop();
+  for (const entrada of fs.readdirSync(carpeta, { withFileTypes: true })) {
+    const ruta = path.join(carpeta, entrada.name);
+    if (entrada.isDirectory()) { pilaCSS.push(ruta); continue; }
+    if (entrada.name.endsWith('.css')) hojasCSS.push(ruta);
+  }
+}
+assert.ok(hojasCSS.length > 0, 'El build no produjo ninguna hoja de estilos.');
+for (const ruta of hojasCSS) {
+  const hoja = fs.readFileSync(ruta, 'utf8');
+  const rangos = [...hoja.matchAll(/\(\s*(?:width|height)\s*[<>]=?\s*[^)]*\)/g)].map(m => m[0]);
+  assert.ok(rangos.length === 0,
+    `${path.relative(DIST, ruta)} usa sintaxis de rango de Media Queries 4 (${rangos.slice(0, 2).join(', ')}${rangos.length > 2 ? `, …${rangos.length} en total` : ''}). ` +
+    'La descartan completo Chrome/WebView < 104 y Safari < 16.4, y con ella se va el shell móvil entero. ' +
+    'Se previene con `build.cssTarget` en `vite.config.js`; no basta con `css.lightningcss.targets` (lo pisa) ni con `css.cssTarget` (solo lo escucha esbuild, que Vite 8 no trae).');
+}
+const hojaDeEstilos = hojasCSS.map(r => [r, fs.readFileSync(r, 'utf8')]).find(([, h]) => h.includes('--mobile-nav-height'));
+assert.ok(hojaDeEstilos, 'La hoja de estilos del build no trae las variables del shell móvil: no es la que escribe `src/assets/css/styles.css`.');
+const cssMovil = hojaDeEstilos[1];
+assert.ok(/@media[^{]*max-width:\s*768px[^{]*max-height:\s*480px[^{]*orientation:\s*landscape/.test(cssMovil.replace(/\s*,\s*/g, ',')),
+  'En el CSS construido no hay ninguna consulta que combine el ancho de 768 px con el alto de 480 px en horizontal: el teléfono apaisado se queda sin shell.');
+assert.ok(cssMovil.includes('env(safe-area-inset-left)') && cssMovil.includes('env(safe-area-inset-right)'),
+  'El CSS construido perdió los márgenes laterales del notch.');
+for (const [nombre, contenido] of leidas) {
+  assert.ok(/viewport-fit=cover/.test(contenido), `${nombre} salió del build sin viewport-fit=cover: env() vale 0 y los márgenes del notch desaparecen en silencio.`);
+  assert.ok(!/user-scalable=no|maximum-scale=/.test(contenido), `${nombre} bloquea el zoom del usuario.`);
+}
+console.log(`CSS del teléfono: sin sintaxis de rango en ${hojasCSS.length} hoja(s), consulta apaisada y franjas del notch presentes en el construido, viewport coherente en las ${PAGINAS.length} páginas.`);
+
 console.log('Señales públicas: canonical y Open Graph absolutos en un solo origen, noindex coherente, robots/sitemap/llms generados, íconos absolutos con su talla real, JSON-LD válido y sin source maps huérfanos.');
