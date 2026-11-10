@@ -94,6 +94,16 @@ jobs:
       - name: Probar el estado offline (Legacy - indexdb/sync)
         run: npm run test:legacy:offline
 
+      - name: Probar la interfaz en teléfonos
+        # Auditoría estática de las condiciones que hacen que la app se vea bien
+        # en un teléfono: la consulta compartida entre CSS y JS (un teléfono
+        # apaisado no puede recibir el layout de escritorio), `viewport-fit=cover`
+        # en los cuatro HTML (sin esa línea los márgenes del notch valen 0 en
+        # silencio), 16 px en los campos (iOS hace zoom por debajo), 44 px de
+        # blanco táctil y la barra inferior fuera de en medio con el teclado.
+        # Corre sobre el fuente, no sobre `dist/`, así que va antes del build.
+        run: npm run test:movil
+
       - name: Probar contraste (Legacy)
         run: npm run test:legacy:contraste
 
