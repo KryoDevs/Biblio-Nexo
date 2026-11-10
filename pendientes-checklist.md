@@ -526,3 +526,17 @@ Sin pendientes en esta categoría — terminaste el SMTP propio hoy.
       nadie lo verificó todavía fuera de la vista previa.
 - [ ] Probar en producción, con un enlace real, escanear un libro nuevo y
       uno existente, y usar "Deshacer" en ambos — solo se probó simulado.
+- [ ] **Girar el teléfono y mirar la app en horizontal** (dos aparatos: un iPhone
+      con notch y un Android viejo, de los que quedan en la bolsa de un vecino).
+      `npm run test:movil` sostiene las reglas —la consulta compartida CSS↔JS, los
+      16 px de los campos, las franjas del notch, el teclado en iOS— y
+      `verify:build` revisa el CSS ya minificado. Lo que ninguno puede ver es el
+      aspecto: que el blur del header no se rompa, que ningún botón caiga bajo la
+      cámara, y que la letra grande del perfil mueva también las etiquetas de la
+      barra. Diez minutos. (Contexto: `docs/ANALISIS-MOVIL-2026-10.md` §5.1.)
+- [ ] Confirmar en un teléfono realmente viejo (Android con Chrome/WebView < 104,
+      o iOS < 16.4) que la interfaz móvil aparece: hasta esta ronda el minificador
+      emitía `@media (width<=768px)` y esos navegadores tiraban el bloque entero.
+      Arreglado con `build.cssTarget: 'chrome61'`; la comprobación sobre `dist/`
+      ya no lo deja recaer, pero la confirmación en el aparato es lo que cierra el
+      círculo con el 100 % de los teléfonos que entran por QR.
