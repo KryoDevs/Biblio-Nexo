@@ -269,7 +269,17 @@ jobs:
           node-version: '22'
 
       - name: Instalar el CLI de Supabase
-        run: npm install supabase --no-save
+        # Fijado a la línea 2.x a propósito, y no por gusto: este paso decía
+        # `npm install supabase` sin versión, o sea «la última que haya hoy».
+        # El 10 de octubre de 2026 salió Supabase CLI 3.x y el job se puso rojo
+        # sin que nadie tocara una línea de SQL — que es exactamente la forma en
+        # que se rompe una prueba de «reconstrucción desde cero»: el fuente está
+        # bien y la herramienta con la que se comprueba se movió sola abajo.
+        # En v3, además, `--db-url` pasó a estar deprecado en favor de
+        # `--remote=<url>`; cuando el proyecto decida dar el salto se cambian
+        # aquí las dos banderas, con las migraciones reales delante (este job es
+        # justo el lugar donde eso se ve), no un lunes cualquiera.
+        run: npm install supabase@2 --no-save
 
       - name: Preparar el esquema base
         # Reproduce lo que Supabase da de fábrica: esquema auth, roles y tablas
@@ -282,9 +292,27 @@ jobs:
       - name: Aplicar todas las migraciones con el CLI
         # sslmode=disable porque el PostgreSQL de servicio no tiene certificado.
         # Contra Supabase se usa --linked y no hace falta.
+        #
+        # La salida se copia al resumen del paso, además de ir al log, porque el
+        # log de Actions no siempre es legible desde donde se revisa esto (el
+        # contenedor no puede descargar `results-receiver.actions.githubusercontent.com`):
+        # sin esta línea, un fallo aquí deja como único rastro «Process completed
+        # with exit code 1» y obliga a adivinar. El `tee` con `pipefail` mantiene
+        # el código de salida del CLI, que es lo que realmente pone el job rojo.
         run: |
+          set -o pipefail
           ./node_modules/.bin/supabase migration up --include-all \
-            --db-url "postgresql://postgres:pruebas@localhost:55432/biblionexo?sslmode=disable"
+            --db-url "postgresql://postgres:pruebas@localhost:55432/biblionexo?sslmode=disable" \
+            2>&1 | tee /tmp/migraciones-cli.log
+          estado=$?
+          {
+            echo '#### `supabase migration up --include-all`'
+            echo '```'
+            tail -40 /tmp/migraciones-cli.log
+            echo '```'
+            echo "código de salida: \`$estado\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $estado
 
       - name: Crear cuenta de administrador para las comprobaciones
         # Las funciones de autodiagnóstico exigen rol admin desde que se cerró la
