@@ -3,6 +3,7 @@ import { escapeHtml } from './utilidades.js';
 import { CONFIG } from '../config.js';
 import * as auth from './auth.js';
 import registroErrores from './errores.js';
+import { esMovil, escucharMovil, vigilarTeclado } from './movil.js';
 
 export default {
   renderNavMenu() {
@@ -250,6 +251,11 @@ export default {
     if (title) title.textContent = viewDef?.label || 'Dashboard';
     if (kicker) kicker.textContent = viewDef?.section || '';
 
+    // El <title> de la pestaña cambia con la vista. Es la misma etiqueta que ya
+    // se saca de CONFIG.VIEWS_BY_ROLE para el menú y la franja, así que no hay
+    // una cuarta lista que mantener en sincronía.
+    document.title = this._tituloDocumento(viewDef);
+
     // Loader mientras busca en BD
     const container = this._container();
       if(container) container.innerHTML = this._skeletonLoader(viewName);
@@ -286,6 +292,23 @@ export default {
           </div>`;
         document.getElementById('retry-view-btn')?.addEventListener('click', () => this.switchView(viewName));
     }
+  },
+
+  /**
+   * Título de la pestaña para una vista. El Dashboard deja el título de la
+   * portada sin sufijo — "Dashboard — BiblioNexo" describe peor esa pantalla
+   * que el nombre del propio sistema.
+   *
+   * Existe porque antes `document.title` no se tocaba nunca: las nueve vistas
+   * del panel eran indistinguibles en la barra de pestañas, en el administrador
+   * de ventanas del teléfono y en el historial del navegador, que guardaba
+   * nueve entradas con el mismo texto.
+   */
+  _tituloDocumento(viewDef) {
+    const BASE = 'BiblioNexo — Biblioteca Municipal de Futrono';
+    const etiqueta = (viewDef?.label || '').trim();
+    if (!etiqueta || viewDef?.id === 'dashboard') return BASE;
+    return `${etiqueta} — BiblioNexo`;
   },
 
   _momentoDelDia() {
@@ -384,7 +407,19 @@ export default {
             <span class="w-1.5 h-8 bg-patrimonio-madera rounded-sm hidden sm:block"></span>
             <div class="min-w-0">
               <p id="page-kicker" class="text-[10px] font-black uppercase tracking-widest text-stone-500 dark:text-stone-400 leading-none mb-0.5">Panel</p>
-              <h2 id="page-title" class="font-serif font-semibold text-stone-800 dark:text-stone-200 text-base leading-tight">Dashboard</h2>
+              <!-- H1 del documento, no H2: las nueve vistas del panel viven
+                   dentro de este mismo HTML y antes la jerarquía empezaba en
+                   H2, así que la aplicación completa no tenía ningún encabezado
+                   de nivel 1 (señal 10 de la auditoría de octubre de 2026). El
+                   tamaño y la tipografía los siguen dando las clases utilitarias
+                   de la línea de abajo, no la etiqueta; y en impresión la franja
+                   se oculta con su regla de @media print en styles.css, de modo
+                   que la hoja de ruta del Bibliomóvil conserva su único H1 sin
+                   competir con este.
+
+                   Nada de backticks dentro de este comentario, a propósito: está
+                   dentro de una plantilla de texto y un backtick la cerraría. -->
+              <h1 id="page-title" class="font-serif font-semibold text-stone-800 dark:text-stone-200 text-base leading-tight">Dashboard</h1>
             </div>
             <div class="ml-auto flex items-center gap-4 relative">
               <div class="relative">
@@ -428,12 +463,15 @@ export default {
     // En móvil, el sidebar real es el drawer; en escritorio es el lateral
     // Para simplificar, en móvil convertimos #sidebar en drawer visible
     if (desktopSidebar) {
-      // En móvil, hacerlo visible como drawer
-      const mq = (typeof window.matchMedia === 'function')
-        ? window.matchMedia('(max-width: 768px)')
-        : { matches: false, addEventListener() {}, addListener() {} };
+      // En móvil, hacerlo visible como drawer. La condición NO se escribe acá:
+      // viene de `movil.js`, que es la misma cadena que usan los `@media` del CSS
+      // (y la que verifica `pruebas/probar-movil.mjs`). Antes era un
+      // `matchMedia('(max-width: 768px)')` local, así que en un teléfono
+      // apaisado el CSS tampoco aplicaba y el `#sidebar` quedaba como riel de
+      // escritorio sobre una pantalla de 390 px de alto: sin drawer, con la
+      // franja de título y sin navegación inferior.
       const applySidebarMode = () => {
-        if (mq.matches) {
+        if (esMovil()) {
           desktopSidebar.classList.remove('hidden');
           desktopSidebar.style.display = 'flex';
           activeSidebar = desktopSidebar;
@@ -448,7 +486,10 @@ export default {
         }
       };
       applySidebarMode();
-      mq.addEventListener('change', applySidebarMode);
+      // `renderShell()` corre en cada inicio de sesión y en cada cambio de rol:
+      // el unsubscribe se guarda por si acaso, no porque alguien lo llame hoy.
+      this._dejarDeEscucharMovil?.();
+      this._dejarDeEscucharMovil = escucharMovil(() => applySidebarMode());
       // Guardar referencia para toggle
       this._applySidebarMode = applySidebarMode;
     }
@@ -547,6 +588,15 @@ export default {
 
     registroErrores.iniciar(() => this.currentView);
     this._vigilarPortadas();
+
+    // Teclado abierto: en iOS el viewport NO se encoge y la barra inferior queda
+    // flotando sobre el campo que se está escribiendo. La clase `body.entrada-activa`
+    // la pone y la saca este watcher (en `movil.js`); el efecto lo describe el CSS.
+    // Va acá, y no dentro del bloque del sidebar, porque el escáner y los
+    // formularios existen aunque el sidebar no. Es idempotente: `renderShell()`
+    // corre en cada inicio de sesión y en cada cambio de rol.
+    this._dejarDeVigilarTeclado?.();
+    this._dejarDeVigilarTeclado = vigilarTeclado();
 
     this._detenerEstadoConexion?.();
     this._detenerEstadoConexion = estadoConexion.suscribir(estado => this._renderIndicadorConexion(estado));

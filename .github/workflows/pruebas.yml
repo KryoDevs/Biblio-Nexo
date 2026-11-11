@@ -94,6 +94,16 @@ jobs:
       - name: Probar el estado offline (Legacy - indexdb/sync)
         run: npm run test:legacy:offline
 
+      - name: Probar la interfaz en teléfonos
+        # Auditoría estática de las condiciones que hacen que la app se vea bien
+        # en un teléfono: la consulta compartida entre CSS y JS (un teléfono
+        # apaisado no puede recibir el layout de escritorio), `viewport-fit=cover`
+        # en los cuatro HTML (sin esa línea los márgenes del notch valen 0 en
+        # silencio), 16 px en los campos (iOS hace zoom por debajo), 44 px de
+        # blanco táctil y la barra inferior fuera de en medio con el teclado.
+        # Corre sobre el fuente, no sobre `dist/`, así que va antes del build.
+        run: npm run test:movil
+
       - name: Probar contraste (Legacy)
         run: npm run test:legacy:contraste
 
@@ -139,6 +149,17 @@ jobs:
         # base previa a esta ronda, los aplica y comprueba la verificación del
         # Paso 5 — para que el documento y las migraciones no se separen.
         run: python3 pruebas/probar-despliegue-manual.py
+
+      - name: Probar que un respaldo se puede restaurar
+        # El plan Free de Supabase no trae respaldos administrados: la única copia
+        # del catálogo son los JSON que `respaldo-automatico` sube al bucket. Un
+        # respaldo que nadie restauró es una esperanza, no un respaldo — y los
+        # modos en que falla una restauración (columnas `generated always as
+        # identity`, secuencias sin alinear, el disparador de auditoría chocando
+        # contra sus propias filas restauradas) solo se ven contra un Postgres de
+        # verdad. Esta prueba restaura de punta a punta sobre las migraciones
+        # reales; ver pruebas/probar-restauracion.py.
+        run: python3 pruebas/probar-restauracion.py
 
   # ==========================================================================
   # 4. Base de datos real
@@ -248,7 +269,17 @@ jobs:
           node-version: '22'
 
       - name: Instalar el CLI de Supabase
-        run: npm install supabase --no-save
+        # Fijado a la línea 2.x a propósito, y no por gusto: este paso decía
+        # `npm install supabase` sin versión, o sea «la última que haya hoy».
+        # El 10 de octubre de 2026 salió Supabase CLI 3.x y el job se puso rojo
+        # sin que nadie tocara una línea de SQL — que es exactamente la forma en
+        # que se rompe una prueba de «reconstrucción desde cero»: el fuente está
+        # bien y la herramienta con la que se comprueba se movió sola abajo.
+        # En v3, además, `--db-url` pasó a estar deprecado en favor de
+        # `--remote=<url>`; cuando el proyecto decida dar el salto se cambian
+        # aquí las dos banderas, con las migraciones reales delante (este job es
+        # justo el lugar donde eso se ve), no un lunes cualquiera.
+        run: npm install supabase@2 --no-save
 
       - name: Preparar el esquema base
         # Reproduce lo que Supabase da de fábrica: esquema auth, roles y tablas
@@ -261,9 +292,27 @@ jobs:
       - name: Aplicar todas las migraciones con el CLI
         # sslmode=disable porque el PostgreSQL de servicio no tiene certificado.
         # Contra Supabase se usa --linked y no hace falta.
+        #
+        # La salida se copia al resumen del paso, además de ir al log, porque el
+        # log de Actions no siempre es legible desde donde se revisa esto (el
+        # contenedor no puede descargar `results-receiver.actions.githubusercontent.com`):
+        # sin esta línea, un fallo aquí deja como único rastro «Process completed
+        # with exit code 1» y obliga a adivinar. El `tee` con `pipefail` mantiene
+        # el código de salida del CLI, que es lo que realmente pone el job rojo.
         run: |
+          set -o pipefail
           ./node_modules/.bin/supabase migration up --include-all \
-            --db-url "postgresql://postgres:pruebas@localhost:55432/biblionexo?sslmode=disable"
+            --db-url "postgresql://postgres:pruebas@localhost:55432/biblionexo?sslmode=disable" \
+            2>&1 | tee /tmp/migraciones-cli.log
+          estado=$?
+          {
+            echo '#### `supabase migration up --include-all`'
+            echo '```'
+            tail -40 /tmp/migraciones-cli.log
+            echo '```'
+            echo "código de salida: \`$estado\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit $estado
 
       - name: Crear cuenta de administrador para las comprobaciones
         # Las funciones de autodiagnóstico exigen rol admin desde que se cerró la

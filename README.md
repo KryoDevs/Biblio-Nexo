@@ -44,7 +44,7 @@ El cliente lee su configuración desde `src/js/config.js`:
 - **`SUPABASE_URL`**: URL pública del proyecto Supabase (`https://<project-ref>.supabase.co`).
 - **`SUPABASE_ANON_KEY`**: Llave pública `anon` de Supabase. Es pública por diseño; la seguridad real reside en las políticas **Row Level Security (RLS)** y en las funciones `SECURITY DEFINER` con guarda `public.es_personal()` / `public.es_admin()`. **Jamás coloques la llave `service_role` en el repositorio.**
 - **`ADMIN_EMAILS`**: Respaldo visual de correos de administración (el servidor valida siempre contra la tabla `public.usuarios`).
-- **`BIBLIOTECA`**: Nombre oficial, dirección (`Balmaceda 68, Futrono`), teléfono de contacto (`+56 63 248 2633`) y parámetros por defecto (`MAX_PRESTAMOS_POR_LECTOR`, `DIAS_PRESTAMO_DEFECTO`, `DIAS_AVISO_VENCIMIENTO`, `MAX_RENOVACIONES`).
+- **`BIBLIOTECA`**: Nombre oficial, dirección y teléfono de contacto, más los parámetros por defecto (`MAX_PRESTAMOS_POR_LECTOR`, `DIAS_PRESTAMO_DEFECTO`, `DIAS_AVISO_VENCIMIENTO`, `MAX_RENOVACIONES`). La dirección y el teléfono **aún no están confirmados con la biblioteca** (el propio archivo lo advierte en un comentario), y por eso este README no los repite: estaban escritos dos veces y con valores distintos. El único lugar donde viven es `src/js/config.js`, y de ahí salen al pie de los avisos que se envían por WhatsApp a los lectores (`ui-base.js`, `_textoAviso`) y al nombre que encabeza los reportes. Pedir los dos valores y ponerlos ahí es el paso pendiente; el JSON-LD de `index.html` los espera para cuando sean los reales (ver `docs/despliegue/031-senales-publicas-2026-10.md`).
 
 ---
 

@@ -174,7 +174,14 @@ Lista de verificación previa al uso:
 - [ ] La aplicación está en HTTPS y llegan las cabeceras de seguridad.
 - [ ] Se probó el mapa, la selección de puntos y el enlace de navegación; se entiende
       que el cálculo vial requiere internet y usa un servicio público.
-- [ ] Existe un respaldo y alguien probó restaurarlo.
+- [ ] Existe un respaldo y alguien probó restaurarlo. Los respaldos existen —la
+      tarea `respaldo-automatico` los sube cada día al bucket `respaldos`— y ya hay
+      con qué probar la restauración: `node pruebas/restaurar-respaldo.mjs
+      respaldo-….json` escribe un `restauracion.sql` que se puede aplicar a un
+      proyecto de pruebas, y `python3 pruebas/probar-restauracion.py` verifica el
+      mecanismo contra Postgres en cada envío. Lo que falta es la otra mitad, que
+      no la puede hacer una máquina: el simulacro contra un respaldo real, con los
+      siete pasos de `docs/despliegue/032-operar-sin-costo.md`.
 
 Para pruebas locales de la base, usa una instancia de pruebas:
 

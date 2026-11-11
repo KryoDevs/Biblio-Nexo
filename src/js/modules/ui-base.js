@@ -1,4 +1,5 @@
 import * as auth from './auth.js';
+import { actualizarColorDeTema } from './movil.js';
 import { db, hoyEnChile } from './db.js';
 import registroErrores from './errores.js';
 import { CONFIG } from '../config.js';
@@ -1122,6 +1123,12 @@ class UIManager {
     }
 
     const applyTheme = (dark) => {
+      // La franja del reloj y la batería de un teléfono, en la app instalada, la
+      // pinta el `meta[name=theme-color]` — que en el HTML está fijado una sola
+      // vez. Sin esto, el modo oscuro del mesón (que es el turno de la mañana
+      // temprano y el de la tarde) dejaba una franja café claro arriba de una app
+      // oscura. Se sincroniza acá, en el único punto donde el tema cambia.
+      actualizarColorDeTema(!!dark);
       if (dark) {
         document.documentElement.classList.add('dark');
         try { localStorage.setItem('theme', 'dark'); } catch(e) {}
